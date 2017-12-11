@@ -1,2 +1,2 @@
 # VitAly
-Visualization and Analysis Framework
+Framework for **Vi**sualiza**t**ion and **A**na**ly**sis of Simulation Data
