@@ -4,8 +4,13 @@ project(VizAly)
 
 
 # Subprojects
-option(ENABLE_GioMPIQuery "Testing Querying of GenericIO files" OFF)
-if (ENABLE_GioMPIQuery)
-	add_subdirectory(GioMPIQuery)
+option(ENABLE_HelloWorld "Testing Subprojects" OFF)
+if (ENABLE_HelloWorld)
+	add_subdirectory(HelloWorld)
 endif()
 
+
+# Remove subprojects
+add_custom_target(clean-subprojects
+	COMMAND rm -rf HelloWorld
+	)
