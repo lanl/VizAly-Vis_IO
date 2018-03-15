@@ -143,6 +143,7 @@ int main(int argc, char *argv[])
             std::vector< gio::GenericIO::VariableInfo > VI;
             GIO.getVariableInfo(VI);
 
+
             //
             // Create space to store in any data from GIO
             std::cout << "\n# Variables: " << VI.size() << std::endl;
@@ -150,7 +151,8 @@ int main(int argc, char *argv[])
             int numVars = VI.size();
             for (int i = 0; i < numVars; i++)
             {
-                std::cout <<  i << ": " << VI[i].Name << ", " << VI[i].Size << ", " <<  VI[i].IsFloat << ", " <<  VI[i].IsSigned << ", " << VI[i].MaybePhysGhost; // << ", " << VI[i].HasExtraSpace;
+                std::cout <<  i << ": " << VI[i].Name << ", " << VI[i].Size << ", " <<  VI[i].IsFloat << ", " <<  VI[i].IsSigned << ", " << VI[i].MaybePhysGhost;
+
                 if (VI[i].IsPhysCoordX)
                     std::cout << ", x variable" << std::endl;
                 else if (VI[i].IsPhysCoordY)
@@ -199,4 +201,3 @@ int main(int argc, char *argv[])
 
 // e.g. run:
 // $ frontend/GenericIOFileInfo m000.full.mpicosmo.499
-
