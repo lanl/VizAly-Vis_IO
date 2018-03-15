@@ -4,6 +4,7 @@
  *
  *                               Generic IO (ANL-15-066)
  *                     Hal Finkel, Argonne National Laboratory
+ *                  Jon Woodring, Los Alamos National Laboratory
  *
  *                              OPEN SOURCE LICENSE
  *
@@ -47,6 +48,19 @@
 #include <sstream>
 #include <sqlite3ext.h>
 SQLITE_EXTENSION_INIT1
+
+#define GIO_EQUAL_CONSTRAINT 'E'
+#define GIO_GRTEQ_CONSTRAINT 'G'
+#define GIO_GREAT_CONSTRAINT 'g'
+#define GIO_LESEQ_CONSTRAINT 'L'
+#define GIO_LESST_CONSTRAINT 'l'
+
+#define GIO_RANK_INDEX 'r'
+#define GIO_X_INDEX 'x'
+#define GIO_Y_INDEX 'y'
+#define GIO_Z_INDEX 'z'
+
+#define GIO_INDEX_SEP ';'
 
 using namespace std;
 using namespace gio;
@@ -119,7 +133,7 @@ struct gio_vtab
     {
         memset(&vtab, 0, sizeof(sqlite3_vtab));
 
-        GIO.openAndReadHeader(false);
+        GIO.openAndReadHeader(GenericIO::MismatchAllowed);
 
         int NR = GIO.readNRanks();
         for (int i = 0; i < NR; ++i)
@@ -127,11 +141,39 @@ struct gio_vtab
             size_t NElem = GIO.readNumElems(i);
             MaxNumElems = max(MaxNumElems, NElem);
         }
+
+         vector<GenericIO::VariableInfo> VI;
+        GIO.getVariableInfo(VI);
+
+        for (size_t i = 0; i < VI.size(); ++i)
+        {
+            PrinterBase *P = 0;
+
+            // try creating conversion routines in this precedence
+          #define ADD_PRINTER(T) \
+            if (!P) P = addPrinter<T>(VI[i], GIO, MaxNumElems)
+
+            ADD_PRINTER(float);
+            ADD_PRINTER(double);
+            ADD_PRINTER(unsigned char);
+            ADD_PRINTER(signed char);
+            ADD_PRINTER(int16_t);
+            ADD_PRINTER(uint16_t);
+            ADD_PRINTER(int32_t);
+            ADD_PRINTER(uint32_t);
+            ADD_PRINTER(int64_t);
+            ADD_PRINTER(uint64_t);
+          #undef ADD_PRINTER
+
+            Printers.push_back(P);
+        }
     }
 
     sqlite3_vtab vtab;
     GenericIO    GIO;
     size_t       MaxNumElems;
+
+    vector<PrinterBase *>        Printers;
 };
 
 struct gio_cursor
@@ -148,8 +190,8 @@ struct gio_cursor
         {
             PrinterBase *P = 0;
 
-#define ADD_PRINTER(T) \
-      if (!P) P = addPrinter<T>(VI[i], GIO, MaxNElem)
+          #define ADD_PRINTER(T) \
+            if (!P) P = addPrinter<T>(VI[i], GIO, MaxNElem)
             ADD_PRINTER(float);
             ADD_PRINTER(double);
             ADD_PRINTER(unsigned char);
@@ -160,7 +202,7 @@ struct gio_cursor
             ADD_PRINTER(uint32_t);
             ADD_PRINTER(int64_t);
             ADD_PRINTER(uint64_t);
-#undef ADD_PRINTER
+          #undef ADD_PRINTER
 
             if (P) Printers.push_back(P);
         }
