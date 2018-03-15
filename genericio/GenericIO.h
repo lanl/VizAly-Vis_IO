@@ -254,7 +254,8 @@ class GenericIO
               IsPhysCoordZ(Flags & VarIsPhysCoordZ),
               MaybePhysGhost(Flags & VarMaybePhysGhost)
         {
-            deduceTypeInfo(D);
+            //deduceTypeInfo(D);
+            deduceTypeInfoFromElement(D);
         }
 
         template <typename T>
@@ -438,6 +439,13 @@ class GenericIO
     void readData(int EffRank = -1, bool PrintStats = true, bool CollStats = true);
 
     void getSourceRanks(std::vector<int> &SR);
+
+    template <typename T>
+    T getValue(int variableID, size_t index)
+    {
+        T *dataPtr = static_cast<T *>(Vars[variableID].Data);
+        return dataPtr[index];
+    }
 
     void close()
     {
