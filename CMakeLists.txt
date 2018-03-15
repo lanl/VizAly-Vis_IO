@@ -12,9 +12,9 @@ endif()
 
 # Prevent in source builds since they are evil
 if (CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
-	message(FATAL_ERROR "In source build is not supported, please restore modified files, 
-						delete CMake generated things (CMakeFiles folder and CMakeCache.txt)
-						, and build out of source")	
+	message(FATAL_ERROR "In source build is not supported, please restore modified
+			 files, delete CMake generated things (CMakeFiles folder and 
+			 CMakeCache.txt), and build out of source")	
 endif()
 
 
