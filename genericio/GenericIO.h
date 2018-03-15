@@ -438,6 +438,13 @@ class GenericIO
 
     void readData(int EffRank = -1, bool PrintStats = true, bool CollStats = true);
 
+    void readNoMPIBarrier(int EffRank = -1, bool PrintStats = true, bool CollStats = true);
+
+    void readDataSection(size_t readOffset, size_t readNumRows, int EffRank = -1, bool PrintStats = true, bool CollStats = true);
+
+    void readDataSectionNoMPIBarrier(size_t readOffset, size_t readNumRows, int EffRank = -1, bool PrintStats = true, bool CollStats = true);
+
+
     void getSourceRanks(std::vector<int> &SR);
 
     template <typename T>
@@ -527,6 +534,22 @@ class GenericIO
     template <bool IsBigEndian>
     void readData(int EffRank, size_t RowOffset,
                   int Rank, uint64_t &TotalReadSize, int NErrs[3]);
+
+
+    void readDataSection(size_t readOffset, size_t readNumRows, int EffRank, 
+                         size_t RowOffset, int Rank, uint64_t &TotalReadSize, int NErrs[3]);
+
+    template <bool IsBigEndian>
+    void readDataSection(size_t readOffset, size_t readNumRows, int EffRank, 
+                         size_t RowOffset, int Rank, uint64_t &TotalReadSize, int NErrs[3]);
+
+    
+    void readDataSectionNoMPIBarrier(size_t readOffset, size_t readNumRows, int EffRank, 
+                                     size_t RowOffset, int Rank, uint64_t &TotalReadSize, int NErrs[3]);
+
+    template <bool IsBigEndian>
+    void readDataSectionNoMPIBarrier(size_t readOffset, size_t readNumRows, int EffRank, 
+                                     size_t RowOffset, int Rank, uint64_t &TotalReadSize, int NErrs[3]);
 
     template <bool IsBigEndian>
     void getVariableInfo(std::vector<VariableInfo> &VI);
