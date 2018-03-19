@@ -129,10 +129,9 @@ PrinterBase *addPrinter(GenericIO::VariableInfo &V,
 
 struct gio_vtab
 {
-    gio_vtab(const string &FN) : GIO(FN), MaxNumElems(0)
+    gio_vtab(const string &FN) : GIO(FN)//, MaxNumElems(0)
     {
         memset(&vtab, 0, sizeof(sqlite3_vtab));
-
         GIO.openAndReadHeader(GenericIO::MismatchAllowed);
 
         int NR = GIO.readNRanks();
@@ -233,9 +232,12 @@ int gio_connect(sqlite3* db, void *, int argc, const char *const *argv,
     {
         string FileName(argv[3]);
 
+
         gio_vtab *tab = new gio_vtab(FileName);
         if (!tab)
             return SQLITE_ERROR;
+
+
 
         vector<GenericIO::VariableInfo> VI;
         tab->GIO.getVariableInfo(VI);
@@ -255,6 +257,7 @@ int gio_connect(sqlite3* db, void *, int argc, const char *const *argv,
         }
 
         Schema += ")";
+
         if (sqlite3_declare_vtab(db, Schema.c_str()) != SQLITE_OK)
         {
             *pzErr = sqlite3_mprintf("Could not declare schema: %s", Schema.c_str());
@@ -376,6 +379,7 @@ int gio_best_index(sqlite3_vtab *pVTab, sqlite3_index_info *pInfo)
 static
 int gio_open(sqlite3_vtab *pVTab, sqlite3_vtab_cursor **ppCursor)
 {
+    sqlite3_mprintf("Hwello");
     gio_vtab   *tab = (gio_vtab *) pVTab;
     gio_cursor *cur = new gio_cursor(tab->GIO, tab->MaxNumElems);
     if (!cur)
