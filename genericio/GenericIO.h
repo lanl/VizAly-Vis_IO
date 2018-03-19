@@ -228,7 +228,7 @@ class GenericIO
         }
 
         template <typename T>
-        typename detail::enable_if < detail::has_x<T>::value & &
+        typename detail::enable_if < detail::has_x<T>::value &&
         !detail::is_array<T>::value, void >::type
         deduceTypeInfo(T *D)
         {
@@ -237,7 +237,7 @@ class GenericIO
         }
 
         template <typename T>
-        typename detail::enable_if < !detail::has_x<T>::value & &
+        typename detail::enable_if < !detail::has_x<T>::value &&
         !detail::is_array<T>::value, void >::type
         deduceTypeInfo(T *D)
         {
@@ -254,8 +254,7 @@ class GenericIO
               IsPhysCoordZ(Flags & VarIsPhysCoordZ),
               MaybePhysGhost(Flags & VarMaybePhysGhost)
         {
-            //deduceTypeInfo(D);
-            deduceTypeInfoFromElement(D);
+            deduceTypeInfo(D);
         }
 
         template <typename T>

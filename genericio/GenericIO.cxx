@@ -93,7 +93,7 @@ void GenericFileIO_MPI::open(const std::string &FN, bool ForReading)
     if (MPI_File_open(Comm, const_cast<char *>(FileName.c_str()), amode,
                       MPI_INFO_NULL, &FH) != MPI_SUCCESS)
         throw runtime_error((!ForReading ? "Unable to create the file: " :
-                             "Unable to open the file: ") +
+                             "Unable to open the file::: ") +
                             FileName);
 }
 
@@ -202,7 +202,7 @@ void GenericFileIO_POSIX::open(const std::string &FN, bool ForReading)
     errno = 0;
     if ((FH = ::open(FileName.c_str(), flags, mode)) == -1)
         throw runtime_error((!ForReading ? "Unable to create the file: " :
-                             "Unable to open the file: ") +
+                             "Unable to open the file:: ") +
                             FileName + ": " + strerror(errno));
 }
 
