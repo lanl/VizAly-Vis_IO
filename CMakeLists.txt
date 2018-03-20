@@ -16,6 +16,12 @@ if (ENABLE_GenericIO)
 endif()
 
 
+option(ENABLE_GenericIOReader "GenericIOReader" OFF)
+if (ENABLE_GenericIOReader)
+    add_subdirectory(GenericIOReader)
+endif()
+
+
 # Prevent in source builds since they are evil
 if (CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
 	message(FATAL_ERROR "In source build is not supported, please restore modified
@@ -28,4 +34,5 @@ endif()
 add_custom_target(clean-subprojects
 	COMMAND rm -rf HelloWorld
 	COMMAND rm -rf genericio
+	COMMAND rm -rf GenericIOReader
 )
