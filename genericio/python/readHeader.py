@@ -129,32 +129,77 @@ def main(argv):
 
 
 	# Read main header
+	pos = 0
 	headerInfo = GenericIOHeader()
-	headerInfo.filetype = struct.unpack("8s", fileContent[0:8])[0]
-	headerInfo.headerSize = struct.unpack("q", fileContent[8:16])[0]
-	headerInfo.numElems = struct.unpack("q", fileContent[16:24])[0] 
 
-	headerInfo.dims.append( struct.unpack("q", fileContent[24:32])[0] )
-	headerInfo.dims.append( struct.unpack("q", fileContent[32:40])[0] )
-	headerInfo.dims.append( struct.unpack("q", fileContent[40:48])[0] )
+	headerInfo.filetype = struct.unpack("8s", fileContent[pos:pos+8])[0]	
+	pos = pos+8
+		
 
-	headerInfo.numVars = struct.unpack("q", fileContent[48:56])[0] 
-	headerInfo.varSize = struct.unpack("q", fileContent[56:64])[0] 
-	headerInfo.varStart = struct.unpack("q", fileContent[64:72])[0] 
-	headerInfo.numRanks = struct.unpack("q", fileContent[72:80])[0] 
-	headerInfo.rankSize = struct.unpack("q", fileContent[80:88])[0] 
-	headerInfo.rankStart = struct.unpack("q", fileContent[88:96])[0] 
-	headerInfo.globalHeaderSize = struct.unpack("q", fileContent[96:104])[0] 
+	headerInfo.headerSize = struct.unpack("q", fileContent[pos:pos+8])[0]
+	pos = pos + 8
 
-	headerInfo.physOrigin.append( struct.unpack("d", fileContent[104:112])[0] )
-	headerInfo.physOrigin.append( struct.unpack("d", fileContent[112:120])[0] )
-	headerInfo.physOrigin.append( struct.unpack("d", fileContent[120:128])[0] )
+	headerInfo.numElems = struct.unpack("q", fileContent[pos:pos+8])[0] 
+	pos = pos + 8
 
-	headerInfo.physScale.append( struct.unpack("d", fileContent[128:136])[0] )
-	headerInfo.physScale.append( struct.unpack("d", fileContent[136:144])[0] )
-	headerInfo.physScale.append( struct.unpack("d", fileContent[144:152])[0] )
-	headerInfo.blockSize =struct.unpack("q", fileContent[152:160])[0] 
-	headerInfo.blockStart = struct.unpack("q", fileContent[160:168])[0] 
+
+	headerInfo.dims.append( struct.unpack("q", fileContent[pos:pos+8])[0] )
+	pos = pos + 8
+
+	headerInfo.dims.append( struct.unpack("q", fileContent[pos:pos+8])[0] )
+	pos = pos + 8
+
+	headerInfo.dims.append( struct.unpack("q", fileContent[pos:pos+8])[0] )
+	pos = pos + 8
+
+	headerInfo.numVars = struct.unpack("q", fileContent[pos:pos+8])[0] 
+	pos = pos + 8
+
+	headerInfo.varSize = struct.unpack("q", fileContent[pos:pos+8])[0] 
+	pos = pos + 8
+
+	headerInfo.varStart = struct.unpack("q", fileContent[pos:pos+8])[0] 
+	pos = pos + 8
+
+	headerInfo.numRanks = struct.unpack("q", fileContent[pos:pos+8])[0] 
+	pos = pos + 8
+
+	headerInfo.rankSize = struct.unpack("q", fileContent[pos:pos+8])[0] 
+	pos = pos + 8
+
+	headerInfo.rankStart = struct.unpack("q", fileContent[pos:pos+8])[0] 
+	pos = pos + 8
+
+	headerInfo.globalHeaderSize = struct.unpack("q", fileContent[pos:pos+8])[0] 
+	pos = pos + 8
+
+
+	headerInfo.physOrigin.append( struct.unpack("d", fileContent[pos:pos+8])[0] )
+	pos = pos + 8
+
+	headerInfo.physOrigin.append( struct.unpack("d", fileContent[pos:pos+8])[0] )
+	pos = pos + 8
+
+	headerInfo.physOrigin.append( struct.unpack("d", fileContent[pos:pos+8])[0] )
+	pos = pos + 8
+
+
+	headerInfo.physScale.append( struct.unpack("d", fileContent[pos:pos+8])[0] )
+	pos = pos + 8
+
+	headerInfo.physScale.append( struct.unpack("d", fileContent[pos:pos+8])[0] )
+	pos = pos + 8
+
+	headerInfo.physScale.append( struct.unpack("d", fileContent[pos:pos+8])[0] )
+	pos = pos + 8
+
+	headerInfo.blockSize =struct.unpack("q", fileContent[pos:pos+8])[0] 
+	pos = pos + 8
+
+	headerInfo.blockStart = struct.unpack("q", fileContent[pos:pos+8])[0] 
+	pos = pos + 8
+
+	print pos
 	
 	headerInfo.printHeader()
 

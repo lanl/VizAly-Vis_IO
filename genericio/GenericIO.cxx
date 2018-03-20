@@ -335,6 +335,7 @@ struct GlobalHeader
     endian_specific_value<double,   IsBigEndian> PhysScale[3];
     endian_specific_value<uint64_t, IsBigEndian> BlocksSize;
     endian_specific_value<uint64_t, IsBigEndian> BlocksStart;
+    endian_specific_value<uint64_t, IsBigEndian> octreeSize;
 };
 
 enum
@@ -355,6 +356,31 @@ struct VariableHeader
     endian_specific_value<uint64_t, IsBigEndian> Flags;
     endian_specific_value<uint64_t, IsBigEndian> Size;
     endian_specific_value<uint64_t, IsBigEndian> ElementSize;
+};
+
+
+
+template <bool IsBigEndian>
+struct OctreeHeader
+{
+    endian_specific_value<uint64_t, IsBigEndian> preShuffled;           // 1    | yes or no
+    endian_specific_value<uint64_t, IsBigEndian> decompositionLevel;    // 4    | 2 (8 divisions), 4(4096), 8(262144)
+    endian_specific_value<uint64_t, IsBigEndian> numEntries;            // 4096 |
+};
+
+template <bool IsBigEndian>
+struct OctreeRow
+{
+    endian_specific_value<uint64_t, IsBigEndian> blockID;
+    endian_specific_value<uint64_t, IsBigEndian> minX;
+    endian_specific_value<uint64_t, IsBigEndian> maxX;
+    endian_specific_value<uint64_t, IsBigEndian> minY;
+    endian_specific_value<uint64_t, IsBigEndian> maxY;
+    endian_specific_value<uint64_t, IsBigEndian> minZ;
+    endian_specific_value<uint64_t, IsBigEndian> maxZ;
+    endian_specific_value<uint64_t, IsBigEndian> numParticles;
+    endian_specific_value<uint64_t, IsBigEndian> offsetInFile;
+    endian_specific_value<uint64_t, IsBigEndian> partitionLocation;
 };
 
 template <bool IsBigEndian>
