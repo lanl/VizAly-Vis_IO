@@ -129,7 +129,7 @@ PrinterBase *addPrinter(GenericIO::VariableInfo &V,
 
 struct gio_vtab
 {
-    gio_vtab(const string &FN) : GIO(FN)//, MaxNumElems(0)
+    gio_vtab(const string &FN) : GIO(FN), MaxNumElems(0)
     {
         memset(&vtab, 0, sizeof(sqlite3_vtab));
         GIO.openAndReadHeader(GenericIO::MismatchAllowed);
@@ -171,6 +171,9 @@ struct gio_vtab
     sqlite3_vtab vtab;
     GenericIO    GIO;
     size_t       MaxNumElems;
+
+    int                          RankColumnIndex;
+    int                          PercentColumnIndex;
 
     vector<PrinterBase *>        Printers;
 };
@@ -298,6 +301,7 @@ int gio_destroy(sqlite3_vtab *pVTab)
     return gio_disconnect(pVTab);
 }
 
+
 static
 int gio_best_index(sqlite3_vtab *pVTab, sqlite3_index_info *pInfo)
 {
@@ -379,7 +383,6 @@ int gio_best_index(sqlite3_vtab *pVTab, sqlite3_index_info *pInfo)
 static
 int gio_open(sqlite3_vtab *pVTab, sqlite3_vtab_cursor **ppCursor)
 {
-    sqlite3_mprintf("Hwello");
     gio_vtab   *tab = (gio_vtab *) pVTab;
     gio_cursor *cur = new gio_cursor(tab->GIO, tab->MaxNumElems);
     if (!cur)
