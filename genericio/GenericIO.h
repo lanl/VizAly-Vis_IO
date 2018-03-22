@@ -364,12 +364,14 @@ class GenericIO
             std::fill(PhysScale,  PhysScale + 3, S);
     }
 
+
     template <typename T>
     void addVariable(const std::string &Name, T *Data,
                      unsigned Flags = 0)
     {
         Vars.push_back(Variable(Name, Data, Flags));
     }
+
 
     template <typename T, typename A>
     void addVariable(const std::string &Name, std::vector<T, A> &Data,
