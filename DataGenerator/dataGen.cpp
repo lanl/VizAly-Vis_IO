@@ -68,51 +68,35 @@ int main(int argc, char* argv[])
 		int offsetX, offsetY, offsetZ;
 		if (myRank == 0) //
 		{
-			offsetX = 0;
-			offsetY = 0;
-			offsetZ = 0;
+			offsetX = 0;	offsetY = 0;	offsetZ = 0;
 		}
 		else if (myRank == 1)
 		{
-			offsetX = 0;
-			offsetY = 0;
-			offsetZ = 128;
+			offsetX = 0;	offsetY = 0;	offsetZ = 128;
 		}
 		else if (myRank == 2)
 		{
-			offsetX = 0;
-			offsetY = 128;
-			offsetZ = 0;
+			offsetX = 0;	offsetY = 128;	offsetZ = 0;
 		}
 		else if (myRank == 3)
 		{
-			offsetX = 0;
-			offsetY = 128;
-			offsetZ = 128;
+			offsetX = 0;	offsetY = 128;	offsetZ = 128;
 		}
 		else if (myRank == 4) //
 		{
-			offsetX = 128;
-			offsetY = 0;
-			offsetZ = 0;
+			offsetX = 128;	offsetY = 0;	offsetZ = 0;
 		}
 		else if (myRank == 5)
 		{
-			offsetX = 128;
-			offsetY = 0;
-			offsetZ = 128;
+			offsetX = 128;	offsetY = 0;	offsetZ = 128;
 		}
 		else if (myRank == 6)
 		{
-			offsetX = 128;
-			offsetY = 128;
-			offsetZ = 0;
+			offsetX = 128;	offsetY = 128;	offsetZ = 0;
 		}
 		else if (myRank == 7)
 		{
-			offsetX = 128;
-			offsetY = 128;
-			offsetZ = 128;
+			offsetX = 128;	offsetY = 128;	offsetZ = 128;
 		}
 
 		MPI_Barrier(MPI_COMM_WORLD);

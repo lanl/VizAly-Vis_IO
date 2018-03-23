@@ -366,6 +366,41 @@ class GenericIO
 
 
     template <typename T>
+    void addOctreeHeader(uint64_t _preShuffled, uint64_t _decompositionLevel, uint64_t _numEntries)
+    {
+        preShuffled = _preShuffled;
+        decompositionLevel = _decompositionLevel;
+        numEntries = _numEntries;
+    }
+
+
+    template <typename T>
+    void addOctreeRow(uint64_t _blockID, uint64_t _extents[6], uint64_t _numParticles, uint64_t _offsetInFile, uint64_t _partitionLocation)
+    {
+        blockID = _blockID;
+        minX = _extents[0];
+        maxX = _extents[1];
+        minY = _extents[2];
+        maxY = _extents[3];
+        minZ = _extents[4];
+        maxZ = _extents[5];
+
+        numParticles = _numParticles;
+        offsetInFile = _offsetInFile;
+        partitionLocation = _partitionLocation;
+    }
+
+
+
+    template <typename T>
+    void addOctreeHeader(uint64_t _preShuffled, uint64_t _decompositionLevel, uint64_t _numEntries)
+    {
+        preShuffled = _preShuffled;
+        decompositionLevel = _decompositionLevel;
+        numEntries = _numEntries;
+    }
+
+    template <typename T>
     void addVariable(const std::string &Name, T *Data,
                      unsigned Flags = 0)
     {
@@ -557,6 +592,9 @@ class GenericIO
 
   protected:
     std::vector<Variable> Vars;
+    std::vector<OctreeRow> octreeRow;
+    OctreeHeader octreeInfo;
+
     std::size_t NElems;
 
     double PhysOrigin[3], PhysScale[3];

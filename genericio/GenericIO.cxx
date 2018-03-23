@@ -612,7 +612,7 @@ void GenericIO::write()
             }
             else
             {
-nocomp:
+              nocomp:
                 LocalBlockHeaders[i].Size = NElems * Vars[i].Size;
                 LocalData[i] = Vars[i].Data;
                 LocalHasExtraSpace[i] = Vars[i].HasExtraSpace;
