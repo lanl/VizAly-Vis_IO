@@ -1,5 +1,8 @@
 #include <iostream>
 #include <string>
+#include <fstream>
+#include <vector>
+#include <sstream>
 #include <stdlib.h>
 #include <time.h>
 
@@ -12,7 +15,7 @@ using namespace gio;
 int main(int argc, char* argv[])
 {
 	std::string filename(argv[1]);
-	srand (time(NULL));
+	//std::stringstream log;
 
 	//
 	// MPI Init
@@ -22,6 +25,9 @@ int main(int argc, char* argv[])
 	MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
 	MPI_Comm Comm = MPI_COMM_WORLD;
 
+
+	srand (time(NULL) + myRank);
+	
 	{
 		int dims[3]= {2, 2, 2};
 		int periods[3] = { 0, 0, 0 };
@@ -41,166 +47,117 @@ int main(int argc, char* argv[])
             newGIO.setPhysScale(physScale[d], d);
         }
 
+
 		//
 		// Variables
-		double *xx, *yy, *zz, *vx, *vy, *vz, *phi;
-		uint16_t* mask;
+		std::vector<float> xx, yy, zz, vx, vy, vz, phi;
+		std::vector<uint16_t> mask;
 
-		xx = new double[numParticles];
-		yy = new double[numParticles];
-		zz = new double[numParticles];
-		vx = new double[numParticles];
-		vy = new double[numParticles];
-		vz = new double[numParticles];
-		phi = new double[numParticles];
-		mask = new uint16_t[numParticles];
+		xx.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
+		yy.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
+		zz.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
+		vx.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
+		vy.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
+		vz.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
+		phi.resize(numParticles  + newGIO.requestedExtraSpace() / sizeof(float));
+		mask.resize(numParticles + newGIO.requestedExtraSpace() / sizeof(uint16_t));
+
+
+		
 
 		int offsetX, offsetY, offsetZ;
-		// if (myRank == 0) //
-		// {
-		// 	offsetX = 0;
-		// 	offsetY = 0;
-		// 	offsetZ = 0;
-		// }
-		// else if (myRank == 1)
-		// {
-		// 	offsetX = 0;
-		// 	offsetY = 0;
-		// 	offsetZ = 128;
-		// }
-		// else if (myRank == 2)
-		// {
-		// 	offsetX = 0;
-		// 	offsetY = 128;
-		// 	offsetZ = 0;
-		// }
-		// else if (myRank == 3)
-		// {
-		// 	offsetX = 0;
-		// 	offsetY = 128;
-		// 	offsetZ = 128;
-		// }
-		// else if (myRank == 4) //
-		// {
-		// 	offsetX = 128;
-		// 	offsetY = 0;
-		// 	offsetZ = 0;
-		// }
-		// else if (myRank == 5)
-		// {
-		// 	offsetX = 128;
-		// 	offsetY = 0;
-		// 	offsetZ = 128;
-		// }
-		// else if (myRank == 6)
-		// {
-		// 	offsetX = 128;
-		// 	offsetY = 128;
-		// 	offsetZ = 0;
-		// }
-		// else if (myRank == 7)
-		// {
-		// 	offsetX = 128;
-		// 	offsetY = 128;
-		// 	offsetZ = 128;
-		// }
-
-
-
 		if (myRank == 0) //
 		{
-			offsetX = 64;
-			offsetY = 64;
-			offsetZ = 64;
+			offsetX = 0;
+			offsetY = 0;
+			offsetZ = 0;
 		}
 		else if (myRank == 1)
 		{
-			offsetX = 64;
-			offsetY = 64;
-			offsetZ = 192;
+			offsetX = 0;
+			offsetY = 0;
+			offsetZ = 128;
 		}
 		else if (myRank == 2)
 		{
 			offsetX = 0;
-			offsetY = 0;
+			offsetY = 128;
 			offsetZ = 0;
 		}
 		else if (myRank == 3)
 		{
 			offsetX = 0;
-			offsetY = 0;
-			offsetZ = 0;
+			offsetY = 128;
+			offsetZ = 128;
 		}
 		else if (myRank == 4) //
 		{
-			offsetX = 0;
+			offsetX = 128;
 			offsetY = 0;
 			offsetZ = 0;
 		}
 		else if (myRank == 5)
 		{
-			offsetX = 0;
+			offsetX = 128;
 			offsetY = 0;
-			offsetZ = 0;
+			offsetZ = 128;
 		}
 		else if (myRank == 6)
 		{
-			offsetX = 0;
-			offsetY = 0;
+			offsetX = 128;
+			offsetY = 128;
 			offsetZ = 0;
 		}
 		else if (myRank == 7)
 		{
-			offsetX = 0;
-			offsetY = 0;
-			offsetZ = 0;
+			offsetX = 128;
+			offsetY = 128;
+			offsetZ = 128;
 		}
 
+		MPI_Barrier(MPI_COMM_WORLD);
+		//log << offsetX << ", " << offsetY << ", " << offsetZ << std::endl;
 
+
+		double randomNum;
 		for (uint64_t i=0; i<numParticles; i++)
 		{
+			randomNum = ((rand() % 12800)/100.0) + offsetX;	//log << randomNum << ", ";
+			xx[i] = randomNum;	
 
-			// xx[i] = (double) (offsetX + rand() % 128);
-			// yy[i] = (double) (offsetY + rand() % 128);
-			// zz[i] = (double) (offsetZ + rand() % 128);
-			// vx[i] = (double) (rand() % 1000 / 1000.0);
-			// vy[i] = (double) (rand() % 1000 / 1000.0);
-			// vz[i] = (double) (rand() % 1000 / 1000.0);
-			// phi[i] = (double) (rand() % 1000 / 100.0);
-			// mask[i] = (uint16_t)myRank;
+			randomNum = ((rand() % 12800)/100.0) + offsetY;	//log << randomNum << ", ";
+			yy[i] = randomNum;
 
+			randomNum = ((rand() % 12800)/100.0) + offsetZ;	//log << randomNum << "\n";
+			zz[i] = randomNum;
 
-			xx[i] = (double) (offsetX);
-			yy[i] = (double) (offsetY);
-			zz[i] = (double) (offsetZ);
 			vx[i] = (double) (rand() % 1000 / 1000.0);
 			vy[i] = (double) (rand() % 1000 / 1000.0);
 			vz[i] = (double) (rand() % 1000 / 1000.0);
 			phi[i] = (double) (rand() % 1000 / 100.0);
 			mask[i] = (uint16_t)myRank;
-
-
 		}
 
 		int CoordFlagsX = GenericIO::VarIsPhysCoordX;
         int CoordFlagsY = GenericIO::VarIsPhysCoordY;
         int CoordFlagsZ = GenericIO::VarIsPhysCoordZ;
 
-		//GIO.addVariable("x", xx, CoordFlagsX | GenericIO::VarHasExtraSpace);
-		newGIO.addVariable("x", xx, CoordFlagsX);
-        newGIO.addVariable("y", yy, CoordFlagsY);
-		newGIO.addVariable("z", zz, CoordFlagsZ);
-		newGIO.addVariable("vx", vx);
-        newGIO.addVariable("vy", vy);
-        newGIO.addVariable("vz", vz);
-        newGIO.addVariable("phi", phi);
-		newGIO.addVariable("mask", mask);
-
-
-		
+		newGIO.addVariable("x", xx, CoordFlagsX | GenericIO::VarHasExtraSpace);
+        newGIO.addVariable("y", yy, CoordFlagsY | GenericIO::VarHasExtraSpace);
+		newGIO.addVariable("z", zz, CoordFlagsZ | GenericIO::VarHasExtraSpace);
+		newGIO.addVariable("vx", vx, GenericIO::VarHasExtraSpace);
+        newGIO.addVariable("vy", vy, GenericIO::VarHasExtraSpace);
+        newGIO.addVariable("vz", vz, GenericIO::VarHasExtraSpace);
+        newGIO.addVariable("phi", phi, GenericIO::VarHasExtraSpace);
+		newGIO.addVariable("mask", mask, GenericIO::VarHasExtraSpace);
 
         newGIO.write();
 	}
+
+
+	//std::ofstream outputFile( ("dataGEn_" + std::to_string(myRank) + "_.log").c_str(), std::ios::out);
+	//outputFile << log.str();
+	//outputFile.close();
 
 	MPI_Barrier(MPI_COMM_WORLD);
 	MPI_Finalize();
@@ -208,4 +165,4 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
-// mpirun -np 8 ./dataGen
+// mpirun -np 8 ./dataGen outputFile
