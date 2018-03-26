@@ -38,6 +38,7 @@ int main(int argc, char* argv[])
 
 		MPI_Cart_create(Comm, 3, dims, periods, 0, &Comm);
 
+		filename.append(".oct");
 		GenericIO newGIO(Comm, filename);
 		newGIO.setNumElems(numParticles);
 
@@ -47,10 +48,18 @@ int main(int argc, char* argv[])
             newGIO.setPhysScale(physScale[d], d);
         }
 
-
+		newGIO.addOctreeHeader((uint64_t)0, (uint64_t)1, (uint64_t)8);
+		uint64_t extents[6]={0,256, 0,256, 0,256};
+		for (int i=0; i<8; i++)
+		{
+			newGIO.addOctreeRow(i,extents, 1000, 0, i);
+		}
+		
+		
 		//
 		// Variables
 		std::vector<float> xx, yy, zz, vx, vy, vz, phi;
+
 		std::vector<uint16_t> mask;
 
 		xx.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
@@ -138,7 +147,7 @@ int main(int argc, char* argv[])
         newGIO.write();
 	}
 
-
+	
 	//std::ofstream outputFile( ("dataGEn_" + std::to_string(myRank) + "_.log").c_str(), std::ios::out);
 	//outputFile << log.str();
 	//outputFile.close();
