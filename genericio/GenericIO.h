@@ -46,6 +46,7 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include <sstream>
 #include <limits>
 #include <stdint.h>
 
@@ -59,6 +60,83 @@
 
 namespace gio
 {
+
+
+struct OctreeRow
+{
+    uint64_t blockID;
+    uint64_t minX;
+    uint64_t maxX;
+    uint64_t minY;
+    uint64_t maxY;
+    uint64_t minZ;
+    uint64_t maxZ;
+    uint64_t numParticles;
+    uint64_t offsetInFile;
+    uint64_t partitionLocation;
+};
+
+struct Octree
+{
+    uint64_t preShuffled;
+    uint64_t decompositionLevel;
+    uint64_t numEntries;
+    std::vector<OctreeRow> rows;
+
+    std::string serialize()
+    {
+        std::stringstream ss;
+        ss << preShuffled << "\n";
+        ss << decompositionLevel << "\n";
+        ss << numEntries << "\n";
+        for (int i=0; i<numEntries; i++)
+        {
+            ss << rows[i].blockID << ", "
+                << rows[i].minX << ", "
+                << rows[i].maxX << ", "
+                << rows[i].minY << ", "
+                << rows[i].maxY << ", "
+                << rows[i].minZ << ", "
+                << rows[i].maxZ << ", "
+                << rows[i].numParticles << ", "
+                << rows[i].offsetInFile << ", "
+                << rows[i].partitionLocation << "\n";
+        }
+        
+        return ss.str();
+    }
+
+    Octree deserialize(std::string serializedOctree)
+    {
+        Octree temp;
+        std::stringstream ss( serializedOctree );
+        ss >> temp.preShuffled;
+        ss >> temp.decompositionLevel;
+        ss >> temp.numEntries;
+
+
+        for (int i=0; i<temp.numEntries; i++)
+        {
+            OctreeRow tempRow;
+            ss >> tempRow.blockID;
+            ss >> tempRow.minX;
+            ss >> tempRow.maxX;
+            ss >> tempRow.minY;
+            ss >> tempRow.maxY;
+            ss >> tempRow.minZ;
+            ss >> tempRow.maxZ;
+            ss >> tempRow.numParticles;
+            ss >> tempRow.offsetInFile;
+            ss >> tempRow.partitionLocation;
+
+            temp.rows.push_back(tempRow);
+        }
+
+        return temp;
+    }
+};
+
+
 
 class GenericFileIO
 {
@@ -94,6 +172,9 @@ class GenericFileIO_MPI : public GenericFileIO
     MPI_File FH;
     MPI_Comm Comm;
 };
+
+
+
 
 class GenericFileIO_MPICollective : public GenericFileIO_MPI
 {
@@ -365,40 +446,33 @@ class GenericIO
     }
 
 
-    template <typename T>
     void addOctreeHeader(uint64_t _preShuffled, uint64_t _decompositionLevel, uint64_t _numEntries)
     {
-        preShuffled = _preShuffled;
-        decompositionLevel = _decompositionLevel;
-        numEntries = _numEntries;
+        octreeData.preShuffled = _preShuffled;
+        octreeData.decompositionLevel = _decompositionLevel;
+        octreeData.numEntries = _numEntries;
     }
 
 
-    template <typename T>
     void addOctreeRow(uint64_t _blockID, uint64_t _extents[6], uint64_t _numParticles, uint64_t _offsetInFile, uint64_t _partitionLocation)
     {
-        blockID = _blockID;
-        minX = _extents[0];
-        maxX = _extents[1];
-        minY = _extents[2];
-        maxY = _extents[3];
-        minZ = _extents[4];
-        maxZ = _extents[5];
+        OctreeRow temp;
 
-        numParticles = _numParticles;
-        offsetInFile = _offsetInFile;
-        partitionLocation = _partitionLocation;
+        temp.blockID = _blockID;
+        temp.minX = _extents[0];
+        temp.maxX = _extents[1];
+        temp.minY = _extents[2];
+        temp.maxY = _extents[3];
+        temp.minZ = _extents[4];
+        temp.maxZ = _extents[5];
+
+        temp.numParticles = _numParticles;
+        temp.offsetInFile = _offsetInFile;
+        temp.partitionLocation = _partitionLocation;
+
+        octreeData.rows.push_back(temp);
     }
 
-
-
-    template <typename T>
-    void addOctreeHeader(uint64_t _preShuffled, uint64_t _decompositionLevel, uint64_t _numEntries)
-    {
-        preShuffled = _preShuffled;
-        decompositionLevel = _decompositionLevel;
-        numEntries = _numEntries;
-    }
 
     template <typename T>
     void addVariable(const std::string &Name, T *Data,
@@ -592,8 +666,7 @@ class GenericIO
 
   protected:
     std::vector<Variable> Vars;
-    std::vector<OctreeRow> octreeRow;
-    OctreeHeader octreeInfo;
+    Octree octreeData;
 
     std::size_t NElems;
 
