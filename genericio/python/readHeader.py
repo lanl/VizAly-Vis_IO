@@ -198,8 +198,6 @@ def main(argv):
 
 	headerInfo.blockStart = struct.unpack("q", fileContent[pos:pos+8])[0] 
 	pos = pos + 8
-
-	print pos
 	
 	headerInfo.printHeader()
 
@@ -211,20 +209,27 @@ def main(argv):
 	numVars  = 0
 	isHeader = False;
 	print("\n\nVariables:")
-	positonInFile = headerInfo.varStart
-	while positonInFile < headerInfo.rankStart:
+	positionInFile = headerInfo.varStart
+	
+ 
+	while positionInFile < headerInfo.rankStart:
 		_varInfo = GenericIOVariableInfo()
 
-		_temp = str( struct.unpack("256s", fileContent[positonInFile:positonInFile+256])[0] )
+		indexInFile = positionInFile
+
+		# Variable
+		_temp = str( struct.unpack("256s", fileContent[indexInFile:indexInFile+256])[0] )
+		_varInfo.varname = int( struct.unpack("q", fileContent[indexInFile:indexInFile+8])[0] )
 		_varInfo.varname = _temp.replace('\x00','')
+
 
 		if not isHeader:
 			if _varInfo.varname == "$partition":
 				isHeader = True
 
-
-		positonInFile = positonInFile + 256
-		_flags = int( struct.unpack("q", fileContent[positonInFile:positonInFile+8])[0] )
+		#Flags
+		indexInFile = indexInFile + 256
+		_flags = int( struct.unpack("q", fileContent[indexInFile:indexInFile+8])[0] )
 		_varInfo.isFloat  = (GenericIOVariableInfo.floatMask  & _flags) != 0
 		_varInfo.isSigned = (GenericIOVariableInfo.signedMask & _flags) != 0
 		_varInfo.isPhysCoordX = (GenericIOVariableInfo.phyXMask & _flags) != 0
@@ -233,10 +238,14 @@ def main(argv):
 		_varInfo.maybePhysGhost = (GenericIOVariableInfo.ghostMask  & _flags) != 0
 
 
-		positonInFile = positonInFile + 8
-		_varInfo.varSize = int( struct.unpack("q", fileContent[positonInFile:positonInFile+8])[0] )
+		#Size
+		indexInFile = indexInFile + 8
+		_varInfo.varSize = int( struct.unpack("q", fileContent[indexInFile:indexInFile+8])[0] )
 
-		positonInFile = positonInFile + 8
+
+		
+
+		positionInFile = positionInFile + headerInfo.varSize
 
 		_varInfo.printVarInfo()
 		variableList.append(_varInfo)
@@ -254,24 +263,24 @@ def main(argv):
 	print("(Coord X, Coord Y, Coord Z, #, Data Start row, partition id)")
 
 
-	while positonInFile < headerInfo.headerSize:
-		partitionX = struct.unpack("q", fileContent[positonInFile:positonInFile+8])[0]
-		positonInFile = positonInFile + 8
+	while positionInFile < headerInfo.headerSize:
+		partitionX = struct.unpack("q", fileContent[positionInFile:positionInFile+8])[0]
+		positionInFile = positionInFile + 8
 
-		partitionY = struct.unpack("q", fileContent[positonInFile:positonInFile+8])[0]
-		positonInFile = positonInFile + 8
+		partitionY = struct.unpack("q", fileContent[positionInFile:positionInFile+8])[0]
+		positionInFile = positionInFile + 8
 
-		partitionZ = struct.unpack("q", fileContent[positonInFile:positonInFile+8])[0]
-		positonInFile = positonInFile + 8
+		partitionZ = struct.unpack("q", fileContent[positionInFile:positionInFile+8])[0]
+		positionInFile = positionInFile + 8
 
-		numDataRows = struct.unpack("q", fileContent[positonInFile:positonInFile+8])[0]
-		positonInFile = positonInFile + 8
+		numDataRows = struct.unpack("q", fileContent[positionInFile:positionInFile+8])[0]
+		positionInFile = positionInFile + 8
 
-		dataStart = struct.unpack("q", fileContent[positonInFile:positonInFile+8])[0]
-		positonInFile = positonInFile + 8
+		dataStart = struct.unpack("q", fileContent[positionInFile:positionInFile+8])[0]
+		positionInFile = positionInFile + 8
 
-		partitionID = struct.unpack("q", fileContent[positonInFile:positonInFile+8])[0]
-		positonInFile = positonInFile + 8
+		partitionID = struct.unpack("q", fileContent[positionInFile:positionInFile+8])[0]
+		positionInFile = positionInFile + 8
 
 		print (partitionX, partitionY, partitionZ, _count, dataStart, partitionID)
 
@@ -281,17 +290,17 @@ def main(argv):
 
 	if isHeader:
 		dataList = []
-		positonInFile = dataStart
+		positionInFile = dataStart
 		if _count == 1:
-			positonInFile = dataStart
+			positionInFile = dataStart
 			print("\nMeta file info:")
 			print("(partition id, In rank?, Coord X, Coord Y, Coord Z)")
 			for _var in range(numVars):
 				for _row in range(numDataRows):
-					dataList.append( struct.unpack("i", fileContent[positonInFile:positonInFile+4])[0] )
-					positonInFile = positonInFile + 4
+					dataList.append( struct.unpack("i", fileContent[positionInFile:positionInFile+4])[0] )
+					positionInFile = positionInFile + 4
 
-				positonInFile = positonInFile + 8
+				positionInFile = positionInFile + 8
 
 			for _row in range(numDataRows):
 				print(dataList[_row],dataList[numDataRows*1 + _row],dataList[numDataRows*2 + _row],dataList[numDataRows*3 + _row],dataList[numDataRows*4 + _row])

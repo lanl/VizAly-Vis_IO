@@ -429,9 +429,9 @@ void GenericIO::write()
 
     string LocalFileName;
 
-    bool hasOctree = false;
-    if (FileName.find(".oct") != std::string::npos)
-        hasOctree = true;
+    //bool hasOctree = false;
+    //if (FileName.find(".oct") != std::string::npos)
+    //    hasOctree = true;
 
 
     if (SplitNRanks != NRanks)
@@ -635,6 +635,16 @@ void GenericIO::write()
             GH->BlocksStart = GH->RanksStart + SplitNRanks * sizeof(RankHeader<IsBigEndian>);
         }
 
+
+        // std::string serializedOctree;
+        // if (hasOctree)
+        // {
+        //     serializedOctree = octreeData.serialize();
+        //     uint64_t OctreeSize = sizeof(serializedOctree) + CRCSize;
+        //     GH->GlobalHeaderSize += OctreeSize;
+        // }
+
+
         uint64_t RecordSize = 0;
         VariableHeader<IsBigEndian> *VH = (VariableHeader<IsBigEndian> *) &Header[GH->VarsStart];
         for (size_t i = 0; i < Vars.size(); ++i, ++VH)
@@ -735,20 +745,20 @@ void GenericIO::write()
         FH.get()->write(&Header[0], HeaderSize, 0, "header");
 
 
-        if (hasOctree)
-        {
-            std::string serializedOctree( octreeData.serialize() );
-            std::vector<char> serializedOctreeVec(serializedOctree.begin(), serializedOctree.end());
+        
 
-            uint64_t OctreeSize = sizeof(serializedOctreeVec) +  CRCSize;
+        // if (hasOctree)
+        // {
+        //     std::vector<char> serializedOctreeVec(serializedOctree.begin(), serializedOctree.end());
 
+        //     uint64_t OctreeSize = sizeof(serializedOctreeVec) +  CRCSize;
 
-            uint64_t OctreeCRC = crc64_omp(&serializedOctreeVec[0], OctreeSize - CRCSize);
-            crc64_invert(OctreeCRC, &serializedOctreeVec[OctreeSize - CRCSize]);
+        //     uint64_t OctreeCRC = crc64_omp(&serializedOctreeVec[0], OctreeSize - CRCSize);
+        //     crc64_invert(OctreeCRC, &serializedOctreeVec[OctreeSize - CRCSize]);
 
-            FH.get()->write(&serializedOctreeVec[0], OctreeSize, HeaderSize, "octree");
-            std::cout << "Octree data encoded" << std::endl;
-        }
+        //     FH.get()->write(&serializedOctreeVec[0], OctreeSize, HeaderSize, "octree");
+        //     std::cout << "Octree data encoded" << std::endl;
+        // }
 
         close();
     }
