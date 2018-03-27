@@ -41,7 +41,7 @@ int main(int argc, char* argv[])
 		unsigned method = GenericIO::FileIOMPI;
 		//unsigned method = GenericIO::FileIOPOSIX;
 
-		//filename.append(".oct");
+		filename.append(".oct");
 		GenericIO newGIO(Comm, filename);//, method);
 		newGIO.setNumElems(numParticles);
 
@@ -52,12 +52,12 @@ int main(int argc, char* argv[])
         }
 
 
-		// newGIO.addOctreeHeader((uint64_t)0, (uint64_t)1, (uint64_t)8);
-		// uint64_t extents[6]={0,256, 0,256, 0,256};
-		// for (int i=0; i<8; i++)
-		// {
-		// 	newGIO.addOctreeRow(i,extents, 1000, 0, i);
-		// }
+		newGIO.addOctreeHeader((uint64_t)0, (uint64_t)1, (uint64_t)8);
+		uint64_t extents[6]={0,256, 0,256, 0,256};
+		for (int i=0; i<8; i++)
+		{
+			newGIO.addOctreeRow(i,extents, 1000, 0, i);
+		}
 		
 		
 		//
