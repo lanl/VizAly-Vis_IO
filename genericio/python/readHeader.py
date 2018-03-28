@@ -58,8 +58,8 @@ class GenericIOHeader:
 		self.physScale = []
 		self.blockSize = 0
 		self.blockStart = 0
-
-	def printHeader(self):
+	
+	def printMe(self):
 		print("Filetype:", self.filetype )
 		print("HeadeSize:", self.headerSize )
 		print("#rows:", self.numElems )
@@ -95,7 +95,7 @@ class GenericIOVariableInfo:
 		self.isPhysCoordZ = 0
 		self.maybePhysGhost = 0
 
-	def printVarInfo(self):
+	def printMe(self):
 		print("Variable Name:", self.varname)
 		print("Variable Size:", self.varSize)
 		print("is Float?:", self.isFloat)
@@ -107,7 +107,36 @@ class GenericIOVariableInfo:
 		print("\n")
 
 
+class OctreeRow:
+	def __init__ (self):
+		self.blockID
+		self.minX
+		self.maxX
+		self.minY
+		self.maxY
+		self.minZ
+		self.maxZ
+		self.numParticles
+		self.offsetInFile
+		self.partitionLocation
 
+	def printMe(self):
+		print(self.blockID, ":", self.minX,", ", self.maxX," ", self.minY,", ", self.maxY," ", self.minZ,", ", self.maxZ," - ", self.numParticles,", ", self.offsetInFile,", ", self.partitionLocation)
+
+class Octree:
+	def __init__ (self):
+		self.preShuffled = 0
+		self.decompositionLevel = 0
+		self.numEntries = 0
+		self.rows = []
+
+	def printMe(self):
+		print("Pre-Shuffled:", self.preShuffled)
+		print("Variable Size:", self.decompositionLevel)
+		print("Num Entries:", self.numEntries)
+
+		#for i in range(0,self.numEntries):
+		#	rows[i].printMe()
 
 
 
@@ -121,6 +150,8 @@ def main(argv):
 		exit()
 
 	filename = sys.argv[1]
+
+
 
 
 	# Open file
@@ -199,8 +230,64 @@ def main(argv):
 	headerInfo.blockStart = struct.unpack("q", fileContent[pos:pos+8])[0] 
 	pos = pos + 8
 	
-	headerInfo.printHeader()
+	headerInfo.printMe()
 
+	print("\n")
+	print "pos: ", pos 
+
+
+	# Octree
+	octreeFile = filename.find(".oct") != -1
+	if octreeFile:
+		octreeData = Octree()
+
+		octreeData.preShuffled = struct.unpack("q", fileContent[pos:pos+8])[0]
+		pos = pos + 8
+
+		octreeData.decompositionLevel = struct.unpack("q", fileContent[pos:pos+8])[0]
+		pos = pos + 8
+
+		octreeData.numEntries = struct.unpack("q", fileContent[pos:pos+8])[0]
+		pos = pos + 8
+
+		'''
+		for i in range(0, octreeData.numEntries):
+			octreeDataRow = OctreeRow()
+
+			octreeDataRow.blockID = struct.unpack("q", fileContent[pos:pos+8])[0]
+			pos = pos + 8
+
+			octreeDataRow.minX = struct.unpack("q", fileContent[pos:pos+8])[0]
+			pos = pos + 8
+
+			octreeDataRow.maxX = struct.unpack("q", fileContent[pos:pos+8])[0]
+			pos = pos + 8
+
+			octreeDataRow.minY = struct.unpack("q", fileContent[pos:pos+8])[0]
+			pos = pos + 8
+
+			octreeDataRow.maxY = struct.unpack("q", fileContent[pos:pos+8])[0]
+			pos = pos + 8
+
+			octreeDataRow.minZ = struct.unpack("q", fileContent[pos:pos+8])[0]
+			pos = pos + 8
+
+			octreeDataRow.maxZ = struct.unpack("q", fileContent[pos:pos+8])[0]
+			pos = pos + 8
+
+			octreeDataRow.numParticles = struct.unpack("q", fileContent[pos:pos+8])[0]
+			pos = pos + 8
+
+			octreeDataRow.offsetInFile = struct.unpack("q", fileContent[pos:pos+8])[0]
+			pos = pos + 8
+
+			octreeDataRow.partitionLocation = struct.unpack("q", fileContent[pos:pos+8])[0]
+			pos = pos + 8
+
+			octreeData.rows.append(octreeDataRow)
+		'''
+		print("\nOctree:")
+		octreeData.printMe()
 
 
 
@@ -211,8 +298,11 @@ def main(argv):
 	print("\n\nVariables:")
 	positionInFile = headerInfo.varStart
 	
+
+	print "\nheaderInfo.varStart: ", headerInfo.varStart 
  
-	while positionInFile < headerInfo.rankStart:
+	#while positionInFile < headerInfo.rankStart:
+	for var in range(0, headerInfo.numVars):
 		_varInfo = GenericIOVariableInfo()
 
 		indexInFile = positionInFile
@@ -247,12 +337,13 @@ def main(argv):
 
 		positionInFile = positionInFile + headerInfo.varSize
 
-		_varInfo.printVarInfo()
+		_varInfo.printMe()
 		variableList.append(_varInfo)
 		numVars = numVars + 1
 
 
-	print("\n")
+		print "\npositionInFile: ", positionInFile 
+
 
 	# Read rank info
 	dataStart = 0
@@ -286,7 +377,10 @@ def main(argv):
 
 		_count = _count + 1
 
+		print "\npositionInFile: ", positionInFile 
 
+
+	print "\ndataStart: ", dataStart 
 
 	if isHeader:
 		dataList = []
