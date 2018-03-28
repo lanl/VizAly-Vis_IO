@@ -605,10 +605,22 @@ void GenericIO::write()
 
     if (SplitRank == 0)
     {
+        std::string serializedOctree;
+        uint64_t octreeSize = 0;
+        if (hasOctree)
+        {
+            serializedOctree = octreeData.serialize();
+            octreeSize = serializedOctree.size();
+        }
+
+
         uint64_t HeaderSize = sizeof(GlobalHeader<IsBigEndian>) + Vars.size() * sizeof(VariableHeader<IsBigEndian>) +
-                              SplitNRanks * sizeof(RankHeader<IsBigEndian>) + CRCSize;
+                              SplitNRanks * sizeof(RankHeader<IsBigEndian>) + CRCSize + octreeSize;
+
+
         if (NeedsBlockHeaders)
-            HeaderSize += SplitNRanks * Vars.size() * sizeof(BlockHeader<IsBigEndian>);
+            HeaderSize += SplitNRanks * Vars.size() * sizeof(BlockHeader<IsBigEndian>) + octreeSize;
+
 
         vector<char> Header(HeaderSize, 0);
         GlobalHeader<IsBigEndian> *GH = (GlobalHeader<IsBigEndian> *) &Header[0];
@@ -618,13 +630,17 @@ void GenericIO::write()
         std::copy(Dims, Dims + 3, GH->Dims);
         GH->NVars = Vars.size();
         GH->VarsSize = sizeof(VariableHeader<IsBigEndian>);
-        GH->VarsStart = sizeof(GlobalHeader<IsBigEndian>);
+        GH->VarsStart = sizeof(GlobalHeader<IsBigEndian>) + octreeSize;
         GH->NRanks = SplitNRanks;
         GH->RanksSize = sizeof(RankHeader<IsBigEndian>);
         GH->RanksStart = GH->VarsStart + Vars.size() * sizeof(VariableHeader<IsBigEndian>);
         GH->GlobalHeaderSize = sizeof(GlobalHeader<IsBigEndian>);
         std::copy(PhysOrigin, PhysOrigin + 3, GH->PhysOrigin);
         std::copy(PhysScale,  PhysScale  + 3, GH->PhysScale);
+
+        if (hasOctree)
+            std::copy( serializedOctree.begin(), serializedOctree.end(), &Header[GH->GlobalHeaderSize]);
+
         if (!NeedsBlockHeaders)
         {
             GH->BlocksSize = GH->BlocksStart = 0;
@@ -633,15 +649,6 @@ void GenericIO::write()
         {
             GH->BlocksSize = sizeof(BlockHeader<IsBigEndian>);
             GH->BlocksStart = GH->RanksStart + SplitNRanks * sizeof(RankHeader<IsBigEndian>);
-        }
-
-
-        std::string serializedOctree;
-        if (hasOctree)
-        {
-            serializedOctree = octreeData.serialize();
-            uint64_t OctreeSize = sizeof(serializedOctree) + CRCSize;
-            GH->GlobalHeaderSize += OctreeSize;
         }
 
 
@@ -668,6 +675,7 @@ void GenericIO::write()
         MPI_Gather(&RHLocal, sizeof(RHLocal), MPI_BYTE,
                    &Header[GH->RanksStart], sizeof(RHLocal),
                    MPI_BYTE, 0, SplitComm);
+
 
         if (NeedsBlockHeaders)
         {
@@ -730,6 +738,7 @@ void GenericIO::write()
                         sizeof(BlockHeader<IsBigEndian>)*Vars.size(), MPI_BYTE,
                         0, SplitComm);
 
+
         uint64_t HeaderCRC = crc64_omp(&Header[0], HeaderSize - CRCSize);
         crc64_invert(HeaderCRC, &Header[HeaderSize - CRCSize]);
 
@@ -743,22 +752,6 @@ void GenericIO::write()
         FH.get()->open(LocalFileName);
         FH.get()->setSize(FileSize);
         FH.get()->write(&Header[0], HeaderSize, 0, "header");
-
-
-        
-
-        if (hasOctree)
-        {
-            std::vector<char> serializedOctreeVec(serializedOctree.begin(), serializedOctree.end());
-
-            uint64_t OctreeSize = sizeof(serializedOctreeVec) +  CRCSize;
-
-            uint64_t OctreeCRC = crc64_omp(&serializedOctreeVec[0], OctreeSize - CRCSize);
-            crc64_invert(OctreeCRC, &serializedOctreeVec[OctreeSize - CRCSize]);
-
-            FH.get()->write(&serializedOctreeVec[0], OctreeSize, HeaderSize, "octree");
-            std::cout << "Octree data encoded" << std::endl;
-        }
 
         close();
     }
@@ -959,8 +952,10 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
     NRanks = 1;
     #endif
 
+
     if (EffRank == -1)
         EffRank = MB == MismatchRedistribute ? 0 : Rank;
+
 
     if (RankMap.empty() && CheckPartMap)
     {
@@ -1018,6 +1013,7 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
     {
         stringstream ss;
         ss << FileName << "#" << RankMap[EffRank];
+
         LocalFileName = ss.str();
         #ifndef GENERICIO_NO_MPI
         if (MB == MismatchRedistribute)
@@ -1037,6 +1033,7 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
     if (LocalFileName == OpenFileName)
         return;
     FH.close();
+
 
     int SplitNRanks, SplitRank;
     #ifndef GENERICIO_NO_MPI

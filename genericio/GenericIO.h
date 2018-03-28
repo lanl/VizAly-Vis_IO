@@ -86,11 +86,25 @@ struct Octree
     std::string serialize()
     {
         std::stringstream ss;
-        ss << preShuffled << "\n";
-        ss << decompositionLevel << "\n";
-        ss << numEntries << "\n";
+
+        unsigned char serialized64[8];
+
+        serialize_uint64(preShuffled, serialized64); ss << serialized64;
+        serialize_uint64(decompositionLevel, serialized64); ss << serialized64;
+        serialize_uint64(numEntries, serialized64); ss << serialized64;
         for (int i=0; i<numEntries; i++)
         {
+            serialize_uint64(rows[i].blockID, serialized64); ss << serialized64;
+            serialize_uint64(rows[i].minX, serialized64); ss << serialized64;
+            serialize_uint64(rows[i].maxX, serialized64); ss << serialized64;
+            serialize_uint64(rows[i].minY, serialized64); ss << serialized64;
+            serialize_uint64(rows[i].maxY, serialized64); ss << serialized64;
+            serialize_uint64(rows[i].minZ, serialized64); ss << serialized64;
+            serialize_uint64(rows[i].maxZ, serialized64); ss << serialized64;
+            serialize_uint64(rows[i].numParticles, serialized64); ss << serialized64;
+            serialize_uint64(rows[i].offsetInFile, serialized64); ss << serialized64;
+            serialize_uint64(rows[i].partitionLocation, serialized64); ss << serialized64;
+            /*
             ss << rows[i].blockID << ", "
                 << rows[i].minX << ", "
                 << rows[i].maxX << ", "
@@ -101,9 +115,22 @@ struct Octree
                 << rows[i].numParticles << ", "
                 << rows[i].offsetInFile << ", "
                 << rows[i].partitionLocation << "\n";
+                */
         }
         
         return ss.str();
+    }
+
+    void serialize_uint64(const uint64_t integer, unsigned char * const serializedInteger)
+    {
+        serializedInteger[0] = integer >> 56;
+        serializedInteger[1] = integer >> 48;
+        serializedInteger[2] = integer >> 40;
+        serializedInteger[3] = integer >> 32;
+        serializedInteger[4] = integer >> 24;
+        serializedInteger[5] = integer >> 16;
+        serializedInteger[6] = integer >> 8;
+        serializedInteger[7] = integer;
     }
 
     Octree deserialize(std::string serializedOctree)
@@ -133,6 +160,19 @@ struct Octree
         }
 
         return temp;
+    }
+
+    void print()
+    {
+        std::cout << preShuffled << ", " << decompositionLevel << ", " << numEntries << std::endl;
+        for (int i=0; i<numEntries; i++)
+        {
+            std::cout << rows[i].blockID << " : " <<
+                rows[i].minX << ", " << rows[i].maxX <<
+                rows[i].minY << ", " << rows[i].maxY <<
+                rows[i].minZ << ", " << rows[i].maxZ << " | " <<
+                rows[i].numParticles << ", " << rows[i].offsetInFile << ", " << rows[i].partitionLocation << std::endl;
+        }
     }
 };
 
