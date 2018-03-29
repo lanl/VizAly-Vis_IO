@@ -622,6 +622,7 @@ void GenericIO::write()
             HeaderSize += SplitNRanks * Vars.size() * sizeof(BlockHeader<IsBigEndian>) + octreeSize;
 
 
+
         vector<char> Header(HeaderSize, 0);
         GlobalHeader<IsBigEndian> *GH = (GlobalHeader<IsBigEndian> *) &Header[0];
         std::copy(Magic, Magic + MagicSize, GH->Magic);
@@ -650,6 +651,7 @@ void GenericIO::write()
             GH->BlocksSize = sizeof(BlockHeader<IsBigEndian>);
             GH->BlocksStart = GH->RanksStart + SplitNRanks * sizeof(RankHeader<IsBigEndian>);
         }
+
 
 
         uint64_t RecordSize = 0;

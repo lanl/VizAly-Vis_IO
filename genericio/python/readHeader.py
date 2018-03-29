@@ -109,19 +109,19 @@ class GenericIOVariableInfo:
 
 class OctreeRow:
 	def __init__ (self):
-		self.blockID
-		self.minX
-		self.maxX
-		self.minY
-		self.maxY
-		self.minZ
-		self.maxZ
-		self.numParticles
-		self.offsetInFile
-		self.partitionLocation
+		self.blockID = 0
+		self.minX = 0
+		self.maxX = 0
+		self.minY = 0
+		self.maxY = 0
+		self.minZ = 0
+		self.maxZ = 0
+		self.numParticles = 0
+		self.offsetInFile = 0
+		self.partitionLocation = 0
 
 	def printMe(self):
-		print(self.blockID, ":", self.minX,", ", self.maxX," ", self.minY,", ", self.maxY," ", self.minZ,", ", self.maxZ," - ", self.numParticles,", ", self.offsetInFile,", ", self.partitionLocation)
+		print(self.blockID, self.minX, self.maxX, self.minY, self.maxY, self.minZ, self.maxZ, self.numParticles, self.offsetInFile, self.partitionLocation)
 
 class Octree:
 	def __init__ (self):
@@ -135,8 +135,9 @@ class Octree:
 		print("Variable Size:", self.decompositionLevel)
 		print("Num Entries:", self.numEntries)
 
-		#for i in range(0,self.numEntries):
-		#	rows[i].printMe()
+		print("(mpi_blockID, minX, maxX, minY, maxY, minZ,maxZ, #particles, offset_in_file, rank_location)")
+		for i in range(0,self.numEntries):
+			self.rows[i].printMe()
 
 
 
@@ -232,8 +233,8 @@ def main(argv):
 	
 	headerInfo.printMe()
 
-	print("\n")
-	print "pos: ", pos 
+	#print("\n")
+	#print "pos: ", pos 
 
 
 	# Octree
@@ -250,7 +251,7 @@ def main(argv):
 		octreeData.numEntries = struct.unpack("q", fileContent[pos:pos+8])[0]
 		pos = pos + 8
 
-		'''
+		
 		for i in range(0, octreeData.numEntries):
 			octreeDataRow = OctreeRow()
 
@@ -285,9 +286,10 @@ def main(argv):
 			pos = pos + 8
 
 			octreeData.rows.append(octreeDataRow)
-		'''
+		
 		print("\nOctree:")
 		octreeData.printMe()
+		
 
 
 
@@ -299,7 +301,7 @@ def main(argv):
 	positionInFile = headerInfo.varStart
 	
 
-	print "\nheaderInfo.varStart: ", headerInfo.varStart 
+	#print "\nheaderInfo.varStart: ", headerInfo.varStart 
  
 	#while positionInFile < headerInfo.rankStart:
 	for var in range(0, headerInfo.numVars):
@@ -342,7 +344,7 @@ def main(argv):
 		numVars = numVars + 1
 
 
-		print "\npositionInFile: ", positionInFile 
+		#print "\npositionInFile: ", positionInFile 
 
 
 	# Read rank info
@@ -377,10 +379,10 @@ def main(argv):
 
 		_count = _count + 1
 
-		print "\npositionInFile: ", positionInFile 
+		#print "\npositionInFile: ", positionInFile 
 
 
-	print "\ndataStart: ", dataStart 
+	#print "\ndataStart: ", dataStart 
 
 	if isHeader:
 		dataList = []

@@ -87,92 +87,45 @@ struct Octree
     {
         std::stringstream ss;
 
-        unsigned char serialized64[8];
+        ss << serialize_uint64(preShuffled);
+        ss << serialize_uint64(decompositionLevel);
+        ss << serialize_uint64(numEntries);
 
-        serialize_uint64(preShuffled, serialized64); ss << serialized64;
-        serialize_uint64(decompositionLevel, serialized64); ss << serialized64;
-        serialize_uint64(numEntries, serialized64); ss << serialized64;
         for (int i=0; i<numEntries; i++)
         {
-            serialize_uint64(rows[i].blockID, serialized64); ss << serialized64;
-            serialize_uint64(rows[i].minX, serialized64); ss << serialized64;
-            serialize_uint64(rows[i].maxX, serialized64); ss << serialized64;
-            serialize_uint64(rows[i].minY, serialized64); ss << serialized64;
-            serialize_uint64(rows[i].maxY, serialized64); ss << serialized64;
-            serialize_uint64(rows[i].minZ, serialized64); ss << serialized64;
-            serialize_uint64(rows[i].maxZ, serialized64); ss << serialized64;
-            serialize_uint64(rows[i].numParticles, serialized64); ss << serialized64;
-            serialize_uint64(rows[i].offsetInFile, serialized64); ss << serialized64;
-            serialize_uint64(rows[i].partitionLocation, serialized64); ss << serialized64;
-            /*
-            ss << rows[i].blockID << ", "
-                << rows[i].minX << ", "
-                << rows[i].maxX << ", "
-                << rows[i].minY << ", "
-                << rows[i].maxY << ", "
-                << rows[i].minZ << ", "
-                << rows[i].maxZ << ", "
-                << rows[i].numParticles << ", "
-                << rows[i].offsetInFile << ", "
-                << rows[i].partitionLocation << "\n";
-                */
+            ss << serialize_uint64(rows[i].blockID);
+            ss << serialize_uint64(rows[i].minX);
+            ss << serialize_uint64(rows[i].maxX);
+            ss << serialize_uint64(rows[i].minY);
+            ss << serialize_uint64(rows[i].maxY);
+            ss << serialize_uint64(rows[i].minZ);
+            ss << serialize_uint64(rows[i].maxZ);
+            ss << serialize_uint64(rows[i].numParticles);
+            ss << serialize_uint64(rows[i].offsetInFile);
+            ss << serialize_uint64(rows[i].partitionLocation);
         }
         
         return ss.str();
     }
 
-    void serialize_uint64(const uint64_t integer, unsigned char * const serializedInteger)
+    // Only little endian for now!!! BAD!!!
+    std::string serialize_uint64(uint64_t t)
     {
-        serializedInteger[0] = integer >> 56;
-        serializedInteger[1] = integer >> 48;
-        serializedInteger[2] = integer >> 40;
-        serializedInteger[3] = integer >> 32;
-        serializedInteger[4] = integer >> 24;
-        serializedInteger[5] = integer >> 16;
-        serializedInteger[6] = integer >> 8;
-        serializedInteger[7] = integer;
-    }
+        std::vector<char> serializedString;
+        serializedString.push_back(static_cast<uint8_t>(t>>0));
+        serializedString.push_back(static_cast<uint8_t>(t >> 8));
+        serializedString.push_back(static_cast<uint8_t>(t >> 16));
+        serializedString.push_back(static_cast<uint8_t>(t >> 24));
+        serializedString.push_back(static_cast<uint8_t>(t >> 32));
+        serializedString.push_back(static_cast<uint8_t>(t >> 40));
+        serializedString.push_back(static_cast<uint8_t>(t >> 48));
+        serializedString.push_back(static_cast<uint8_t>(t >> 56));
 
-    Octree deserialize(std::string serializedOctree)
-    {
-        Octree temp;
-        std::stringstream ss( serializedOctree );
-        ss >> temp.preShuffled;
-        ss >> temp.decompositionLevel;
-        ss >> temp.numEntries;
+        std::stringstream ss;
+        for (int i=0; i<8; i++)
+            ss << serializedString[i];
 
-
-        for (int i=0; i<temp.numEntries; i++)
-        {
-            OctreeRow tempRow;
-            ss >> tempRow.blockID;
-            ss >> tempRow.minX;
-            ss >> tempRow.maxX;
-            ss >> tempRow.minY;
-            ss >> tempRow.maxY;
-            ss >> tempRow.minZ;
-            ss >> tempRow.maxZ;
-            ss >> tempRow.numParticles;
-            ss >> tempRow.offsetInFile;
-            ss >> tempRow.partitionLocation;
-
-            temp.rows.push_back(tempRow);
-        }
-
-        return temp;
-    }
-
-    void print()
-    {
-        std::cout << preShuffled << ", " << decompositionLevel << ", " << numEntries << std::endl;
-        for (int i=0; i<numEntries; i++)
-        {
-            std::cout << rows[i].blockID << " : " <<
-                rows[i].minX << ", " << rows[i].maxX <<
-                rows[i].minY << ", " << rows[i].maxY <<
-                rows[i].minZ << ", " << rows[i].maxZ << " | " <<
-                rows[i].numParticles << ", " << rows[i].offsetInFile << ", " << rows[i].partitionLocation << std::endl;
-        }
+        return ss.str();
     }
 };
 
