@@ -54,6 +54,7 @@ int main(int argc, char* argv[])
 
 		newGIO.addOctreeHeader((uint64_t)0, (uint64_t)1, (uint64_t)8);
 		uint64_t extents[6]={0,256, 0,256, 0,256};
+		float simExtents[6]={0,256, 0,256, 0,256};
 		for (int i=0; i<8; i++)
 		{
 			newGIO.addOctreeRow(i,extents, 1000, 0, i);
@@ -76,40 +77,40 @@ int main(int argc, char* argv[])
 		id.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(int64_t));
 		mask.resize(numParticles + newGIO.requestedExtraSpace() / sizeof(uint16_t));
 		
-;
 
 		int offsetX, offsetY, offsetZ;
+		int _8RankOffset = 128;
 		if (myRank == 0) //
 		{
 			offsetX = 0;	offsetY = 0;	offsetZ = 0;
 		}
 		else if (myRank == 1)
 		{
-			offsetX = 0;	offsetY = 0;	offsetZ = 128;
+			offsetX = 0;	offsetY = 0;	offsetZ = _8RankOffset;
 		}
 		else if (myRank == 2)
 		{
-			offsetX = 0;	offsetY = 128;	offsetZ = 0;
+			offsetX = 0;	offsetY = _8RankOffset;	offsetZ = 0;
 		}
 		else if (myRank == 3)
 		{
-			offsetX = 0;	offsetY = 128;	offsetZ = 128;
+			offsetX = 0;	offsetY = _8RankOffset;	offsetZ = _8RankOffset;
 		}
 		else if (myRank == 4) //
 		{
-			offsetX = 128;	offsetY = 0;	offsetZ = 0;
+			offsetX = _8RankOffset;	offsetY = 0;	offsetZ = 0;
 		}
 		else if (myRank == 5)
 		{
-			offsetX = 128;	offsetY = 0;	offsetZ = 128;
+			offsetX = _8RankOffset;	offsetY = 0;	offsetZ = _8RankOffset;
 		}
 		else if (myRank == 6)
 		{
-			offsetX = 128;	offsetY = 128;	offsetZ = 0;
+			offsetX = _8RankOffset;	offsetY = _8RankOffset;	offsetZ = 0;
 		}
 		else if (myRank == 7)
 		{
-			offsetX = 128;	offsetY = 128;	offsetZ = 128;
+			offsetX = _8RankOffset;	offsetY = _8RankOffset;	offsetZ = _8RankOffset;
 		}
 
 		MPI_Barrier(MPI_COMM_WORLD);
@@ -156,7 +157,70 @@ int main(int argc, char* argv[])
 
 		MPI_Barrier(MPI_COMM_WORLD);
 
+		//
+		// Octree settings
 
+		// numLevels = 2, leaves overall=64
+		// 		in current test, each rank has 8 leaves
+		//
+
+		float rankExtents[6];
+		int numLevels = 2;
+		int displayRank = 0;
+
+		rankExtents[0] = offsetX;	rankExtents[1] = offsetX + _8RankOffset;
+		rankExtents[2] = offsetY;	rankExtents[3] = offsetY + _8RankOffset;
+		rankExtents[4] = offsetZ;	rankExtents[5] = offsetZ + _8RankOffset;
+		Octree gioOctree(numLevels, simExtents);
+		gioOctree.buildOctree();
+
+		int numOctreeLeaves = gioOctree.getNumNodes();
+		int numLeavesPerRank = numOctreeLeaves/numRanks;
+		int numleavesForMyRank = numLeavesPerRank;
+
+		if (myRank == displayRank)
+		{
+			std::cout <<myRank << " ~ " << rankExtents[0] << "-" << rankExtents[1] << ", "
+										<< rankExtents[2] << "-" << rankExtents[3] << ", "
+										<< rankExtents[4] << "-" << rankExtents[5] << std::endl;
+
+			std::cout << myRank << " ~ " << numOctreeLeaves << ", " << numLeavesPerRank << std::endl;
+		}
+
+		//
+        // Storing number of partitions per rank
+        std::vector< int > myLeaves;
+        float myOctreeExtents[6];
+        myOctreeExtents[0]=myOctreeExtents[2]=myOctreeExtents[4]=std::numeric_limits<float>::max();
+        myOctreeExtents[1]=myOctreeExtents[3]=myOctreeExtents[5]=std::numeric_limits<float>::min();
+
+        for (int i=0; i<numLeavesPerRank; i++)
+        {
+            int leafID = myRank*numleavesForMyRank + i;
+            myLeaves.push_back(leafID);
+
+            float _extents[6];
+            gioOctree.getLeafExtents(leafID,_extents);
+            myOctreeExtents[0]=std::min(_extents[0], myOctreeExtents[0]);
+            myOctreeExtents[2]=std::min(_extents[2], myOctreeExtents[2]);
+            myOctreeExtents[4]=std::min(_extents[4], myOctreeExtents[4]);
+
+            myOctreeExtents[1]=std::max(_extents[1], myOctreeExtents[1]);
+            myOctreeExtents[3]=std::max(_extents[3], myOctreeExtents[3]);
+            myOctreeExtents[5]=std::max(_extents[5], myOctreeExtents[5]);
+
+            //debugLog.addLog( std::to_string(i) + ": " + std::to_string(leafID) + ", " );
+
+			// std::cout <<myRank << " ~ " << leafID << " | " 
+			// 			<< myOctreeExtents[0] << "-" << myOctreeExtents[1] << ", "
+			// 			<< myOctreeExtents[2] << "-" << myOctreeExtents[3] << ", "
+			// 			<< myOctreeExtents[4] << "-" << myOctreeExtents[5] << std::endl;
+			if (myRank == displayRank)
+				std::cout <<myRank << " ~ " << leafID << " | " 
+							<< _extents[0] << "-" << _extents[1] << ", "
+							<< _extents[2] << "-" << _extents[3] << ", "
+							<< _extents[4] << "-" << _extents[5] << std::endl;
+        }
 
         newGIO.write();
 
