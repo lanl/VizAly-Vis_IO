@@ -58,76 +58,13 @@
 
 #include <unistd.h>
 
+#include "utils/octree.h"
+
+
 namespace gio
 {
 
 
-struct OctreeRow
-{
-    uint64_t blockID;
-    uint64_t minX;
-    uint64_t maxX;
-    uint64_t minY;
-    uint64_t maxY;
-    uint64_t minZ;
-    uint64_t maxZ;
-    uint64_t numParticles;
-    uint64_t offsetInFile;
-    uint64_t partitionLocation;
-};
-
-struct Octree
-{
-    uint64_t preShuffled;
-    uint64_t decompositionLevel;
-    uint64_t numEntries;
-    std::vector<OctreeRow> rows;
-
-    std::string serialize()
-    {
-        std::stringstream ss;
-
-        ss << serialize_uint64(preShuffled);
-        ss << serialize_uint64(decompositionLevel);
-        ss << serialize_uint64(numEntries);
-
-        for (int i=0; i<numEntries; i++)
-        {
-            ss << serialize_uint64(rows[i].blockID);
-            ss << serialize_uint64(rows[i].minX);
-            ss << serialize_uint64(rows[i].maxX);
-            ss << serialize_uint64(rows[i].minY);
-            ss << serialize_uint64(rows[i].maxY);
-            ss << serialize_uint64(rows[i].minZ);
-            ss << serialize_uint64(rows[i].maxZ);
-            ss << serialize_uint64(rows[i].numParticles);
-            ss << serialize_uint64(rows[i].offsetInFile);
-            ss << serialize_uint64(rows[i].partitionLocation);
-        }
-        
-        return ss.str();
-    }
-
-    // Only little endian for now!!! BAD!!!
-    std::string serialize_uint64(uint64_t t)
-    {
-        std::vector<char> serializedString;
-        serializedString.push_back(static_cast<uint8_t>(t>>0));
-        serializedString.push_back(static_cast<uint8_t>(t >> 8));
-        serializedString.push_back(static_cast<uint8_t>(t >> 16));
-        serializedString.push_back(static_cast<uint8_t>(t >> 24));
-        serializedString.push_back(static_cast<uint8_t>(t >> 32));
-        serializedString.push_back(static_cast<uint8_t>(t >> 40));
-        serializedString.push_back(static_cast<uint8_t>(t >> 48));
-        serializedString.push_back(static_cast<uint8_t>(t >> 56));
-
-        std::stringstream ss;
-        for (int i=0; i<8; i++)
-            ss << serializedString[i];
-
-        return ss.str();
-    }
-};
 
 
 
@@ -449,7 +386,7 @@ class GenericIO
 
     void addOctreeRow(uint64_t _blockID, uint64_t _extents[6], uint64_t _numParticles, uint64_t _offsetInFile, uint64_t _partitionLocation)
     {
-        OctreeRow temp;
+        GIOOctreeRow temp;
 
         temp.blockID = _blockID;
         temp.minX = _extents[0];
@@ -659,7 +596,7 @@ class GenericIO
 
   protected:
     std::vector<Variable> Vars;
-    Octree octreeData;
+    GIOOctree octreeData;
 
     std::size_t NElems;
 
