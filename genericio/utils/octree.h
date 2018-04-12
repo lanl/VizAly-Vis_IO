@@ -6,6 +6,11 @@
 #include <math.h>
 #include <stdint.h>
 #include <string>
+#include <algorithm>
+#include <random>
+
+
+struct vecArray{ std::vector<float> arr; };
 
 
 struct GIOOctreeRow
@@ -87,6 +92,7 @@ struct PartitionExtents
 };
 
 
+
 class Octree
 {
 	float extents[6];
@@ -109,13 +115,104 @@ class Octree
 	int getNumNodes(){ return (int) (pow(8.0f,numLevels)); }
 	int getLeafIndex(float pos[3]);
 	void getLeafExtents(int leafId, float extents[6]);
-	
-	size_t writeOctFile(std::string filename, int numMPIRanks, int rowsPerLeaf[], int numLeavesPerRank[]);
 
 	std::string getPartitions();
 	void displayPartitions();
+
+	std::vector<int> findPartition(float inputArrayX[], float inputArrayY[], float inputArrayZ[], size_t numElements, int numPartitions, int partitionExtents[], std::vector<int> &partitionPosition);
+	void reorganizeArray(int numPartitions, std::vector<int>partitionCount, std::vector<int> partitionPosition, float array[], size_t numElements, bool shuffle);
+	bool checkPosition(int extents[], float _x, float _y, float _z);
 };
 
+
+
+
+inline bool Octree::checkPosition(int extents[], float _x, float _y, float _z)
+{
+	if (_x < extents[1] && _x >= extents[0])
+		if (_y < extents[3] && _y >= extents[2])
+			if (_z < extents[5] && _z >= extents[4])
+				return true;
+
+	return false;
+}
+
+
+	// std::vector< std::vector<float> > posX;
+	// std::vector< std::vector<float> > posY;
+	// std::vector< std::vector<float> > posZ;
+
+	// for (int i=0; i<numPartitions; i++)
+	// 	posX.push_back( std::vector<float>() );
+
+inline void Octree::reorganizeArray(int numPartitions, std::vector<int>partitionCount, std::vector<int> partitionPosition, float array[], size_t numElements, bool shuffle)
+{
+	// Partition count
+	std::vector<int> currentPartitionCount;
+	for (int i=0; i<numPartitions; i++)
+		currentPartitionCount.push_back(0);
+
+	// Duplicating array
+	std::vector<float> tempVector(numElements);
+	std::copy(array, array+numElements, tempVector.begin());
+
+
+	for (size_t i=0; i<numElements; i++)
+	{
+		int partition = partitionPosition[i];	// Get the partition that index is in
+		int partitionOffset = partitionCount[partition] + currentPartitionCount[partition];	// current_new_position = offset + current
+
+		array[partitionOffset] = tempVector[i];
+
+		currentPartitionCount[partition]++;
+	}
+
+
+	if (shuffle)
+	{
+		std::random_device rd;
+  		std::mt19937 g(rd());
+
+  		size_t startPos = 0;
+		for (int p=0; p<numPartitions; p++)
+		{
+			std::shuffle(&array[startPos], &array[startPos+partitionCount[p]], g);
+			startPos += partitionCount[p];
+		}
+	}
+}
+
+
+inline std::vector<int> Octree::findPartition(float inputArrayX[], float inputArrayY[], float inputArrayZ[], size_t numElements, int numPartitions, int partitionExtents[], std::vector<int> &partitionPosition)
+{
+	std::vector<int>partitionCount;		// count 
+
+	// initialize count of partition
+	for (int i=0; i<numPartitions; i++)
+		partitionCount.push_back(0);
+
+	for (size_t i=0; i<numElements; i++)
+	{
+		// partitionExtents[] - minX, maxY  minY, maxY, minZ, maxZ
+		for (int p=0; p<numPartitions; p++)
+			if ( checkPosition(&partitionExtents[p*6], inputArrayX[i], inputArrayY[i], inputArrayZ[i]) )
+				break;
+
+		if (p == numPartitions)
+		{
+			std::cout << inputArrayX[i] << "," << inputArrayY[i] << ", " << inputArrayZ[i] << " is in NO partition!!! " << std::endl;
+			
+			// Put it in the last partition
+			p--;
+		}
+		
+		// Put in partition
+		partitionPosition.push_back(p);
+		partitionCount[p]++;
+	}
+
+	return partitionCount;
+}
 
 
 inline void Octree::init(int _numLevels, float _extents[6])
@@ -233,45 +330,6 @@ inline void Octree::chopVolume(float rootExtents[6], int _numLevels, std::list<P
 
 		numBlocks = partitionList.size();
 	}
-}
-
-
-inline size_t Octree::writeOctFile(std::string filename, int numMPIRanks, int rowsPerLeaf[], int numLeavesPerRank[])
-{
-	/*
-    std::ofstream outputFile( (filename+ ".oct").c_str(), std::ios::out);
-    
-    outputFile << extents[0] << " " << extents[1] << " " << extents[2] << " " << extents[3] << " " << extents[4] << " " << extents[5] << "\n";
-    outputFile << numLevels << std::endl;
-    outputFile << numMPIRanks << std::endl;
-    outputFile << (int) (pow(8.0f,numLevels));
-
-    int count = 0;
-    size_t numParticles=0;
-    int currentMPIRank = 0;
-    int offsetInFile = 0;
-    int leafCount = 0;
-    for (auto it=octreePartitions.begin(); it!=octreePartitions.end(); it++, count++)
-    {
-    	if (leafCount >= numLeavesPerRank[currentMPIRank])
-    	{
-    		currentMPIRank++;
-    		offsetInFile = 0;
-    		leafCount = 0;
-    	}
-
-		outputFile << "\n" << count << "  " << (*it).extents[0] << " " << (*it).extents[1] <<  " "
-				  					<< (*it).extents[2] << " " << (*it).extents[3] <<  " "
-				  					<< (*it).extents[4] << " " << (*it).extents[5] <<  "  "
-				  					<< rowsPerLeaf[count] << " " << currentMPIRank << " " << offsetInFile;
-		numParticles += rowsPerLeaf[count];
-		offsetInFile += rowsPerLeaf[count];
-		leafCount++;
-    }
-   
-    outputFile.close();
-    return numParticles;
-    */
 }
 
 
