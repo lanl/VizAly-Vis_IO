@@ -104,6 +104,7 @@ class Octree
 	
   public:
   	std::vector<PartitionExtents> octreePartitions;		// stores only extents of all leaves
+  	int myRank;
 
 	Octree(){};
 	Octree(int _numLevels, float _extents[6]):numLevels(_numLevels){ for (int i=0; i<6; i++) extents[i] = _extents[i]; };
@@ -119,15 +120,17 @@ class Octree
 	std::string getPartitions();
 	void displayPartitions();
 
-	std::vector<int> findPartition(float inputArrayX[], float inputArrayY[], float inputArrayZ[], size_t numElements, int numPartitions, int partitionExtents[], std::vector<int> &partitionPosition);
-	void reorganizeArray(int numPartitions, std::vector<int>partitionCount, std::vector<int> partitionPosition, float array[], size_t numElements, bool shuffle);
-	bool checkPosition(int extents[], float _x, float _y, float _z);
+template <typename T> void fillArray(int numPartitions, std::vector<int>partitionCount, T array[], size_t numElements);
+	
+	template <typename T> void reorganizeArray(int numPartitions, std::vector<int>partitionCount, std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle);
+	template <typename T> bool checkPosition(int extents[], T _x, T _y, T _z);
+	template <typename T> std::vector<int> findPartition(T inputArrayX[], T inputArrayY[], T inputArrayZ[], size_t numElements, int numPartitions, int partitionExtents[], std::vector<int> &partitionPosition);
 };
 
 
 
-
-inline bool Octree::checkPosition(int extents[], float _x, float _y, float _z)
+template <typename T> 
+inline bool Octree::checkPosition(int extents[], T _x, T _y, T _z)
 {
 	if (_x < extents[1] && _x >= extents[0])
 		if (_y < extents[3] && _y >= extents[2])
@@ -137,32 +140,55 @@ inline bool Octree::checkPosition(int extents[], float _x, float _y, float _z)
 	return false;
 }
 
-
-	// std::vector< std::vector<float> > posX;
-	// std::vector< std::vector<float> > posY;
-	// std::vector< std::vector<float> > posZ;
-
-	// for (int i=0; i<numPartitions; i++)
-	// 	posX.push_back( std::vector<float>() );
-
-inline void Octree::reorganizeArray(int numPartitions, std::vector<int>partitionCount, std::vector<int> partitionPosition, float array[], size_t numElements, bool shuffle)
+template <typename T>				    	
+inline void Octree::fillArray(int numPartitions, std::vector<int>partitionCount, T array[], size_t numElements)
 {
+	size_t count = 0;
+	for (int i=0; i<numPartitions; i++)
+	{
+		for (int j=0; j<partitionCount[i]; j++)
+		{
+			array[count] = i;
+			count++;
+		}
+	}
+}
+
+
+template <typename T>				    	
+inline void Octree::reorganizeArray(int numPartitions, std::vector<int>partitionCount, std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle)
+{
+	// Get offset
+	std::vector<int> partitionOffset;
+	partitionOffset.push_back(0);
+	for (int i=0; i<numPartitions; i++)
+		partitionOffset.push_back( partitionOffset[i] + partitionCount[i] );
+
+
 	// Partition count
 	std::vector<int> currentPartitionCount;
 	for (int i=0; i<numPartitions; i++)
 		currentPartitionCount.push_back(0);
 
-	// Duplicating array
-	std::vector<float> tempVector(numElements);
+	// Duplicating original data array
+	std::vector<T> tempVector(numElements);
 	std::copy(array, array+numElements, tempVector.begin());
 
 
 	for (size_t i=0; i<numElements; i++)
 	{
-		int partition = partitionPosition[i];	// Get the partition that index is in
-		int partitionOffset = partitionCount[partition] + currentPartitionCount[partition];	// current_new_position = offset + current
 
-		array[partitionOffset] = tempVector[i];
+		int partition = partitionPosition[i];	// Get the partition that index is in
+		int pos = partitionOffset[partition] + currentPartitionCount[partition];	// current_new_position = offset + current
+
+		array[pos] = tempVector[i];
+
+		// if (myRank == 0)
+		// {
+		// 	std::cout << i << " : move to partition: " << partitionPosition[i] <<
+		// 		 " - current partition count: " << currentPartitionCount[partition] << 
+		// 		 " pos: " << pos << std::endl;
+		// }
 
 		currentPartitionCount[partition]++;
 	}
@@ -182,10 +208,13 @@ inline void Octree::reorganizeArray(int numPartitions, std::vector<int>partition
 	}
 }
 
-
-inline std::vector<int> Octree::findPartition(float inputArrayX[], float inputArrayY[], float inputArrayZ[], size_t numElements, int numPartitions, int partitionExtents[], std::vector<int> &partitionPosition)
+template <typename T> 
+inline std::vector<int> Octree::findPartition(T inputArrayX[], T inputArrayY[], T inputArrayZ[], size_t numElements, int numPartitions, int partitionExtents[], std::vector<int> &partitionPosition)
 {
-	std::vector<int>partitionCount;		// count 
+	std::vector<int>partitionCount;		// # particles in partition
+
+	if (myRank == 0)
+		std::cout <<  "numPartitions: " << numPartitions << std::endl;
 
 	// initialize count of partition
 	for (int i=0; i<numPartitions; i++)
@@ -194,16 +223,21 @@ inline std::vector<int> Octree::findPartition(float inputArrayX[], float inputAr
 	for (size_t i=0; i<numElements; i++)
 	{
 		// partitionExtents[] - minX, maxY  minY, maxY, minZ, maxZ
-		for (int p=0; p<numPartitions; p++)
+		int p;
+		for (p=0; p<numPartitions; p++)
 			if ( checkPosition(&partitionExtents[p*6], inputArrayX[i], inputArrayY[i], inputArrayZ[i]) )
 				break;
 
-		if (p == numPartitions)
+			// if (myRank == 0)
+			// {
+			// 	std::cout << inputArrayX[i] << ", " << inputArrayY[i] << ", " << inputArrayZ[i] << " - partition: " << p << std::endl;
+			// }
+		if (p >= numPartitions)
 		{
 			std::cout << inputArrayX[i] << "," << inputArrayY[i] << ", " << inputArrayZ[i] << " is in NO partition!!! " << std::endl;
 			
 			// Put it in the last partition
-			p--;
+			p=numPartitions-1;
 		}
 		
 		// Put in partition
@@ -213,6 +247,8 @@ inline std::vector<int> Octree::findPartition(float inputArrayX[], float inputAr
 
 	return partitionCount;
 }
+
+
 
 
 inline void Octree::init(int _numLevels, float _extents[6])
