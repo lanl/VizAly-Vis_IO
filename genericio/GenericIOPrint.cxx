@@ -104,9 +104,9 @@ PrinterBase *addPrinter(GenericIO::VariableInfo &V,
 
 int main(int argc, char *argv[])
 {
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     MPI_Init(&argc, &argv);
-    #endif
+  #endif
 
     bool ShowMap = false;
     bool NoData = false;
@@ -143,28 +143,29 @@ int main(int argc, char *argv[])
     string FileName(argv[FileNameIdx]);
 
     int Rank, NRanks;
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     MPI_Comm_rank(MPI_COMM_WORLD, &Rank);
     MPI_Comm_size(MPI_COMM_WORLD, &NRanks);
-    #else
+  #else
     Rank = 0;
     NRanks = 1;
-    #endif
+  #endif
 
     if (Rank == 0)
     {
         unsigned Method = GenericIO::FileIOPOSIX;
-        #ifndef GENERICIO_NO_MPI
+      #ifndef GENERICIO_NO_MPI
         const char *EnvStr = getenv("GENERICIO_USE_MPIIO");
         if (EnvStr && string(EnvStr) == "1")
             Method = GenericIO::FileIOMPI;
-        #endif
+      #endif
 
-        #ifndef GENERICIO_NO_MPI
+      #ifndef GENERICIO_NO_MPI
         GenericIO GIO(MPI_COMM_SELF, FileName, Method);
-        #else
+      #else
         GenericIO GIO(FileName, Method);
-        #endif
+      #endif
+
         std::cout << " before openAndReadHeader" << std::endl;
         GIO.openAndReadHeader(GenericIO::MismatchAllowed, -1, !ShowMap);
 
@@ -185,19 +186,19 @@ int main(int argc, char *argv[])
         {
             PrinterBase *P = 0;
 
-#define ADD_PRINTER(T) \
-      if (!P) P = addPrinter<T>(VI[i], GIO, MaxNElem)
-            ADD_PRINTER(float);
-            ADD_PRINTER(double);
-            ADD_PRINTER(unsigned char);
-            ADD_PRINTER(signed char);
-            ADD_PRINTER(int16_t);
-            ADD_PRINTER(uint16_t);
-            ADD_PRINTER(int32_t);
-            ADD_PRINTER(uint32_t);
-            ADD_PRINTER(int64_t);
-            ADD_PRINTER(uint64_t);
-#undef ADD_PRINTER
+          #define ADD_PRINTER(T) \
+            if (!P) P = addPrinter<T>(VI[i], GIO, MaxNElem)
+                ADD_PRINTER(float);
+                ADD_PRINTER(double);
+                ADD_PRINTER(unsigned char);
+                ADD_PRINTER(signed char);
+                ADD_PRINTER(int16_t);
+                ADD_PRINTER(uint16_t);
+                ADD_PRINTER(int32_t);
+                ADD_PRINTER(uint32_t);
+                ADD_PRINTER(int64_t);
+                ADD_PRINTER(uint64_t);
+          #undef ADD_PRINTER
 
             if (!P) throw runtime_error("Don't know how to print variable: " + VI[i].Name);
             Printers.push_back(P);

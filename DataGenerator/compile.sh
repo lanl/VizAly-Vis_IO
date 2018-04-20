@@ -55,3 +55,7 @@ mpicxx fileReading.cpp -fopenmp -I/home/pascal/projects/VizAly/genericio \
 mpicxx dataGen.cpp -fopenmp -I/home/pascal/projects/VizAly/genericio \
 	/home/pascal/projects/VizAly/genericio/mpi/GenericIO.o $BLOSC_O \
 	-o dataGen
+
+mpicxx dataGenNoOct.cpp -fopenmp -I/home/pascal/projects/VizAly/genericio \
+	/home/pascal/projects/VizAly/genericio/mpi/GenericIO.o $BLOSC_O \
+	-o dataGenNoOct

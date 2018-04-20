@@ -10,7 +10,6 @@
 #include <random>
 
 
-struct vecArray{ std::vector<float> arr; };
 
 
 struct GIOOctreeRow
@@ -34,6 +33,8 @@ struct GIOOctree
     uint64_t decompositionLevel;
     uint64_t numEntries;
     std::vector<GIOOctreeRow> rows;
+
+
 
     std::string serialize()
     {
@@ -64,7 +65,7 @@ struct GIOOctree
     std::string serialize_uint64(uint64_t t)
     {
         std::vector<char> serializedString;
-        serializedString.push_back(static_cast<uint8_t>(t>>0));
+        serializedString.push_back(static_cast<uint8_t>(t >> 0));
         serializedString.push_back(static_cast<uint8_t>(t >> 8));
         serializedString.push_back(static_cast<uint8_t>(t >> 16));
         serializedString.push_back(static_cast<uint8_t>(t >> 24));
@@ -78,6 +79,74 @@ struct GIOOctree
             ss << serializedString[i];
 
         return ss.str();
+    }
+
+
+    std::string deserialize(char serializedString[])
+    {
+
+        preShuffled = deserialize_uint64(&serializedString[0]);
+        decompositionLevel = deserialize_uint64(&serializedString[8]);
+        numEntries = deserialize_uint64(&serializedString[16]);
+
+        rows.clear();
+        int serializedOffset = 24;	// adding togehter the previous header
+        for (int i=0; i<numEntries; i++)
+        {
+        	GIOOctreeRow temp;
+            temp.blockID = deserialize_uint64(&serializedString[serializedOffset + 0]);
+            temp.minX = deserialize_uint64(&serializedString[serializedOffset + 8]);
+            temp.maxX = deserialize_uint64(&serializedString[serializedOffset + 16]);
+            temp.minY = deserialize_uint64(&serializedString[serializedOffset + 24]);
+            temp.maxY = deserialize_uint64(&serializedString[serializedOffset + 32]);
+            temp.minZ = deserialize_uint64(&serializedString[serializedOffset + 40]);
+            temp.minZ = deserialize_uint64(&serializedString[serializedOffset + 48]);
+            temp.numParticles = deserialize_uint64(&serializedString[serializedOffset + 56]);
+            temp.offsetInFile = deserialize_uint64(&serializedString[serializedOffset + 64]);
+            temp.partitionLocation = deserialize_uint64(&serializedString[serializedOffset + 72]);
+
+            serializedOffset += 80;
+            rows.push_back(temp);
+        }
+
+    }
+
+
+	uint64_t deserialize_uint64(char* serializedStr)
+	{
+		uint64_t num = (   	(static_cast<uint8_t>( serializedStr[0]) << 0)  |
+		             		(static_cast<uint8_t>( serializedStr[1]) << 8)  |
+		             		(static_cast<uint8_t>( serializedStr[2]) << 16) |
+		             		(static_cast<uint8_t>( serializedStr[3]) << 24) |
+		             		(static_cast<uint8_t>( serializedStr[4]) << 32) |
+		             		(static_cast<uint8_t>( serializedStr[5]) << 40) |
+		             		(static_cast<uint8_t>( serializedStr[6]) << 48) |
+		             		(static_cast<uint8_t>( serializedStr[7]) << 56) );
+		return num;
+	}
+
+
+    void print()
+    {
+    	std::cout << "\nPre-Shuffled:" << preShuffled << std::endl;
+    	std::cout << "Decomposition Level:" << decompositionLevel << std::endl;
+    	std::cout << "Num Entries:" << numEntries << std::endl;
+
+    	std::cout << "\nIndex : minX - maxX, minY - maxY, minZ - maxZ, #particles, offset_in_file, rank_location"<< std::endl;
+    	for (int i=0; i<numEntries; i++)
+    	{
+    		std::cout << rows[i].blockID << " : "
+    				  << rows[i].minX << " - "
+    				  << rows[i].maxX << ", "
+    				  << rows[i].minY << " - "
+    				  << rows[i].maxY << ", "
+    				  << rows[i].minZ << " - "
+    				  << rows[i].maxZ << ", "
+    				  << rows[i].numParticles << ", "
+    				  << rows[i].offsetInFile << ", "
+    				  << rows[i].partitionLocation << std::endl;
+    	}
+    	std::cout << "\n"<< std::endl;
     }
 };
 

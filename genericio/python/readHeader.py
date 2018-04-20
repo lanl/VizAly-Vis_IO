@@ -58,6 +58,7 @@ class GenericIOHeader:
 		self.physScale = []
 		self.blockSize = 0
 		self.blockStart = 0
+		self.octreeStart = 0
 	
 	def printMe(self):
 		print("Filetype:", self.filetype )
@@ -75,6 +76,7 @@ class GenericIOHeader:
 		print("Scale:", self.physScale[0], self.physScale[1], self.physScale[2] )
 		print("block size:", self.blockSize )
 		print("block start:", self.blockStart )
+		print("octree start:", self.octreeStart )
 
 
 class GenericIOVariableInfo:
@@ -132,10 +134,10 @@ class Octree:
 
 	def printMe(self):
 		print("Pre-Shuffled:", self.preShuffled)
-		print("Variable Size:", self.decompositionLevel)
+		print("Decomposition level:", self.decompositionLevel)
 		print("Num Entries:", self.numEntries)
 
-		print("(mpi_blockID, minX, maxX, minY, maxY, minZ,maxZ, #particles, offset_in_file, rank_location)")
+		print("(index, minX, maxX, minY, maxY, minZ,maxZ, #particles, offset_in_rank_file, rank_location)")
 		for i in range(0,self.numEntries):
 			self.rows[i].printMe()
 
@@ -229,6 +231,9 @@ def main(argv):
 	pos = pos + 8
 
 	headerInfo.blockStart = struct.unpack("q", fileContent[pos:pos+8])[0] 
+	pos = pos + 8
+
+	headerInfo.octreeStart = struct.unpack("q", fileContent[pos:pos+8])[0] 
 	pos = pos + 8
 	
 	headerInfo.printMe()

@@ -188,6 +188,7 @@ void GenericFileIO_MPICollective::write(const void *buf, size_t count, off_t off
 }
 #endif
 
+
 GenericFileIO_POSIX::~GenericFileIO_POSIX()
 {
     if (FH != -1) close(FH);
@@ -335,6 +336,7 @@ struct GlobalHeader
     endian_specific_value<double,   IsBigEndian> PhysScale[3];
     endian_specific_value<uint64_t, IsBigEndian> BlocksSize;
     endian_specific_value<uint64_t, IsBigEndian> BlocksStart;
+    endian_specific_value<uint64_t, IsBigEndian> octreeStart;
 };
 
 enum
@@ -390,9 +392,9 @@ unsigned GenericIO::DefaultFileIOType = FileIOPOSIX;
 int GenericIO::DefaultPartition = 0;
 bool GenericIO::DefaultShouldCompress = false;
 
-#ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     std::size_t GenericIO::CollectiveMPIIOThreshold = 0;
-#endif
+  #endif
 
 static bool blosc_initialized = false;
 
@@ -428,10 +430,6 @@ void GenericIO::write()
     MPI_Comm_size(SplitComm, &SplitNRanks);
 
     string LocalFileName;
-
-    bool hasOctree = false;
-    if (FileName.find(".oct") != std::string::npos)
-       hasOctree = true;
 
 
     if (SplitNRanks != NRanks)
@@ -640,7 +638,10 @@ void GenericIO::write()
         std::copy(PhysScale,  PhysScale  + 3, GH->PhysScale);
 
         if (hasOctree)
-            std::copy( serializedOctree.begin(), serializedOctree.end(), &Header[GH->GlobalHeaderSize]);
+        {
+            GH->octreeStart = sizeof(GlobalHeader<IsBigEndian>);
+            std::copy( serializedOctree.begin(), serializedOctree.end(), &Header[GH->GlobalHeaderSize] );
+        }
 
         if (!NeedsBlockHeaders)
         {

@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
 		unsigned method = GenericIO::FileIOMPI;
 		//unsigned method = GenericIO::FileIOPOSIX;
 
-		filename.append(".oct");
+		filename.append("Oct");
 		GenericIO newGIO(Comm, filename);//, method);
 		newGIO.setNumElems(numParticles);
 
@@ -179,7 +179,7 @@ int main(int argc, char* argv[])
 										<< rankExtents[2] << "-" << rankExtents[3] << ", "
 										<< rankExtents[4] << "-" << rankExtents[5] << std::endl;
 
-			std::cout << myRank << " ~  # octree leaves: " << numOctreeLeaves << ", leaves/rank: " << numLeavesPerRank << std::endl;
+			//std::cout << myRank << " ~  # octree leaves: " << numOctreeLeaves << ", leaves/rank: " << numLeavesPerRank << std::endl;
 		}
 
 
@@ -230,9 +230,9 @@ int main(int argc, char* argv[])
 
         
 
-        if (myRank == displayRank)
-			for (int i=0; i<numLeavesPerRank; i++)
-				std::cout << myRank << " : " << partitionCount[i] << std::endl;
+   //      if (myRank == displayRank)
+			// for (int i=0; i<numLeavesPerRank; i++)
+			// 	std::cout << myRank << " : " << partitionCount[i] << std::endl;
 
 		float *_temp;
 		_temp = &xx[0];	gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
@@ -287,8 +287,8 @@ int main(int argc, char* argv[])
             	for (int i=0; i<6; i++)
             		_leafExtents[i] = (uint64_t) round(__extents[i]);
             	//// 	newGIO.addOctreeRow(i,extents, 100, 0, i);
-            	if (myRank == displayRank)
-            		std::cout << nodesPerLeaves[leafCount] << std::endl;
+            	// if (myRank == displayRank)
+            	// 	std::cout << nodesPerLeaves[leafCount] << std::endl;
             	newGIO.addOctreeRow(leafCount,_leafExtents, nodesPerLeaves[leafCount], offsetInRank, r);
 
             	leafCount++;
