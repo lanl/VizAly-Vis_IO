@@ -65,9 +65,6 @@ namespace gio
 {
 
 
-
-
-
 class GenericFileIO
 {
   public:
@@ -103,9 +100,6 @@ class GenericFileIO_MPI : public GenericFileIO
     MPI_Comm Comm;
 };
 
-
-
-
 class GenericFileIO_MPICollective : public GenericFileIO_MPI
 {
   public:
@@ -115,7 +109,7 @@ class GenericFileIO_MPICollective : public GenericFileIO_MPI
     void read(void *buf, size_t count, off_t offset, const std::string &D);
     void write(const void *buf, size_t count, off_t offset, const std::string &D);
 };
-#endif
+#endif //GENERICIO_NO_MPI
 
 class GenericFileIO_POSIX : public GenericFileIO
 {
@@ -135,6 +129,7 @@ class GenericFileIO_POSIX : public GenericFileIO
 
 namespace detail
 {
+
 // A standard enable_if idiom (we include our own here for pre-C++11 support).
 template <bool B, typename T = void>
 struct enable_if {};
@@ -178,6 +173,7 @@ class is_array
   public:
     enum { value = sizeof(test<T>(0)) == sizeof(yes) };
 };
+
 } // namespace detail
 
 class GenericIO
@@ -310,7 +306,7 @@ class GenericIO
         FileIOMPICollective
     };
 
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     GenericIO(const MPI_Comm &C, const std::string &FN, unsigned FIOT = -1)
         : NElems(0), FileIOType(FIOT == (unsigned) - 1 ? DefaultFileIOType : FIOT),
           Partition(DefaultPartition), Comm(C), FileName(FN), Redistributing(false),
@@ -318,8 +314,9 @@ class GenericIO
     {
         std::fill(PhysOrigin, PhysOrigin + 3, 0.0);
         std::fill(PhysScale,  PhysScale + 3, 0.0);
+        hasOctree = false;
     }
-    #else
+  #else
     GenericIO(const std::string &FN, unsigned FIOT = -1)
         : NElems(0), FileIOType(FIOT == (unsigned) - 1 ? DefaultFileIOType : FIOT),
           Partition(DefaultPartition), FileName(FN), Redistributing(false),
@@ -327,17 +324,18 @@ class GenericIO
     {
         std::fill(PhysOrigin, PhysOrigin + 3, 0.0);
         std::fill(PhysScale,  PhysScale + 3, 0.0);
+        hasOctree = false;
     }
-    #endif
+  #endif
 
     ~GenericIO()
     {
         close();
 
-        #ifndef GENERICIO_NO_MPI
+      #ifndef GENERICIO_NO_MPI
         if (SplitComm != MPI_COMM_NULL)
             MPI_Comm_free(&SplitComm);
-        #endif
+      #endif
     }
 
   public:
@@ -346,17 +344,19 @@ class GenericIO
         return 8;
     }
 
+
+
     void setNumElems(std::size_t E)
     {
         NElems = E;
 
-        #ifndef GENERICIO_NO_MPI
+      #ifndef GENERICIO_NO_MPI
         int IsLarge = E >= CollectiveMPIIOThreshold;
         int AllIsLarge;
         MPI_Allreduce(&IsLarge, &AllIsLarge, 1, MPI_INT, MPI_SUM, Comm);
         if (!AllIsLarge)
             FileIOType = FileIOMPICollective;
-        #endif
+      #endif
     }
 
     void setPhysOrigin(double O, int Dim = -1)
@@ -381,6 +381,7 @@ class GenericIO
         octreeData.preShuffled = _preShuffled;
         octreeData.decompositionLevel = _decompositionLevel;
         octreeData.numEntries = _numEntries;
+        hasOctree = true;
     }
 
 
@@ -441,10 +442,10 @@ class GenericIO
         addScalarizedVariable(Name, D, NumElements, Flags);
     }
 
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     // Writing
     void write();
-    #endif
+  #endif
 
     enum MismatchBehavior
     {
@@ -521,23 +522,23 @@ class GenericIO
         DefaultShouldCompress = C;
     }
 
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     static void setCollectiveMPIIOThreshold(std::size_t T)
     {
-        #ifndef GENERICIO_NO_NEVER_USE_COLLECTIVE_IO
+      #ifndef GENERICIO_NO_NEVER_USE_COLLECTIVE_IO
         CollectiveMPIIOThreshold = T;
-        #endif
+      #endif
     }
-    #endif
+  #endif
 
   private:
     // Implementation functions templated on the Endianness of the underlying
     // data.
 
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     template <bool IsBigEndian>
     void write();
-    #endif
+  #endif
 
     template <bool IsBigEndian>
     void readHeaderLeader(void *GHPtr, MismatchBehavior MB, int Rank, int NRanks,
@@ -597,6 +598,7 @@ class GenericIO
   protected:
     std::vector<Variable> Vars;
     GIOOctree octreeData;
+    bool hasOctree;
 
     std::size_t NElems;
 
@@ -604,27 +606,27 @@ class GenericIO
 
     unsigned FileIOType;
     int Partition;
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     MPI_Comm Comm;
-    #endif
+  #endif
     std::string FileName;
 
     static unsigned DefaultFileIOType;
     static int DefaultPartition;
     static bool DefaultShouldCompress;
 
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     static std::size_t CollectiveMPIIOThreshold;
-    #endif
+  #endif
 
     // When redistributing, the rank blocks which this process should read.
     bool Redistributing, DisableCollErrChecking;
     std::vector<int> SourceRanks;
 
     std::vector<int> RankMap;
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     MPI_Comm SplitComm;
-    #endif
+  #endif
     std::string OpenFileName;
 
     // This reference counting mechanism allows the the GenericIO class
