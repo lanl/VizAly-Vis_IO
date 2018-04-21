@@ -257,9 +257,6 @@ int main(int argc, char* argv[])
 		int * nodesPerLeaves = new int[numOctreeLeaves];
         int *myLeavesCount;  myLeavesCount=&partitionCount[0];
 
-        //for (int i=0; i<numLeavesPerRank; i++)
-        //	std::cout << myRank << " ~ " << myLeavesCount[i] << std::endl;
-
         MPI_Allgather( myLeavesCount, numLeavesPerRank, MPI_INT,  nodesPerLeaves, numLeavesPerRank, MPI_INT,  MPI_COMM_WORLD); 
 
         MPI_Barrier(MPI_COMM_WORLD);

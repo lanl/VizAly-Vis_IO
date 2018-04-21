@@ -10,8 +10,6 @@
 #include <random>
 
 
-
-
 struct GIOOctreeRow
 {
     uint64_t blockID;
@@ -24,7 +22,54 @@ struct GIOOctreeRow
     uint64_t numParticles;
     uint64_t offsetInFile;
     uint64_t partitionLocation;
+
+	GIOOctreeRow(){ } ;
+	GIOOctreeRow(uint64_t id, uint64_t _minX, uint64_t _maxX, uint64_t _minY, uint64_t _maxY,
+				uint64_t _minZ, uint64_t _maxZ , uint64_t _numP, uint64_t _offsetInFile, uint64_t _parLocation)
+	{
+		blockID = id;
+		minX = _minX; maxX = _maxX;
+		minY = _minY; maxY = _maxY;
+		minZ = _minZ; maxZ = _maxZ;
+		numParticles = _numP;
+		offsetInFile = _offsetInFile;
+		partitionLocation = _parLocation;
+	}
 };
+
+
+uint64_t deserialize_uint64(char* serializedStr)
+{
+	uint64_t num = (   	(static_cast<uint8_t>( serializedStr[0]) << 0)  |
+						(static_cast<uint8_t>( serializedStr[1]) << 8)  |
+						(static_cast<uint8_t>( serializedStr[2]) << 16) |
+						(static_cast<uint8_t>( serializedStr[3]) << 24) |
+						(static_cast<uint8_t>( serializedStr[4]) << 32) |
+						(static_cast<uint8_t>( serializedStr[5]) << 40) |
+						(static_cast<uint8_t>( serializedStr[6]) << 48) |
+						(static_cast<uint8_t>( serializedStr[7]) << 56) );
+	return num;
+}
+
+std::string serialize_uint64(uint64_t t)
+{
+	std::vector<char> serializedString;
+	serializedString.push_back(static_cast<uint8_t>(t >> 0));
+	serializedString.push_back(static_cast<uint8_t>(t >> 8));
+	serializedString.push_back(static_cast<uint8_t>(t >> 16));
+	serializedString.push_back(static_cast<uint8_t>(t >> 24));
+	serializedString.push_back(static_cast<uint8_t>(t >> 32));
+	serializedString.push_back(static_cast<uint8_t>(t >> 40));
+	serializedString.push_back(static_cast<uint8_t>(t >> 48));
+	serializedString.push_back(static_cast<uint8_t>(t >> 56));
+
+	std::stringstream ss;
+	for (int i=0; i<8; i++)
+		ss << serializedString[i];
+
+	return ss.str();
+}
+
 
 
 struct GIOOctree
@@ -34,8 +79,6 @@ struct GIOOctree
     uint64_t numEntries;
     std::vector<GIOOctreeRow> rows;
 
-
-
     std::string serialize()
     {
         std::stringstream ss;
@@ -43,6 +86,7 @@ struct GIOOctree
         ss << serialize_uint64(preShuffled);
         ss << serialize_uint64(decompositionLevel);
         ss << serialize_uint64(numEntries);
+
 
         for (int i=0; i<numEntries; i++)
         {
@@ -61,39 +105,23 @@ struct GIOOctree
         return ss.str();
     }
 
-    // Only little endian for now!!! BAD!!!
-    std::string serialize_uint64(uint64_t t)
+
+
+
+    void deserialize(char *serializedString)
     {
-        std::vector<char> serializedString;
-        serializedString.push_back(static_cast<uint8_t>(t >> 0));
-        serializedString.push_back(static_cast<uint8_t>(t >> 8));
-        serializedString.push_back(static_cast<uint8_t>(t >> 16));
-        serializedString.push_back(static_cast<uint8_t>(t >> 24));
-        serializedString.push_back(static_cast<uint8_t>(t >> 32));
-        serializedString.push_back(static_cast<uint8_t>(t >> 40));
-        serializedString.push_back(static_cast<uint8_t>(t >> 48));
-        serializedString.push_back(static_cast<uint8_t>(t >> 56));
-
-        std::stringstream ss;
-        for (int i=0; i<8; i++)
-            ss << serializedString[i];
-
-        return ss.str();
-    }
-
-
-    std::string deserialize(char serializedString[])
-    {
-
         preShuffled = deserialize_uint64(&serializedString[0]);
         decompositionLevel = deserialize_uint64(&serializedString[8]);
         numEntries = deserialize_uint64(&serializedString[16]);
-
+		
         rows.clear();
         int serializedOffset = 24;	// adding togehter the previous header
+
+		
         for (int i=0; i<numEntries; i++)
         {
         	GIOOctreeRow temp;
+			
             temp.blockID = deserialize_uint64(&serializedString[serializedOffset + 0]);
             temp.minX = deserialize_uint64(&serializedString[serializedOffset + 8]);
             temp.maxX = deserialize_uint64(&serializedString[serializedOffset + 16]);
@@ -104,26 +132,15 @@ struct GIOOctree
             temp.numParticles = deserialize_uint64(&serializedString[serializedOffset + 56]);
             temp.offsetInFile = deserialize_uint64(&serializedString[serializedOffset + 64]);
             temp.partitionLocation = deserialize_uint64(&serializedString[serializedOffset + 72]);
-
+			
             serializedOffset += 80;
             rows.push_back(temp);
+			
         }
-
     }
 
 
-	uint64_t deserialize_uint64(char* serializedStr)
-	{
-		uint64_t num = (   	(static_cast<uint8_t>( serializedStr[0]) << 0)  |
-		             		(static_cast<uint8_t>( serializedStr[1]) << 8)  |
-		             		(static_cast<uint8_t>( serializedStr[2]) << 16) |
-		             		(static_cast<uint8_t>( serializedStr[3]) << 24) |
-		             		(static_cast<uint8_t>( serializedStr[4]) << 32) |
-		             		(static_cast<uint8_t>( serializedStr[5]) << 40) |
-		             		(static_cast<uint8_t>( serializedStr[6]) << 48) |
-		             		(static_cast<uint8_t>( serializedStr[7]) << 56) );
-		return num;
-	}
+	
 
 
     void print()
@@ -147,9 +164,10 @@ struct GIOOctree
     				  << rows[i].partitionLocation << std::endl;
     	}
     	std::cout << "\n"<< std::endl;
+		
     }
+	
 };
-
 
 
 struct PartitionExtents
@@ -189,13 +207,11 @@ class Octree
 	std::string getPartitions();
 	void displayPartitions();
 
-template <typename T> void fillArray(int numPartitions, std::vector<int>partitionCount, T array[], size_t numElements);
-	
+	template <typename T> void fillArray(int numPartitions, std::vector<int>partitionCount, T array[], size_t numElements);
 	template <typename T> void reorganizeArray(int numPartitions, std::vector<int>partitionCount, std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle);
 	template <typename T> bool checkPosition(int extents[], T _x, T _y, T _z);
 	template <typename T> std::vector<int> findPartition(T inputArrayX[], T inputArrayY[], T inputArrayZ[], size_t numElements, int numPartitions, int partitionExtents[], std::vector<int> &partitionPosition);
 };
-
 
 
 template <typename T> 
@@ -251,14 +267,6 @@ inline void Octree::reorganizeArray(int numPartitions, std::vector<int>partition
 		int pos = partitionOffset[partition] + currentPartitionCount[partition];	// current_new_position = offset + current
 
 		array[pos] = tempVector[i];
-
-		// if (myRank == 0)
-		// {
-		// 	std::cout << i << " : move to partition: " << partitionPosition[i] <<
-		// 		 " - current partition count: " << currentPartitionCount[partition] << 
-		// 		 " pos: " << pos << std::endl;
-		// }
-
 		currentPartitionCount[partition]++;
 	}
 
@@ -297,10 +305,6 @@ inline std::vector<int> Octree::findPartition(T inputArrayX[], T inputArrayY[], 
 			if ( checkPosition(&partitionExtents[p*6], inputArrayX[i], inputArrayY[i], inputArrayZ[i]) )
 				break;
 
-			// if (myRank == 0)
-			// {
-			// 	std::cout << inputArrayX[i] << ", " << inputArrayY[i] << ", " << inputArrayZ[i] << " - partition: " << p << std::endl;
-			// }
 		if (p >= numPartitions)
 		{
 			std::cout << inputArrayX[i] << "," << inputArrayY[i] << ", " << inputArrayZ[i] << " is in NO partition!!! " << std::endl;
