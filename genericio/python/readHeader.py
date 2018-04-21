@@ -239,12 +239,11 @@ def main(argv):
 	headerInfo.printMe()
 
 	#print("\n")
-	#print "pos: ", pos 
+	print "pos: ", pos 
 
 
 	# Octree
-	octreeFile = filename.find(".oct") != -1
-	if octreeFile:
+	if headerInfo.octreeStart != 0:
 		octreeData = Octree()
 
 		octreeData.preShuffled = struct.unpack("q", fileContent[pos:pos+8])[0]
