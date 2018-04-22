@@ -135,8 +135,6 @@ int main(int argc, char* argv[])
         unsigned CoordFlagsY = GenericIO::VarIsPhysCoordY;
         unsigned CoordFlagsZ = GenericIO::VarIsPhysCoordZ;
 
-
-
 		newGIO.addVariable("x", xx, CoordFlagsX | GenericIO::VarHasExtraSpace);
         newGIO.addVariable("y", yy, CoordFlagsY | GenericIO::VarHasExtraSpace);
 		newGIO.addVariable("z", zz, CoordFlagsZ | GenericIO::VarHasExtraSpace);

@@ -944,10 +944,8 @@ void GenericIO::readHeaderLeader(void *GHPtr, MismatchBehavior MB, int NRanks,
 
 void GenericIO::readOctreeHeader(int octreeOffset, int octreeStringSize)
 {
-    std::cout << "octreeOffset:" << octreeOffset << std::endl;
-    std::cout << "octreeStringSize:" << octreeStringSize << std::endl;
-
     std::vector<char> octreeHeader;
+    octreeHeader.resize(octreeStringSize);
     FH.get()->read(&octreeHeader[0], octreeStringSize, octreeOffset, "Octree Header");
 
     octreeData.deserialize(&octreeHeader[0]);
@@ -1065,18 +1063,18 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
 
     if (SplitRank == 0)
     {
-        #ifndef GENERICIO_NO_MPI
+      #ifndef GENERICIO_NO_MPI
         if (FileIOType == FileIOMPI)
             FH.get() = new GenericFileIO_MPI(MPI_COMM_SELF);
         else if (FileIOType == FileIOMPICollective)
             FH.get() = new GenericFileIO_MPICollective(MPI_COMM_SELF);
         else
-        #endif
+      #endif
             FH.get() = new GenericFileIO_POSIX();
 
-        #ifndef GENERICIO_NO_MPI
+      #ifndef GENERICIO_NO_MPI
         char True = 1, False = 0;
-        #endif
+      #endif
 
         try
         {
@@ -1101,82 +1099,56 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
                 throw runtime_error("Won't read " + LocalFileName + ": " + Error);
             }
 
-            #ifndef GENERICIO_NO_MPI
+          #ifndef GENERICIO_NO_MPI
             close();
             MPI_Bcast(&True, 1, MPI_BYTE, 0, SplitComm);
-            #endif
+          #endif
         }
         catch (...)
         {
-            #ifndef GENERICIO_NO_MPI
+          #ifndef GENERICIO_NO_MPI
             MPI_Bcast(&False, 1, MPI_BYTE, 0, SplitComm);
-            #endif
+          #endif
             close();
             throw;
         }
     }
     else
     {
-        #ifndef GENERICIO_NO_MPI
+      #ifndef GENERICIO_NO_MPI
         char Okay;
         MPI_Bcast(&Okay, 1, MPI_BYTE, 0, SplitComm);
         if (!Okay)
             throw runtime_error("Failure broadcast from rank 0");
-        #endif
+      #endif
     }
 
 
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     MPI_Bcast(&HeaderSize, 1, MPI_UINT64_T, 0, SplitComm);
-    #endif
+  #endif
 
     Header.resize(HeaderSize, 0xFD /* poison */);
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     MPI_Bcast(&Header[0], HeaderSize, MPI_BYTE, 0, SplitComm);
-    #endif
+  #endif
 
     FH.getHeaderCache().clear();
-
     GlobalHeader<false> *GH = (GlobalHeader<false> *) &Header[0];
 
+
+    // Read Octree info if one is present
     int octreeStart = 0;
     int octreeSize = 0;
-    std::cout << "GH->octreeStart: " << GH->octreeStart << std::endl;
     if (GH->octreeStart != 0)
     {
-        std::cout << "Has OCtree" << std::endl;
         hasOctree = true;
         octreeStart = GH->octreeStart;
         octreeSize = GH->VarsStart - GH->octreeStart;
+
+        readOctreeHeader(octreeStart, octreeSize);
     }
-
-    {
-      #ifndef GENERICIO_NO_MPI
-        if (FileIOType == FileIOMPI)
-            FH.get() = new GenericFileIO_MPI(MPI_COMM_SELF);
-        else if (FileIOType == FileIOMPICollective)
-            FH.get() = new GenericFileIO_MPICollective(MPI_COMM_SELF);
-        else
-      #endif
-            FH.get() = new GenericFileIO_POSIX();
-
-        if (hasOctree)
-        {
-            std::cout << "Has OCtree" << std::endl;
-            std::cout << "octreeStart:" << octreeStart << std::endl;
-            std::cout << "octreeSize:" << octreeSize << std::endl;
-
-            std::vector<char> octreeHeader;
-    FH.get()->read(&octreeHeader[0], octreeSize, octreeStart, "Octree Header");
-
-    octreeData.deserialize(&octreeHeader[0]);
-
-    octreeData.print();
-            readOctreeHeader(octreeStart, octreeSize);
-        }
-    }
-
-
+    
     
     FH.setIsBigEndian(string(GH->Magic, GH->Magic + MagicSize - 1) == MagicBE);
 
@@ -1188,14 +1160,7 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
     if (!DisableCollErrChecking)
         MPI_Barrier(Comm);
 
-    if (FileIOType == FileIOMPI)
-        FH.get() = new GenericFileIO_MPI(SplitComm);
-    else if (FileIOType == FileIOMPICollective)
-        FH.get() = new GenericFileIO_MPICollective(SplitComm);
-    else
-        FH.get() = new GenericFileIO_POSIX();
-
-
+    
     
 
     int OpenErr = 0, TotOpenErr;
@@ -1792,7 +1757,7 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
                 ofs << "On-Disk CRC Error Report:\n";
                 ofs << "Variable: " << Vars[i].Name << "\n";
                 ofs << "File: " << OpenFileName << "\n";
-                ofs << "I/O Retries: " << Retry << "\n";
+                ofs << "I/O Retries: " << Retry << "\n"; 
                 ofs << "Size: " << ReadSize << " bytes\n";
                 ofs << "Offset: " << Offset << " bytes\n";
                 ofs << "CRC: " << CRC << " (expected is -1)\n";

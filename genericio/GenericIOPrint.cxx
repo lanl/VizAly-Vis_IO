@@ -166,7 +166,6 @@ int main(int argc, char *argv[])
         GenericIO GIO(FileName, Method);
       #endif
 
-        std::cout << " before openAndReadHeader" << std::endl;
         GIO.openAndReadHeader(GenericIO::MismatchAllowed, -1, !ShowMap);
 
         int NR = GIO.readNRanks();
