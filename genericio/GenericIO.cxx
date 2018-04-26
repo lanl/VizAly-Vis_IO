@@ -940,6 +940,7 @@ void GenericIO::readHeaderLeader(void *GHPtr, MismatchBehavior MB, int NRanks,
     {
         throw runtime_error("Header CRC check failed: " + LocalFileName);
     }
+
 }
 
 void GenericIO::readOctreeHeader(int octreeOffset, int octreeStringSize)
@@ -966,10 +967,8 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
     NRanks = 1;
     #endif
 
-
     if (EffRank == -1)
         EffRank = MB == MismatchRedistribute ? 0 : Rank;
-
 
     if (RankMap.empty() && CheckPartMap)
     {
@@ -1058,6 +1057,7 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
     SplitNRanks = 1;
     #endif
 
+
     uint64_t HeaderSize;
     vector<char> Header;
 
@@ -1133,23 +1133,28 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
     MPI_Bcast(&Header[0], HeaderSize, MPI_BYTE, 0, SplitComm);
   #endif
 
+
     FH.getHeaderCache().clear();
     GlobalHeader<false> *GH = (GlobalHeader<false> *) &Header[0];
 
 
+
     // Read Octree info if one is present
+    
     int octreeStart = 0;
     int octreeSize = 0;
-    if (GH->octreeStart != 0)
-    {
-        hasOctree = true;
-        octreeStart = GH->octreeStart;
-        octreeSize = GH->VarsStart - GH->octreeStart;
+    if (GH->VarsStart != 168)       // for files that do not have octrees
+        if (GH->octreeStart != 0)   // for files with octree support but have no octree in place
+        {
+            hasOctree = true;
+            octreeStart = GH->octreeStart;
+            octreeSize = GH->VarsStart - GH->octreeStart;
 
-        readOctreeHeader(octreeStart, octreeSize);
-    }
+            readOctreeHeader(octreeStart, octreeSize);
+        }
     
     
+
     FH.setIsBigEndian(string(GH->Magic, GH->Magic + MagicSize - 1) == MagicBE);
 
     FH.getHeaderCache().swap(Header);
@@ -1160,7 +1165,6 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
     if (!DisableCollErrChecking)
         MPI_Barrier(Comm);
 
-    
     
 
     int OpenErr = 0, TotOpenErr;
@@ -1178,6 +1182,7 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
         throw;
     }
 
+
     if (TotOpenErr > 0)
     {
         stringstream ss;
@@ -1185,6 +1190,7 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
         throw runtime_error(ss.str());
     }
     #endif
+
 }
 
 int GenericIO::readNRanks()
