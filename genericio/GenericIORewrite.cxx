@@ -23,7 +23,9 @@ int main(int argc, char *argv[])
     }
 
     GenericIO::setNaturalDefaultPartition();
-    GenericIO::setDefaultShouldCompress(true);
+    //GenericIO::setDefaultShouldCompress(true);
+    GenericIO::setDefaultShouldCompress(false);
+
 
     {
         int arg = 1;
