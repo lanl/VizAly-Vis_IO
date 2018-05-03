@@ -8,6 +8,7 @@
 #include <string>
 #include <algorithm>
 #include <random>
+#include <stdio.h>
 
 
 struct GIOOctreeRow
@@ -88,13 +89,13 @@ struct GIOOctree
         {
         	GIOOctreeRow temp;
 			
-            temp.blockID = deserialize_uint64(&serializedString[serializedOffset + 0]);
-            temp.minX = deserialize_uint64(&serializedString[serializedOffset + 8]);
-            temp.maxX = deserialize_uint64(&serializedString[serializedOffset + 16]);
-            temp.minY = deserialize_uint64(&serializedString[serializedOffset + 24]);
-            temp.maxY = deserialize_uint64(&serializedString[serializedOffset + 32]);
-            temp.minZ = deserialize_uint64(&serializedString[serializedOffset + 40]);
-            temp.maxZ = deserialize_uint64(&serializedString[serializedOffset + 48]);
+            temp.blockID 	= deserialize_uint64(&serializedString[serializedOffset + 0]);
+            temp.minX 		= deserialize_uint64(&serializedString[serializedOffset + 8]);
+            temp.maxX 		= deserialize_uint64(&serializedString[serializedOffset + 16]);
+            temp.minY 		= deserialize_uint64(&serializedString[serializedOffset + 24]);
+            temp.maxY 		= deserialize_uint64(&serializedString[serializedOffset + 32]);
+            temp.minZ 		= deserialize_uint64(&serializedString[serializedOffset + 40]);
+            temp.maxZ 		= deserialize_uint64(&serializedString[serializedOffset + 48]);
             temp.numParticles = deserialize_uint64(&serializedString[serializedOffset + 56]);
             temp.offsetInFile = deserialize_uint64(&serializedString[serializedOffset + 64]);
             temp.partitionLocation = deserialize_uint64(&serializedString[serializedOffset + 72]);
@@ -108,28 +109,55 @@ struct GIOOctree
 
 	uint64_t deserialize_uint64(char* serializedStr)
 	{
-		uint64_t num = (   	(static_cast<uint8_t>( serializedStr[0]) << 0)  |
-							(static_cast<uint8_t>( serializedStr[1]) << 8)  |
-							(static_cast<uint8_t>( serializedStr[2]) << 16) |
-							(static_cast<uint8_t>( serializedStr[3]) << 24) |
-							(static_cast<uint8_t>( serializedStr[4]) << 32) |
-							(static_cast<uint8_t>( serializedStr[5]) << 40) |
-							(static_cast<uint8_t>( serializedStr[6]) << 48) |
-							(static_cast<uint8_t>( serializedStr[7]) << 56) );
+		uint64_t num =   	
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[0])) << 0 ) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[1])) << 8 ) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[2])) << 16) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[3])) << 24) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[4])) << 32) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[5])) << 40) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[6])) << 48) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[7])) << 56) ;
+
+		// Big Endian
+		#if 0
+		uint64_t num =   	
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[0])) << 0 ) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[1])) << 8 ) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[2])) << 16) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[3])) << 24) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[4])) << 32) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[5])) << 40) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[6])) << 48) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[7])) << 56) ;
+		#endif
+
 		return num;
 	}
 
 	std::string serialize_uint64(uint64_t t)
 	{
 		std::vector<char> serializedString;
-		serializedString.push_back(static_cast<uint8_t>(t >> 0));
-		serializedString.push_back(static_cast<uint8_t>(t >> 8));
-		serializedString.push_back(static_cast<uint8_t>(t >> 16));
-		serializedString.push_back(static_cast<uint8_t>(t >> 24));
-		serializedString.push_back(static_cast<uint8_t>(t >> 32));
-		serializedString.push_back(static_cast<uint8_t>(t >> 40));
-		serializedString.push_back(static_cast<uint8_t>(t >> 48));
-		serializedString.push_back(static_cast<uint8_t>(t >> 56));
+
+		serializedString.push_back( static_cast<uint8_t>((t >> 0) & 0xff) );
+		serializedString.push_back( static_cast<uint8_t>((t >> 8) & 0xff) );
+		serializedString.push_back( static_cast<uint8_t>((t >> 16)& 0xff) );
+		serializedString.push_back( static_cast<uint8_t>((t >> 24)& 0xff) );
+		serializedString.push_back( static_cast<uint8_t>((t >> 32)& 0xff) );
+		serializedString.push_back( static_cast<uint8_t>((t >> 40)& 0xff) );
+		serializedString.push_back( static_cast<uint8_t>((t >> 48)& 0xff) );
+		serializedString.push_back( static_cast<uint8_t>((t >> 56)& 0xff) );
+
+	// Big Endian
+	#if 0
+		serializedString.push_back( static_cast<uint8_t>((t >> 56)& 0xff) );
+		serializedString.push_back( static_cast<uint8_t>((t >> 40)& 0xff) );
+		serializedString.push_back( static_cast<uint8_t>((t >> 32)& 0xff) );
+		serializedString.push_back( static_cast<uint8_t>((t >> 24)& 0xff) );
+		serializedString.push_back( static_cast<uint8_t>((t >> 16)& 0xff) );
+		serializedString.push_back( static_cast<uint8_t>((t >> 8) & 0xff) );
+		serializedString.push_back( static_cast<uint8_t>((t >> 0) & 0xff) );
+	#endif
 
 		std::stringstream ss;
 		for (int i=0; i<8; i++)
