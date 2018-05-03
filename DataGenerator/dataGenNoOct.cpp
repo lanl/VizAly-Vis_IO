@@ -29,8 +29,8 @@ int main(int argc, char* argv[])
 	
 	{
 		float simExtents[6]={0,256, 0,256, 0,256};
-		//int dims[3]= {2, 2, 2};		// 8
-		int dims[3]= {4, 4, 2};		// 32
+		int dims[3]= {2, 2, 2};		// 8
+		//int dims[3]= {4, 4, 2};		// 32
 		int periods[3] = { 0, 0, 0 };
 		int physOrigin[3] = {0, 0, 0};
 		int physScale[3] = {256, 256, 256};
