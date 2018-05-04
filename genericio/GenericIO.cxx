@@ -48,6 +48,7 @@ extern "C" {
 }
 
 #include <sstream>
+#include <set>
 #include <fstream>
 #include <stdexcept>
 #include <iterator>
@@ -429,11 +430,15 @@ void GenericIO::write()
     MPI_Comm_rank(SplitComm, &SplitRank);
     MPI_Comm_size(SplitComm, &SplitNRanks);
 
-    string LocalFileName;
 
+    std::cout << Rank << "/" << NRanks << " ~ " << "SplitRank: " << SplitRank << ", SplitNRanks: " << SplitNRanks << std::endl;
+
+    string LocalFileName;
 
     if (SplitNRanks != NRanks)
     {
+        std::cout << "SplitNRanks != NRanks" << std::endl;
+
         if (Rank == 0)
         {
             // In split mode, the specified file becomes the rank map, and the real
@@ -490,6 +495,7 @@ void GenericIO::write()
     }
     else
     {
+        std::cout << "SplitNRanks == NRanks" << std::endl;
         LocalFileName = FileName;
     }
 
@@ -511,10 +517,42 @@ void GenericIO::write()
         std::fill(Coords + 1, Coords + 3, 0);
     }
 
+    cout << Rank << "/" << NRanks << " ~ " << 
+            "# physical coordinates: (" << PhysOrigin[0] << "," << PhysOrigin[1] << "," << PhysOrigin[2] << 
+            ") -> (" << PhysScale[0] << "," << PhysScale[1] << "," << PhysScale[2] << ")" << endl;
+    std::cout << Rank << "/" << NRanks << " ~ " << "Dims: " << Dims[0] << ", "  << Dims[1] << ", "  << Dims[2] << std::endl;
+    std::cout << Rank << "/" << NRanks << " ~ " << "Coords: " << Coords[0] << ", "  << Coords[1] << ", "  << Coords[2] << std::endl;
+    std::cout << Rank << "/" << NRanks << " ~ " << "Periods: " << Periods[0] << ", "  << Periods[1] << ", "  << Periods[2] << std::endl;
+
+    std::cout << Rank << "/" << NRanks << " ~ " << "Vars.size(): " << Vars.size() << std::endl;
+    std::cout << Rank << "/" << NRanks << " ~ " << "Vars[0].IsFloat: " << Vars[8].IsFloat 
+                                                << ", Vars[0].IsSigned: " << Vars[8].IsSigned 
+                                                << ", Vars[0].Size: " << Vars[8].Size << std::endl;
+    // << "Vars.IsSigned: " << Vars.IsSigned << "Vars.IsFloat: " << Vars.IsFloat << std::endl;
+
+
+    
+
+    float myExtents[6];
+    float physicalDims[3];
+    for (int i=0; i<3; i++)
+        physicalDims[i] = (PhysScale[i]-PhysOrigin[i])/Dims[i];
+
+    for (int i=0; i<3; i++)
+    {
+        myExtents[i*2]     = Coords[i] * physicalDims[i];
+        myExtents[i*2 + 1] = myExtents[i*2] + physicalDims[i];
+    }
+
+    std::cout << Rank << "/" << NRanks << " ~ " << "myExtents: " << myExtents[0] << " - "  << myExtents[1] << ", "  
+                                                                 << myExtents[2] << " - "  << myExtents[3] << ", "  
+                                                                 << myExtents[4] << " - "  << myExtents[5] << std::endl;
     std::copy(Coords, Coords + 3, RHLocal.Coords);
     RHLocal.NElems = NElems;
     RHLocal.Start = 0;
     RHLocal.GlobalRank = Rank;
+
+    std::cout << Rank << "/" << NRanks << " ~ " << "RHLocal.NElems: " << RHLocal.NElems << std::endl;
 
     bool ShouldCompress = DefaultShouldCompress;
     const char *EnvStr = getenv("GENERICIO_COMPRESS");
@@ -537,33 +575,46 @@ void GenericIO::write()
     // Octree
     if (hasOctree)
     {
-        float simExtents[6] = {0,256, 0,256, 0,256};
-        float myRankExtents[6];
-
-
-        int numLevels = 2;     // 64 leaves
         int displayRank = 1;
-        int shuffle = 0;
+        int octreeShuffle = octreeLeafshuffle;
+        size_t numParticles = NElems;
 
+        //
+        // MPI Rank 
         int myRank = Rank;
         int numRanks = NRanks;
 
-        Octree gioOctree(numLevels, simExtents);
+        
+        //
+        // Simulation and rank extents
+        float simExtents[6];
+        simExtents[0] = PhysOrigin[0];  simExtents[1] = PhysScale[0];
+        simExtents[2] = PhysOrigin[1];  simExtents[3] = PhysScale[1];
+        simExtents[4] = PhysOrigin[2];  simExtents[5] = PhysScale[2];
+
+        float physicalDims[3];
+        for (int i=0; i<3; i++)
+            physicalDims[i] = (PhysScale[i]-PhysOrigin[i])/Dims[i];
+
+        float myRankExtents[6];
+        for (int i=0; i<3; i++)
+        {
+            myRankExtents[i*2]     = Coords[i] * physicalDims[i];
+            myRankExtents[i*2 + 1] = myRankExtents[i*2] + physicalDims[i];
+        }
+
+        std::cout << myRank << " ~ " << myRankExtents[0] << "-" << myRankExtents[1] << ", "
+                                    << myRankExtents[2] << "-" << myRankExtents[3] << ", "
+                                    << myRankExtents[4] << "-" << myRankExtents[5] << std::endl;
+
+
+        //
+        // Create octree structure
+        Octree gioOctree(numOctreeLevels, simExtents);
         gioOctree.buildOctree();
         gioOctree.myRank = myRank;
         int numOctreeLeaves = gioOctree.getNumNodes();
 
-        //int numLeavesPerRank = numOctreeLeaves/numRanks;
-        //int numleavesForMyRank = numLeavesPerRank;
-
-        // if (myRank == displayRank)
-        // {
-        //     std::cout <<myRank << " ~ " << myRankExtents[0] << "-" << myRankExtents[1] << ", "
-        //                                 << myRankExtents[2] << "-" << myRankExtents[3] << ", "
-        //                                 << myRankExtents[4] << "-" << myRankExtents[5] << std::endl;
-
-        //     //std::cout << myRank << " ~  # octree leaves: " << numOctreeLeaves << ", leaves/rank: " << numLeavesPerRank << std::endl;
-        // }
 
 
         //
@@ -574,8 +625,8 @@ void GenericIO::write()
             float leafExtents[6];
             gioOctree.getLeafExtents(l, leafExtents);
 
-            if ( gioOctree.checkOverlap(leafExtents, ) )
-                myLeaves.insert(leafID);
+            if ( gioOctree.checkOverlap(leafExtents, myRankExtents) )
+                myLeaves.insert(l);
         }
 
         int numleavesForMyRank = myLeaves.size();
@@ -583,6 +634,7 @@ void GenericIO::write()
         //
         // Determine partition extents for my rank
         int *leavesExtents = new int[numleavesForMyRank*6];
+        int leafCounter = 0;
         for (auto it=myLeaves.begin(); it!=myLeaves.end(); ++it)
         {
             float leafExtents[6];
@@ -590,7 +642,7 @@ void GenericIO::write()
 
             // Gathering extents of all leaves
             for (int j=0; j<6; j++)
-                leavesExtents[i*6 + j] = leafExtents[j];
+                leavesExtents[leafCounter*6 + j] = leafExtents[j];
 
             if (myRank == displayRank)
             {
@@ -599,56 +651,150 @@ void GenericIO::write()
                             << leafExtents[2] << "-" << leafExtents[3] << ", "
                             << leafExtents[4] << "-" << leafExtents[5] << std::endl;
             }
+
+            leafCounter++;
         }
 
-        
-        // Rearrange the particles
-        std::vector<int> partitionPosition;
-        std::vector<int> partitionCount;
-        float *_xx = &xx[0];
-        float *_yy = &yy[0];
-        float *_zz = &zz[0];
 
-        partitionCount = gioOctree.findPartition(_xx,_yy,_zz, numParticles, numleavesForMyRank, leavesExtents, partitionPosition);
+        //
+        // Rearrange the particles
+        std::vector<int> leafPosition;
+        std::vector<int> leafCount;
+        float *_xx, *_yy, *_zz;
+
+        for (size_t i = 0; i < Vars.size(); ++i)
+        {
+            if (Vars[i].IsPhysCoordX)
+                _xx = (float*)Vars[i].Data;
+
+            if (Vars[i].IsPhysCoordY)
+                _yy = (float*)Vars[i].Data;
+
+            if (Vars[i].IsPhysCoordZ)
+                _zz = (float*)Vars[i].Data;
+        }
+
+        // Find the partition
+        leafCount = gioOctree.findPartition(_xx,_yy,_zz, numParticles, numleavesForMyRank, leavesExtents, leafPosition);
 
         // if (myRank == displayRank)
             // for (int i=0; i<numLeavesPerRank; i++)
             //  std::cout << myRank << " : " << partitionCount[i] << std::endl;
 
-        float *_temp;
-        _temp = &xx[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
-        _temp = &yy[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
-        _temp = &zz[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
-        _temp = &vx[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
-        _temp = &vy[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
-        _temp = &vz[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
-        _temp = &phi[0];gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
 
-        // Temp to get info
-        uint16_t *_tempMask = &mask[0];
-        //gioOctree.fillArray(numLeavesPerRank, partitionCount, _tempMask, numParticles);   // for debugging
-        gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _tempMask, numParticles, false);
+        // Rearrange the array based on partition
+        for (size_t i = 0; i < Vars.size(); ++i)
+        {
+            if (Vars[i].IsFloat)
+            {
+                float *_temp;
+                _temp = (float*)Vars[i].Data;
+                gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, false);
+            }
+            else
+                if (Vars[i].IsSigned)
+                {
+                    if (Vars[i].Size == 1)
+                    {
+                        int8_t *_temp;
+                        _temp = (int8_t*)Vars[i].Data;
+                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, false);
+                    }
+                    else if (Vars[i].Size == 2)
+                    {
+                        int16_t *_temp;
+                        _temp = (int16_t*)Vars[i].Data;
+                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, false);
+                    }
+                    else if (Vars[i].Size == 3)
+                    {
+                        int32_t *_temp;
+                        _temp = (int32_t*)Vars[i].Data;
+                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, false);
+                    }
+                    else if (Vars[i].Size == 4)
+                    {
+                        int64_t *_temp;
+                        _temp = (int64_t*)Vars[i].Data;
+                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, false);
+                    }
+                }
+                else
+                {
+                    if (Vars[i].Size == 1)
+                    {
+                        uint8_t *_temp;
+                        _temp = (uint8_t*)Vars[i].Data;
+                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, false);
+                    }
+                    else if (Vars[i].Size == 2)
+                    {
+                        uint16_t *_temp;
+                        _temp = (uint16_t*)Vars[i].Data;
+                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, false);
+                    }
+                    else if (Vars[i].Size == 3)
+                    {
+                        uint32_t *_temp;
+                        _temp = (uint32_t*)Vars[i].Data;
+                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, false);
+                    }
+                    else if (Vars[i].Size == 4)
+                    {
+                        uint64_t *_temp;
+                        _temp = (uint64_t*)Vars[i].Data;
+                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, false);
+                    }
+                }
+        }
 
-        int64_t *_tempId = &id[0];
-        gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _tempId, numParticles, false);       
+        
+        
+        // _temp = &yy[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
+        // _temp = &zz[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
+        // _temp = &vx[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
+        // _temp = &vy[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
+        // _temp = &vz[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
+        // _temp = &phi[0];gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
+
+        // // Temp to get info
+        // uint16_t *_tempMask = &mask[0];
+        // //gioOctree.fillArray(numLeavesPerRank, partitionCount, _tempMask, numParticles);   // for debugging
+        // gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _tempMask, numParticles, false);
+
+        // int64_t *_tempId = &id[0];
+        // gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _tempId, numParticles, false);       
         
 
 
-        //MPI_Barrier(MPI_COMM_WORLD);
-        int * nodesPerLeaves = new int[numOctreeLeaves];
-        int *myLeavesCount;  myLeavesCount=&partitionCount[0];
+        //
+        // Gather information from other ranks 
 
-        MPI_Allgather( myLeavesCount, numLeavesPerRank, MPI_INT,  nodesPerLeaves, numLeavesPerRank, MPI_INT,  MPI_COMM_WORLD); 
+        // Gather num leaves each rank has
+        int *numLeavesPerRank = new int[numRanks];
+        MPI_Allgather( &numleavesForMyRank, 1, MPI_INT,  numLeavesPerRank, 1, MPI_INT,  MPI_COMM_WORLD); 
 
-        MPI_Barrier(MPI_COMM_WORLD);
+        // Gather num particles in each leaf for each rank
+        //int * nodesPerLeaves = new int[numOctreeLeaves];
+        int * particlesPerLeaf = new int[numOctreeLeaves];
+
+        int *myLeavesCount;  
+        myLeavesCount=&leafCount[0];
+
+
+        MPI_Allgatherv( myLeavesCount, leafCounter, MPI_INT,  particlesPerLeaf, numleavesForMyRank, MPI_INT,  MPI_COMM_WORLD); 
+
+
         // if (myRank == displayRank)
         //  for (int i=0; i<numOctreeLeaves; i++)
-        //  std::cout << i << " ~ " << (uint64_t)nodesPerLeaves[i] << std::endl;
+        //  std::cout << i << " ~ " << (uint64_t)particlesPerLeaf[i] << std::endl;
 
 
-        newGIO.addOctreeHeader((uint64_t)shuffle, (uint64_t)numLevels, (uint64_t)numOctreeLeaves);
-        uint64_t extents[6]={0,256, 0,256, 0,256};
+        //
+        // Create Header info
+        addOctreeHeader((uint64_t)octreeShuffle, (uint64_t)numOctreeLevels, (uint64_t)numOctreeLeaves);
 
+/*
         int leafCount = 0;
         for (int r=0; r<numRanks; r++)
         {
@@ -664,18 +810,22 @@ void GenericIO::write()
                 uint64_t _leafExtents[6];
                 for (int i=0; i<6; i++)
                     _leafExtents[i] = (uint64_t) round(__extents[i]);
+
                 ////    newGIO.addOctreeRow(i,extents, 100, 0, i);
                 // if (myRank == displayRank)
                 //  std::cout << nodesPerLeaves[leafCount] << std::endl;
-                newGIO.addOctreeRow(leafCount,_leafExtents, nodesPerLeaves[leafCount], offsetInRank, r);
+                addOctreeRow(leafCount,_leafExtents, nodesPerLeaves[leafCount], offsetInRank, r);
+
+                //addOctreeRow(uint64_t _blockID, uint64_t _extents[6], uint64_t _numParticles, uint64_t _offsetInFile, uint64_t _partitionLocation)
 
                 leafCount++;
                 offsetInRank += nodesPerLeaves[leafCount];
             }
         }
+        */
 
     }   // end octree
-
+    
 
 
     vector<BlockHeader<IsBigEndian> > LocalBlockHeaders;
