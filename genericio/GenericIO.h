@@ -376,12 +376,17 @@ class GenericIO
     }
 
 
+    void useOtree()
+    {
+        hasOctree = true;
+    }
+
     void addOctreeHeader(uint64_t _preShuffled, uint64_t _decompositionLevel, uint64_t _numEntries)
     {
         octreeData.preShuffled = _preShuffled;
         octreeData.decompositionLevel = _decompositionLevel;
         octreeData.numEntries = _numEntries;
-        hasOctree = true;
+        //hasOctree = true;
     }
 
 

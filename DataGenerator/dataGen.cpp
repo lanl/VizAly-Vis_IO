@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
 	srand (time(NULL) + myRank);
 	
 	{
-		float simExtents[6]={0,256, 0,256, 0,256};
+		// float simExtents[6]={0,256, 0,256, 0,256};
 		int dims[3]= {2, 2, 2};
 		int periods[3] = { 0, 0, 0 };
 		int physOrigin[3] = {0, 0, 0};
@@ -145,7 +145,7 @@ int main(int argc, char* argv[])
 		newGIO.addVariable("id", id, GenericIO::VarHasExtraSpace);
 		newGIO.addVariable("mask", mask, GenericIO::VarHasExtraSpace);
 
-
+		/*
 		MPI_Barrier(MPI_COMM_WORLD);
 
 		//
@@ -291,7 +291,9 @@ int main(int argc, char* argv[])
         	}
 		}
 
+		*/
 
+		newGIO.useOctree();
         newGIO.write();
 
 

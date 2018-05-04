@@ -532,6 +532,152 @@ void GenericIO::write()
         NeedsBlockHeaders = (Mod > 0);
     }
 
+
+    //
+    // Octree
+    if (hasOctree)
+    {
+        float simExtents[6] = {0,256, 0,256, 0,256};
+        float myRankExtents[6];
+
+
+        int numLevels = 2;     // 64 leaves
+        int displayRank = 1;
+        int shuffle = 0;
+
+        int myRank = Rank;
+        int numRanks = NRanks;
+
+        Octree gioOctree(numLevels, simExtents);
+        gioOctree.buildOctree();
+        gioOctree.myRank = myRank;
+        int numOctreeLeaves = gioOctree.getNumNodes();
+
+        //int numLeavesPerRank = numOctreeLeaves/numRanks;
+        //int numleavesForMyRank = numLeavesPerRank;
+
+        // if (myRank == displayRank)
+        // {
+        //     std::cout <<myRank << " ~ " << myRankExtents[0] << "-" << myRankExtents[1] << ", "
+        //                                 << myRankExtents[2] << "-" << myRankExtents[3] << ", "
+        //                                 << myRankExtents[4] << "-" << myRankExtents[5] << std::endl;
+
+        //     //std::cout << myRank << " ~  # octree leaves: " << numOctreeLeaves << ", leaves/rank: " << numLeavesPerRank << std::endl;
+        // }
+
+
+        //
+        // Find partitions for myRank
+        std::set< int > myLeaves;
+        for (int l=0; l<numOctreeLeaves; l++)
+        {
+            float leafExtents[6];
+            gioOctree.getLeafExtents(l, leafExtents);
+
+            if ( gioOctree.checkOverlap(leafExtents, ) )
+                myLeaves.insert(leafID);
+        }
+
+        int numleavesForMyRank = myLeaves.size();
+
+        //
+        // Determine partition extents for my rank
+        int *leavesExtents = new int[numleavesForMyRank*6];
+        for (auto it=myLeaves.begin(); it!=myLeaves.end(); ++it)
+        {
+            float leafExtents[6];
+            gioOctree.getLeafExtents(*it, leafExtents);
+
+            // Gathering extents of all leaves
+            for (int j=0; j<6; j++)
+                leavesExtents[i*6 + j] = leafExtents[j];
+
+            if (myRank == displayRank)
+            {
+                std::cout <<myRank << " ~ " << *it << " | " 
+                            << leafExtents[0] << "-" << leafExtents[1] << ", "
+                            << leafExtents[2] << "-" << leafExtents[3] << ", "
+                            << leafExtents[4] << "-" << leafExtents[5] << std::endl;
+            }
+        }
+
+        
+        // Rearrange the particles
+        std::vector<int> partitionPosition;
+        std::vector<int> partitionCount;
+        float *_xx = &xx[0];
+        float *_yy = &yy[0];
+        float *_zz = &zz[0];
+
+        partitionCount = gioOctree.findPartition(_xx,_yy,_zz, numParticles, numleavesForMyRank, leavesExtents, partitionPosition);
+
+        // if (myRank == displayRank)
+            // for (int i=0; i<numLeavesPerRank; i++)
+            //  std::cout << myRank << " : " << partitionCount[i] << std::endl;
+
+        float *_temp;
+        _temp = &xx[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
+        _temp = &yy[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
+        _temp = &zz[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
+        _temp = &vx[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
+        _temp = &vy[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
+        _temp = &vz[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
+        _temp = &phi[0];gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
+
+        // Temp to get info
+        uint16_t *_tempMask = &mask[0];
+        //gioOctree.fillArray(numLeavesPerRank, partitionCount, _tempMask, numParticles);   // for debugging
+        gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _tempMask, numParticles, false);
+
+        int64_t *_tempId = &id[0];
+        gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _tempId, numParticles, false);       
+        
+
+
+        //MPI_Barrier(MPI_COMM_WORLD);
+        int * nodesPerLeaves = new int[numOctreeLeaves];
+        int *myLeavesCount;  myLeavesCount=&partitionCount[0];
+
+        MPI_Allgather( myLeavesCount, numLeavesPerRank, MPI_INT,  nodesPerLeaves, numLeavesPerRank, MPI_INT,  MPI_COMM_WORLD); 
+
+        MPI_Barrier(MPI_COMM_WORLD);
+        // if (myRank == displayRank)
+        //  for (int i=0; i<numOctreeLeaves; i++)
+        //  std::cout << i << " ~ " << (uint64_t)nodesPerLeaves[i] << std::endl;
+
+
+        newGIO.addOctreeHeader((uint64_t)shuffle, (uint64_t)numLevels, (uint64_t)numOctreeLeaves);
+        uint64_t extents[6]={0,256, 0,256, 0,256};
+
+        int leafCount = 0;
+        for (int r=0; r<numRanks; r++)
+        {
+            uint64_t offsetInRank = 0;
+            for (int l=0; l<numLeavesPerRank; l++)
+            {
+                int leafID = r*numleavesForMyRank + l;
+
+
+                float __extents[6];
+                gioOctree.getLeafExtents(leafID,__extents);
+
+                uint64_t _leafExtents[6];
+                for (int i=0; i<6; i++)
+                    _leafExtents[i] = (uint64_t) round(__extents[i]);
+                ////    newGIO.addOctreeRow(i,extents, 100, 0, i);
+                // if (myRank == displayRank)
+                //  std::cout << nodesPerLeaves[leafCount] << std::endl;
+                newGIO.addOctreeRow(leafCount,_leafExtents, nodesPerLeaves[leafCount], offsetInRank, r);
+
+                leafCount++;
+                offsetInRank += nodesPerLeaves[leafCount];
+            }
+        }
+
+    }   // end octree
+
+
+
     vector<BlockHeader<IsBigEndian> > LocalBlockHeaders;
     vector<void *> LocalData;
     vector<bool> LocalHasExtraSpace;

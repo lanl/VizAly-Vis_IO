@@ -233,6 +233,7 @@ class Octree
 	template <typename T> void fillArray(int numPartitions, std::vector<int>partitionCount, T array[], size_t numElements);
 	template <typename T> void reorganizeArray(int numPartitions, std::vector<int>partitionCount, std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle);
 	template <typename T> bool checkPosition(int extents[], T _x, T _y, T _z);
+	template <typename T> bool checkOverlap(T extents1[], T extents2[]);;
 	template <typename T> std::vector<int> findPartition(T inputArrayX[], T inputArrayY[], T inputArrayZ[], size_t numElements, int numPartitions, int partitionExtents[], std::vector<int> &partitionPosition);
 };
 
@@ -247,6 +248,16 @@ inline bool Octree::checkPosition(int extents[], T _x, T _y, T _z)
 
 	return false;
 }
+
+template <typename T> 
+inline bool Octree::checkOverlap(T extents1[], T extents2[])
+{
+
+	return (  ( ( (extents1[0] <= extents2[1]) && (extents1[1] >= extents2[0]) ) &&
+	            ( (extents1[2] <= extents2[3]) && (extents1[3] >= extents2[2]) ) ) &&
+	            ( (extents1[4] <= extents2[5]) && (extents1[5] >= extents2[4]) ) );
+}
+
 
 template <typename T>				    	
 inline void Octree::fillArray(int numPartitions, std::vector<int>partitionCount, T array[], size_t numElements)
