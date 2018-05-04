@@ -293,7 +293,7 @@ int main(int argc, char* argv[])
 
 		*/
 
-		newGIO.useOctree();
+		newGIO.useOctree(false, 2);
         newGIO.write();
 
 

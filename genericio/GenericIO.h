@@ -376,8 +376,10 @@ class GenericIO
     }
 
 
-    void useOtree()
+    void useOctree(bool _octreeLeafshuffle, int _numOctreeLevels)
     {
+        octreeLeafshuffle = _octreeLeafshuffle;
+        numOctreeLevels = _numOctreeLevels;
         hasOctree = true;
     }
 
@@ -604,8 +606,12 @@ class GenericIO
 
   protected:
     std::vector<Variable> Vars;
+
+    // Octree Data
     GIOOctree octreeData;
     bool hasOctree;
+    bool octreeLeafshuffle;
+    int numOctreeLevels;
 
     std::size_t NElems;
 
