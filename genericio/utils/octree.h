@@ -252,11 +252,19 @@ inline bool Octree::checkPosition(int extents[], T _x, T _y, T _z)
 template <typename T> 
 inline bool Octree::checkOverlap(T extents1[], T extents2[])
 {
+	if (extents1[1] <= extents2[0] || extents1[0] >= extents2[1])
+		return false;
 
-	return (  ( ( (extents1[0] <= extents2[1]) && (extents1[1] >= extents2[0]) ) &&
-	            ( (extents1[2] <= extents2[3]) && (extents1[3] >= extents2[2]) ) ) &&
-	            ( (extents1[4] <= extents2[5]) && (extents1[5] >= extents2[4]) ) );
+	if (extents1[3] <= extents2[2] || extents1[2] >= extents2[3])
+		return false;
+
+	if (extents1[5] <= extents2[4] || extents1[4] >= extents2[5])
+		return false;
+
+	return true;
 }
+
+
 
 
 template <typename T>				    	

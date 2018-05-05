@@ -607,7 +607,7 @@ void GenericIO::write()
                                     << myRankExtents[2] << "-" << myRankExtents[3] << ", "
                                     << myRankExtents[4] << "-" << myRankExtents[5] << std::endl;
 
-
+      
         //
         // Create octree structure
         Octree gioOctree(numOctreeLevels, simExtents);
@@ -630,7 +630,7 @@ void GenericIO::write()
         }
 
         int numleavesForMyRank = myLeaves.size();
-
+      
         //
         // Determine partition extents for my rank
         int *leavesExtents = new int[numleavesForMyRank*6];
@@ -646,7 +646,7 @@ void GenericIO::write()
 
             if (myRank == displayRank)
             {
-                std::cout <<myRank << " ~ " << *it << " | " 
+                std::cout <<myRank << " |~| " << *it << " | " 
                             << leafExtents[0] << "-" << leafExtents[1] << ", "
                             << leafExtents[2] << "-" << leafExtents[3] << ", "
                             << leafExtents[4] << "-" << leafExtents[5] << std::endl;
@@ -677,10 +677,10 @@ void GenericIO::write()
         // Find the partition
         leafCount = gioOctree.findPartition(_xx,_yy,_zz, numParticles, numleavesForMyRank, leavesExtents, leafPosition);
 
-        // if (myRank == displayRank)
-            // for (int i=0; i<numLeavesPerRank; i++)
-            //  std::cout << myRank << " : " << partitionCount[i] << std::endl;
-
+        if (myRank == displayRank)
+            for (int i=0; i<numleavesForMyRank; i++)
+              std::cout << myRank << " : " << leafCount[i] << std::endl;
+      
 
         // Rearrange the array based on partition
         for (size_t i = 0; i < Vars.size(); ++i)
@@ -747,9 +747,7 @@ void GenericIO::write()
                     }
                 }
         }
-
-        
-        
+      
         // _temp = &yy[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
         // _temp = &zz[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
         // _temp = &vx[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
@@ -772,7 +770,13 @@ void GenericIO::write()
 
         // Gather num leaves each rank has
         int *numLeavesPerRank = new int[numRanks];
-        MPI_Allgather( &numleavesForMyRank, 1, MPI_INT,  numLeavesPerRank, 1, MPI_INT,  MPI_COMM_WORLD); 
+        MPI_Allgather( &numleavesForMyRank, 1, MPI_INT,  numLeavesPerRank, 1, MPI_INT,  MPI_COMM_WORLD);
+
+        int *offsets = new int[numRanks];
+        offsets[0] = 0;
+        for (int i=1; i<numRanks; i++)
+            offsets[i] = offsets[i-1] + numLeavesPerRank[i-1];
+
 
         // Gather num particles in each leaf for each rank
         //int * nodesPerLeaves = new int[numOctreeLeaves];
@@ -782,24 +786,24 @@ void GenericIO::write()
         myLeavesCount=&leafCount[0];
 
 
-        MPI_Allgatherv( myLeavesCount, leafCounter, MPI_INT,  particlesPerLeaf, numleavesForMyRank, MPI_INT,  MPI_COMM_WORLD); 
+        MPI_Allgatherv( myLeavesCount, leafCounter, MPI_INT,  particlesPerLeaf, numLeavesPerRank, offsets, MPI_INT,  MPI_COMM_WORLD); 
 
 
         // if (myRank == displayRank)
         //  for (int i=0; i<numOctreeLeaves; i++)
         //  std::cout << i << " ~ " << (uint64_t)particlesPerLeaf[i] << std::endl;
 
-
+      
         //
         // Create Header info
         addOctreeHeader((uint64_t)octreeShuffle, (uint64_t)numOctreeLevels, (uint64_t)numOctreeLeaves);
 
-/*
-        int leafCount = 0;
+
+        int _leafCounter = 0;
         for (int r=0; r<numRanks; r++)
         {
             uint64_t offsetInRank = 0;
-            for (int l=0; l<numLeavesPerRank; l++)
+            for (int l=0; l<numLeavesPerRank[r]; l++)
             {
                 int leafID = r*numleavesForMyRank + l;
 
@@ -813,16 +817,16 @@ void GenericIO::write()
 
                 ////    newGIO.addOctreeRow(i,extents, 100, 0, i);
                 // if (myRank == displayRank)
-                //  std::cout << nodesPerLeaves[leafCount] << std::endl;
-                addOctreeRow(leafCount,_leafExtents, nodesPerLeaves[leafCount], offsetInRank, r);
+                //  std::cout << nodesPerLeaves[_leafCounter] << std::endl;
+                addOctreeRow(_leafCounter,_leafExtents, particlesPerLeaf[_leafCounter], offsetInRank, r);
 
                 //addOctreeRow(uint64_t _blockID, uint64_t _extents[6], uint64_t _numParticles, uint64_t _offsetInFile, uint64_t _partitionLocation)
 
-                leafCount++;
-                offsetInRank += nodesPerLeaves[leafCount];
+                _leafCounter++;
+                offsetInRank += particlesPerLeaf[_leafCounter];
             }
         }
-        */
+      
 
     }   // end octree
     
