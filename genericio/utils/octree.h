@@ -6,6 +6,7 @@
 #include <math.h>
 #include <stdint.h>
 #include <string>
+#include <fstream>
 #include <algorithm>
 #include <random>
 #include <stdio.h>
@@ -234,7 +235,7 @@ class Octree
 	template <typename T> void reorganizeArray(int numPartitions, std::vector<int>partitionCount, std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle);
 	template <typename T> bool checkPosition(int extents[], T _x, T _y, T _z);
 	template <typename T> bool checkOverlap(T extents1[], T extents2[]);;
-	template <typename T> std::vector<int> findPartition(T inputArrayX[], T inputArrayY[], T inputArrayZ[], size_t numElements, int numPartitions, int partitionExtents[], std::vector<int> &partitionPosition);
+	template <typename T> std::vector<int> findLeaf(T inputArrayX[], T inputArrayY[], T inputArrayZ[], size_t numElements, int numPartitions, int partitionExtents[], std::vector<int> &partitionPosition);
 };
 
 
@@ -283,7 +284,8 @@ inline void Octree::fillArray(int numPartitions, std::vector<int>partitionCount,
 
 
 template <typename T>				    	
-inline void Octree::reorganizeArray(int numPartitions, std::vector<int>partitionCount, std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle)
+inline void Octree::reorganizeArray(int numPartitions, std::vector<int>partitionCount, 
+									std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle)
 {
 	// Get offset
 	std::vector<int> partitionOffset;
@@ -364,15 +366,15 @@ inline void Octree::reorganizeArray(int numPartitions, std::vector<int>partition
 
 
 template <typename T> 
-inline std::vector<int> Octree::findPartition(T inputArrayX[], T inputArrayY[], T inputArrayZ[], size_t numElements, int numLeaves, int leavesExtents[], std::vector<int> &leafPosition)
+inline std::vector<int> Octree::findLeaf(T inputArrayX[], T inputArrayY[], T inputArrayZ[], 
+											size_t numElements, int numLeaves, int leavesExtents[], std::vector<int> &leafPosition)
 {
-	//std::vector<int>partitionCount;		// # particles in partition
-	std::vector<int>leafCount;		// # particles in partition
+	std::vector<int>leafCount;		// # particles in leaf
 
 	if (myRank == 0)
 		std::cout <<  "numLeaves: " << numLeaves << std::endl;
 
-	// initialize count of partition
+	// initialize count of leaf
 	for (int l=0; l<numLeaves; l++)
 		leafCount.push_back(0);
 
@@ -392,7 +394,7 @@ inline std::vector<int> Octree::findPartition(T inputArrayX[], T inputArrayY[], 
 			l=numLeaves-1;
 		}
 		
-		// Put in partition
+		// Put in leaf
 		leafPosition.push_back(l);
 		leafCount[l]++;
 	}
@@ -624,4 +626,11 @@ inline int Octree::getLeafIndex(float pos[3])
 	return index;
 }
 
+
+inline void writeLogApp(std::string filename, std::string log)
+{
+	std::ofstream outputFile( (filename+ ".log").c_str(), std::ios::out);
+	outputFile << log;
+	outputFile.close();
+}
 #endif
