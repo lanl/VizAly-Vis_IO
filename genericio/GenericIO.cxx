@@ -575,8 +575,13 @@ void GenericIO::write()
     // Octree
     if (hasOctree)
     {
+
+      #ifdef DEBUG_ON
+        std::stringstream log;
+      #endif
+
         int displayRank = 1;
-        int octreeShuffle = octreeLeafshuffle;
+
         size_t numParticles = NElems;
 
         //
@@ -603,14 +608,14 @@ void GenericIO::write()
             myRankExtents[i*2 + 1] = myRankExtents[i*2] + physicalDims[i];
         }
 
-        std::cout << myRank << " ~ " << myRankExtents[0] << "-" << myRankExtents[1] << ", "
-                                    << myRankExtents[2] << "-" << myRankExtents[3] << ", "
-                                    << myRankExtents[4] << "-" << myRankExtents[5] << std::endl;
-
       
         //
         // Create octree structure
-        Octree gioOctree(numOctreeLevels, simExtents);
+        Octree gioOctree;
+        if (simGlobalOctree)
+            gioOctree.init(numOctreeLevels, simExtents);
+        else
+            gioOctree.init(numOctreeLevels, simExtents);
         gioOctree.buildOctree();
         gioOctree.myRank = myRank;
         int numOctreeLeaves = gioOctree.getNumNodes();
@@ -633,6 +638,9 @@ void GenericIO::write()
       
         //
         // Determine partition extents for my rank
+      #ifdef DEBUG_ON
+        log << "\n# my leaves extents: \n";
+      #endif
         int *leavesExtents = new int[numleavesForMyRank*6];
         int leafCounter = 0;
         for (auto it=myLeaves.begin(); it!=myLeaves.end(); ++it)
@@ -644,17 +652,19 @@ void GenericIO::write()
             for (int j=0; j<6; j++)
                 leavesExtents[leafCounter*6 + j] = leafExtents[j];
 
-            if (myRank == displayRank)
-            {
-                std::cout <<myRank << " |~| " << *it << " | " 
-                            << leafExtents[0] << "-" << leafExtents[1] << ", "
-                            << leafExtents[2] << "-" << leafExtents[3] << ", "
-                            << leafExtents[4] << "-" << leafExtents[5] << std::endl;
-            }
+
+              #ifdef DEBUG_ON
+                log <<myRank << " ~ leaf: " << leafCounter << ", leafExtents(leafCounter): " 
+                            << leavesExtents[leafCounter*6 + 0] << "-" << leavesExtents[leafCounter*6 + 1] << ", "
+                            << leavesExtents[leafCounter*6 +2] << "-" << leavesExtents[leafCounter*6 + 3] << ", "
+                            << leavesExtents[leafCounter*6 +4] << "-" << leavesExtents[leafCounter*6 + 5] << std::endl;
+              #endif
 
             leafCounter++;
         }
-
+      #ifdef DEBUG_ON
+        log << "\nleaf Counter: " << leafCounter << std::endl;
+      #endif
 
         //
         // Rearrange the particles
@@ -675,21 +685,23 @@ void GenericIO::write()
         }
 
         // Find the partition
-        leafCount = gioOctree.findPartition(_xx,_yy,_zz, numParticles, numleavesForMyRank, leavesExtents, leafPosition);
+        leafCount = gioOctree.findLeaf(_xx,_yy,_zz, numParticles, numleavesForMyRank, leavesExtents, leafPosition);
 
-        if (myRank == displayRank)
-            for (int i=0; i<numleavesForMyRank; i++)
-              std::cout << myRank << " : " << leafCount[i] << std::endl;
+      #ifdef DEBUG_ON
+        log << "\n# particles for my leaves: \n";
+        for (int i=0; i<numleavesForMyRank; i++)
+            log << myRank << " ~ leaf: " << i << ", leaf count: " << leafCount[i] << std::endl;
+      #endif
       
 
-        // Rearrange the array based on partition
+        // Rearrange the array based on leaves
         for (size_t i = 0; i < Vars.size(); ++i)
         {
             if (Vars[i].IsFloat)
             {
                 float *_temp;
                 _temp = (float*)Vars[i].Data;
-                gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, false);
+                gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, octreeLeafshuffle);
             }
             else
                 if (Vars[i].IsSigned)
@@ -698,25 +710,25 @@ void GenericIO::write()
                     {
                         int8_t *_temp;
                         _temp = (int8_t*)Vars[i].Data;
-                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, false);
+                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     else if (Vars[i].Size == 2)
                     {
                         int16_t *_temp;
                         _temp = (int16_t*)Vars[i].Data;
-                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, false);
+                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     else if (Vars[i].Size == 3)
                     {
                         int32_t *_temp;
                         _temp = (int32_t*)Vars[i].Data;
-                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, false);
+                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     else if (Vars[i].Size == 4)
                     {
                         int64_t *_temp;
                         _temp = (int64_t*)Vars[i].Data;
-                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, false);
+                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                 }
                 else
@@ -725,108 +737,158 @@ void GenericIO::write()
                     {
                         uint8_t *_temp;
                         _temp = (uint8_t*)Vars[i].Data;
-                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, false);
+                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     else if (Vars[i].Size == 2)
                     {
                         uint16_t *_temp;
                         _temp = (uint16_t*)Vars[i].Data;
-                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, false);
+                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     else if (Vars[i].Size == 3)
                     {
                         uint32_t *_temp;
                         _temp = (uint32_t*)Vars[i].Data;
-                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, false);
+                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     else if (Vars[i].Size == 4)
                     {
                         uint64_t *_temp;
                         _temp = (uint64_t*)Vars[i].Data;
-                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, false);
+                        gioOctree.reorganizeArray(numleavesForMyRank, leafCount, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                 }
         }
-      
-        // _temp = &yy[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
-        // _temp = &zz[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
-        // _temp = &vx[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
-        // _temp = &vy[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
-        // _temp = &vz[0]; gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
-        // _temp = &phi[0];gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _temp, numParticles, false);
-
-        // // Temp to get info
-        // uint16_t *_tempMask = &mask[0];
-        // //gioOctree.fillArray(numLeavesPerRank, partitionCount, _tempMask, numParticles);   // for debugging
-        // gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _tempMask, numParticles, false);
-
-        // int64_t *_tempId = &id[0];
-        // gioOctree.reorganizeArray(numLeavesPerRank, partitionCount, partitionPosition, _tempId, numParticles, false);       
-        
 
 
         //
         // Gather information from other ranks 
 
+        //
         // Gather num leaves each rank has
         int *numLeavesPerRank = new int[numRanks];
         MPI_Allgather( &numleavesForMyRank, 1, MPI_INT,  numLeavesPerRank, 1, MPI_INT,  MPI_COMM_WORLD);
 
+      #ifdef DEBUG_ON
+        log << "\nALL Gather Num leaves per rank: \n";
+        for (int i=0; i<numRanks; i++)
+            log << numLeavesPerRank[i] << std::endl;
+      #endif
+
+        // Compute extents
         int *offsets = new int[numRanks];
         offsets[0] = 0;
+        int totalLeavesForSim = numLeavesPerRank[0];
         for (int i=1; i<numRanks; i++)
+        {
+            totalLeavesForSim += numLeavesPerRank[i];
             offsets[i] = offsets[i-1] + numLeavesPerRank[i-1];
+        }
 
-
+        //
         // Gather num particles in each leaf for each rank
-        //int * nodesPerLeaves = new int[numOctreeLeaves];
-        int * particlesPerLeaf = new int[numOctreeLeaves];
+        int *particlesPerLeaf = new int[totalLeavesForSim];
 
         int *myLeavesCount;  
         myLeavesCount=&leafCount[0];
-
-
         MPI_Allgatherv( myLeavesCount, leafCounter, MPI_INT,  particlesPerLeaf, numLeavesPerRank, offsets, MPI_INT,  MPI_COMM_WORLD); 
 
+      #ifdef DEBUG_ON
+        log << "\ntotal Leaves For Sim: " << totalLeavesForSim << std::endl;
+        log << "\nAll Gatherv Num particles per leaf: \n";
+        for (int i=0; i<totalLeavesForSim; i++)
+            log << i << " ~ " << particlesPerLeaf[i] << std::endl;
+      #endif
 
-        // if (myRank == displayRank)
-        //  for (int i=0; i<numOctreeLeaves; i++)
-        //  std::cout << i << " ~ " << (uint64_t)particlesPerLeaf[i] << std::endl;
 
+
+        //
+        // Gather extents for each rank if octree leaves are per rank
+        int *allOctreeLeavesExtents = new int[totalLeavesForSim*6];
+
+        int *offsetsExtents = new int[numRanks];
+        offsetsExtents[0] = 0;
+
+        int *extentsCountPerRank = new int[numRanks];
+        extentsCountPerRank[0] = numLeavesPerRank[0]*6;
+        for (int r=1; r<numRanks; r++)
+        {
+            extentsCountPerRank[r] = numLeavesPerRank[r]*6;
+            offsetsExtents[r] = offsetsExtents[r-1] + numLeavesPerRank[r-1]*6;
+        }
+
+        // 
+        // float *extentsPerLeaf = new float[6*totalLeavesForSim];
+        MPI_Allgatherv(leavesExtents, numleavesForMyRank*6, MPI_INT,  allOctreeLeavesExtents, extentsCountPerRank, offsetsExtents, MPI_INT,  MPI_COMM_WORLD); 
+
+        if (offsetsExtents != NULL)
+            delete []offsetsExtents;
+
+        if (extentsCountPerRank != NULL)
+            delete []extentsCountPerRank;
+        
+
+      #ifdef DEBUG_ON
+        log << "\nNum extents per leaf: \n";
+        for (int i=0; i<totalLeavesForSim; i++)
+            log << i << " ~ " << allOctreeLeavesExtents[i*6+0] << " - " << allOctreeLeavesExtents[i*6+1]
+                      << ", " << allOctreeLeavesExtents[i*6+2] << " - " << allOctreeLeavesExtents[i*6+3]
+                      << ", " << allOctreeLeavesExtents[i*6+4] << " - " << allOctreeLeavesExtents[i*6+5] << std::endl;
+      #endif
       
         //
         // Create Header info
-        addOctreeHeader((uint64_t)octreeShuffle, (uint64_t)numOctreeLevels, (uint64_t)numOctreeLeaves);
+        addOctreeHeader((uint64_t)((int)octreeLeafshuffle), (uint64_t)numOctreeLevels, (uint64_t)numOctreeLeaves);
 
-
+        //
+        // Add Octree ranks
         int _leafCounter = 0;
         for (int r=0; r<numRanks; r++)
         {
             uint64_t offsetInRank = 0;
             for (int l=0; l<numLeavesPerRank[r]; l++)
             {
-                int leafID = r*numleavesForMyRank + l;
-
-
-                float __extents[6];
-                gioOctree.getLeafExtents(leafID,__extents);
-
                 uint64_t _leafExtents[6];
-                for (int i=0; i<6; i++)
-                    _leafExtents[i] = (uint64_t) round(__extents[i]);
 
-                ////    newGIO.addOctreeRow(i,extents, 100, 0, i);
-                // if (myRank == displayRank)
-                //  std::cout << nodesPerLeaves[_leafCounter] << std::endl;
-                addOctreeRow(_leafCounter,_leafExtents, particlesPerLeaf[_leafCounter], offsetInRank, r);
+                for (int i=0; i<6; i++)
+                    _leafExtents[i] = (uint64_t) round( allOctreeLeavesExtents[_leafCounter*6 + i] );
+
 
                 //addOctreeRow(uint64_t _blockID, uint64_t _extents[6], uint64_t _numParticles, uint64_t _offsetInFile, uint64_t _partitionLocation)
+              #ifdef DEBUG_ON
+                log << "row:" << _leafCounter << ",  " <<
+                    _leafExtents[0] << " - " << _leafExtents[1] << ", " <<
+                    _leafExtents[2] << " - " << _leafExtents[3] << ", " <<
+                    _leafExtents[4] << " - " << _leafExtents[5] << ",  " << 
+                    particlesPerLeaf[_leafCounter] <<",  " << offsetInRank << ",  "  << r << std::endl;
+              #endif
 
-                _leafCounter++;
+                addOctreeRow(_leafCounter, _leafExtents, particlesPerLeaf[_leafCounter], offsetInRank, r);
+
                 offsetInRank += particlesPerLeaf[_leafCounter];
+                _leafCounter++;
             }
         }
-      
+        
+
+        if (particlesPerLeaf != NULL)
+            delete []particlesPerLeaf;
+
+        if (leavesExtents != NULL)
+            delete []leavesExtents;
+
+        if (offsets != NULL)
+            delete []offsets;
+
+        if (numLeavesPerRank != NULL)
+            delete []numLeavesPerRank;
+
+        if (allOctreeLeavesExtents != NULL)
+            delete []allOctreeLeavesExtents;
+
+      #ifdef DEBUG_ON
+        writeLogApp("log_" + std::to_string(myRank) ,log.str());
+      #endif
 
     }   // end octree
     

@@ -310,21 +310,21 @@ class GenericIO
     GenericIO(const MPI_Comm &C, const std::string &FN, unsigned FIOT = -1)
         : NElems(0), FileIOType(FIOT == (unsigned) - 1 ? DefaultFileIOType : FIOT),
           Partition(DefaultPartition), Comm(C), FileName(FN), Redistributing(false),
-          DisableCollErrChecking(false), SplitComm(MPI_COMM_NULL)
+          DisableCollErrChecking(false), SplitComm(MPI_COMM_NULL), hasOctree(false),
+          simGlobalOctree(true), octreeLeafshuffle(false), numOctreeLevels(0)
     {
         std::fill(PhysOrigin, PhysOrigin + 3, 0.0);
         std::fill(PhysScale,  PhysScale + 3, 0.0);
-        hasOctree = false;
     }
   #else
     GenericIO(const std::string &FN, unsigned FIOT = -1)
         : NElems(0), FileIOType(FIOT == (unsigned) - 1 ? DefaultFileIOType : FIOT),
           Partition(DefaultPartition), FileName(FN), Redistributing(false),
-          DisableCollErrChecking(false)
+          DisableCollErrChecking(false), hasOctree(false),
+          simGlobalOctree(true), octreeLeafshuffle(false), numOctreeLevels(0)
     {
         std::fill(PhysOrigin, PhysOrigin + 3, 0.0);
         std::fill(PhysScale,  PhysScale + 3, 0.0);
-        hasOctree = false;
     }
   #endif
 
@@ -376,10 +376,11 @@ class GenericIO
     }
 
 
-    void useOctree(bool _octreeLeafshuffle, int _numOctreeLevels)
+    void useOctree(bool _octreeLeafshuffle, int _numOctreeLevels, bool _simGlobalOctree)
     {
         octreeLeafshuffle = _octreeLeafshuffle;
         numOctreeLevels = _numOctreeLevels;
+        _simGlobalOctree = simGlobalOctree;
         hasOctree = true;
     }
 
@@ -388,7 +389,6 @@ class GenericIO
         octreeData.preShuffled = _preShuffled;
         octreeData.decompositionLevel = _decompositionLevel;
         octreeData.numEntries = _numEntries;
-        //hasOctree = true;
     }
 
 
@@ -609,9 +609,10 @@ class GenericIO
 
     // Octree Data
     GIOOctree octreeData;
-    bool hasOctree;
-    bool octreeLeafshuffle;
-    int numOctreeLevels;
+    bool hasOctree;         
+    bool simGlobalOctree;       // Octree for overall sim or based on rank 
+    bool octreeLeafshuffle;     // shuffle paticles in a leaf
+    int numOctreeLevels;        // num octree leaves = 8^numOctreeLevels
 
     std::size_t NElems;
 
