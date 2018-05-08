@@ -233,6 +233,9 @@ int main(int argc, char *argv[])
                 if (VI[i].IsPhysCoordZ) VIZ.push_back(VI[i]);
             }
 
+            if (GIO.isOctree())
+                GIO.printOctree();
+
             if (!VIX.empty())
             {
                 cout << "# x variables: ";

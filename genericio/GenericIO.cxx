@@ -1307,6 +1307,7 @@ void GenericIO::readHeaderLeader(void *GHPtr, MismatchBehavior MB, int NRanks,
                 SourceRanks.push_back(i);
         }
     }
+    
 
     HeaderSize = GH.HeaderSize;
     Header.resize(HeaderSize + CRCSize, 0xFE /* poison */);
@@ -1328,7 +1329,7 @@ void GenericIO::readOctreeHeader(int octreeOffset, int octreeStringSize)
 
     octreeData.deserialize(&octreeHeader[0]);
 
-    octreeData.print();
+    //octreeData.print();
 }
 
 // Note: Errors from this function should be recoverable. This means that if
