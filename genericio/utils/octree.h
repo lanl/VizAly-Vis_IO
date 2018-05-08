@@ -232,15 +232,15 @@ class Octree
 	void displayPartitions();
 
 	template <typename T> void fillArray(int numPartitions, std::vector<int>partitionCount, T array[], size_t numElements);
-	template <typename T> void reorganizeArray(int numPartitions, std::vector<int>partitionCount, std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle);
-	template <typename T> bool checkPosition(int extents[], T _x, T _y, T _z);
+	template <typename T> void reorganizeArray(int numPartitions, std::vector<uint64_t>partitionCount, std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle);
+	template <typename T> bool checkPosition(float extents[], T _x, T _y, T _z);
 	template <typename T> bool checkOverlap(T extents1[], T extents2[]);;
-	template <typename T> std::vector<int> findLeaf(T inputArrayX[], T inputArrayY[], T inputArrayZ[], size_t numElements, int numPartitions, int partitionExtents[], std::vector<int> &partitionPosition);
+	template <typename T> std::vector<uint64_t> findLeaf(T inputArrayX[], T inputArrayY[], T inputArrayZ[], size_t numElements, int numPartitions, float partitionExtents[], std::vector<int> &partitionPosition);
 };
 
 
 template <typename T> 
-inline bool Octree::checkPosition(int extents[], T _x, T _y, T _z)
+inline bool Octree::checkPosition(float extents[], T _x, T _y, T _z)
 {
 	if (_x < extents[1] && _x >= extents[0])
 		if (_y < extents[3] && _y >= extents[2])
@@ -284,7 +284,7 @@ inline void Octree::fillArray(int numPartitions, std::vector<int>partitionCount,
 
 
 template <typename T>				    	
-inline void Octree::reorganizeArray(int numPartitions, std::vector<int>partitionCount, 
+inline void Octree::reorganizeArray(int numPartitions, std::vector<uint64_t>partitionCount, 
 									std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle)
 {
 	// Get offset
@@ -328,48 +328,12 @@ inline void Octree::reorganizeArray(int numPartitions, std::vector<int>partition
 	}
 }
 
-// template <typename T> 
-// inline std::vector<int> Octree::findPartition(T inputArrayX[], T inputArrayY[], T inputArrayZ[], size_t numElements, int numPartitions, int partitionExtents[], std::vector<int> &partitionPosition)
-// {
-// 	std::vector<int>partitionCount;		// # particles in partition
-
-// 	if (myRank == 0)
-// 		std::cout <<  "numPartitions: " << numPartitions << std::endl;
-
-// 	// initialize count of partition
-// 	for (int i=0; i<numPartitions; i++)
-// 		partitionCount.push_back(0);
-
-// 	for (size_t i=0; i<numElements; i++)
-// 	{
-// 		// partitionExtents[] - minX, maxY  minY, maxY, minZ, maxZ
-// 		int p;
-// 		for (p=0; p<numPartitions; p++)
-// 			if ( checkPosition(&partitionExtents[p*6], inputArrayX[i], inputArrayY[i], inputArrayZ[i]) )
-// 				break;
-
-// 		if (p >= numPartitions)
-// 		{
-// 			std::cout << inputArrayX[i] << "," << inputArrayY[i] << ", " << inputArrayZ[i] << " is in NO partition!!! " << std::endl;
-			
-// 			// Put it in the last partition
-// 			p=numPartitions-1;
-// 		}
-		
-// 		// Put in partition
-// 		partitionPosition.push_back(p);
-// 		partitionCount[p]++;
-// 	}
-
-// 	return partitionCount;
-// }
-
 
 template <typename T> 
-inline std::vector<int> Octree::findLeaf(T inputArrayX[], T inputArrayY[], T inputArrayZ[], 
-											size_t numElements, int numLeaves, int leavesExtents[], std::vector<int> &leafPosition)
+inline std::vector<uint64_t> Octree::findLeaf(T inputArrayX[], T inputArrayY[], T inputArrayZ[], 
+											size_t numElements, int numLeaves, float leavesExtents[], std::vector<int> &leafPosition)
 {
-	std::vector<int>leafCount;		// # particles in leaf
+	std::vector<uint64_t>leafCount;		// # particles in leaf
 
 	if (myRank == 0)
 		std::cout <<  "numLeaves: " << numLeaves << std::endl;
