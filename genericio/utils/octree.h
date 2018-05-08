@@ -170,9 +170,10 @@ struct GIOOctree
 
     void print()
     {
-    	std::cout << "\nPre-Shuffled:" << preShuffled << std::endl;
-    	std::cout << "Decomposition Level:" << decompositionLevel << std::endl;
-    	std::cout << "Num Entries:" << numEntries << std::endl;
+    	std::cout << "\nOctree  Info" << std::endl;
+    	std::cout << "Pre-Shuffled: " << preShuffled << std::endl;
+    	std::cout << "Decomposition Level: " << decompositionLevel << std::endl;
+    	std::cout << "Num Entries: " << numEntries << std::endl;
 
     	std::cout << "\nIndex : minX - maxX, minY - maxY, minZ - maxZ, #particles, offset_in_file, rank_location"<< std::endl;
     	for (int i=0; i<numEntries; i++)
@@ -592,6 +593,13 @@ inline int Octree::getLeafIndex(float pos[3])
 
 
 inline void writeLogApp(std::string filename, std::string log)
+{
+	std::ofstream outputFile( (filename+ ".log").c_str(), std::ios::out | std::ios::app);
+	outputFile << log;
+	outputFile.close();
+}
+
+inline void writeLogNew(std::string filename, std::string log)
 {
 	std::ofstream outputFile( (filename+ ".log").c_str(), std::ios::out);
 	outputFile << log;
