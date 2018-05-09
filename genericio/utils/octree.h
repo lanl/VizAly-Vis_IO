@@ -170,10 +170,9 @@ struct GIOOctree
 
     void print()
     {
-    	std::cout << "\nOctree  Info" << std::endl;
-    	std::cout << "Pre-Shuffled: " << preShuffled << std::endl;
-    	std::cout << "Decomposition Level: " << decompositionLevel << std::endl;
-    	std::cout << "Num Entries: " << numEntries << std::endl;
+    	std::cout << "\nPre-Shuffled:" << preShuffled << std::endl;
+    	std::cout << "Decomposition Level:" << decompositionLevel << std::endl;
+    	std::cout << "Num Entries:" << numEntries << std::endl;
 
     	std::cout << "\nIndex : minX - maxX, minY - maxY, minZ - maxZ, #particles, offset_in_file, rank_location"<< std::endl;
     	for (int i=0; i<numEntries; i++)
@@ -208,6 +207,7 @@ struct PartitionExtents
 class Octree
 {
 	float extents[6];
+	float rankExtents[6];
 	int numLevels;
 
 	std::vector<uintptr_t> octreeLevels;				// stores the real nodes
@@ -228,6 +228,7 @@ class Octree
 	int getNumNodes(){ return (int) (pow(8.0f,numLevels)); }
 	int getLeafIndex(float pos[3]);
 	void getLeafExtents(int leafId, float extents[6]);
+	void setRankExtents(float _rankExtents[6]){ for (int i=0;i<6;i++) rankExtents[i]=_rankExtents[i]; }
 
 	std::string getPartitions();
 	void displayPartitions();
@@ -235,6 +236,7 @@ class Octree
 	template <typename T> void fillArray(int numPartitions, std::vector<int>partitionCount, T array[], size_t numElements);
 	template <typename T> void reorganizeArray(int numPartitions, std::vector<uint64_t>partitionCount, std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle);
 	template <typename T> bool checkPosition(float extents[], T _x, T _y, T _z);
+	template <typename T> bool checkPositionInclusive(float extents[], T _x, T _y, T _z);
 	template <typename T> bool checkOverlap(T extents1[], T extents2[]);;
 	template <typename T> std::vector<uint64_t> findLeaf(T inputArrayX[], T inputArrayY[], T inputArrayZ[], size_t numElements, int numPartitions, float partitionExtents[], std::vector<int> &partitionPosition);
 };
@@ -246,6 +248,17 @@ inline bool Octree::checkPosition(float extents[], T _x, T _y, T _z)
 	if (_x < extents[1] && _x >= extents[0])
 		if (_y < extents[3] && _y >= extents[2])
 			if (_z < extents[5] && _z >= extents[4])
+				return true;
+
+	return false;
+}
+
+template <typename T> 
+inline bool Octree::checkPositionInclusive(float extents[], T _x, T _y, T _z)
+{
+	if (_x <= extents[1] && _x >= extents[0])
+		if (_y <= extents[3] && _y >= extents[2])
+			if (_z <= extents[5] && _z >= extents[4])
 				return true;
 
 	return false;
@@ -351,10 +364,18 @@ inline std::vector<uint64_t> Octree::findLeaf(T inputArrayX[], T inputArrayY[], 
 			if ( checkPosition(&leavesExtents[l*6], inputArrayX[i], inputArrayY[i], inputArrayZ[i]) )
 				break;
 
+		// double check with less or equal
+		if (l >= numLeaves)
+			for (l=0; l<numLeaves; l++)
+				if ( checkPositionInclusive(&leavesExtents[l*6], inputArrayX[i], inputArrayY[i], inputArrayZ[i]) )
+					break;
+
 		if (l >= numLeaves)
 		{
-			std::cout << inputArrayX[i] << "," << inputArrayY[i] << ", " << inputArrayZ[i] << " is in NO partition!!! " << std::endl;
-			
+			std::cout << "\n" << myRank << " ~ " << inputArrayX[i] << ", " << inputArrayY[i] << ", " << inputArrayZ[i] << " is in NO partition!!! " << std::endl;
+			std::cout << "my rank extents: " << rankExtents[0] << "-" << rankExtents[1] << ", "
+									   << rankExtents[2] << "-" << rankExtents[3] << ", "
+									   << rankExtents[4] << "-" << rankExtents[5] << std::endl;
 			// Put it in the last partition
 			l=numLeaves-1;
 		}
@@ -592,17 +613,11 @@ inline int Octree::getLeafIndex(float pos[3])
 }
 
 
-inline void writeLogApp(std::string filename, std::string log)
-{
-	std::ofstream outputFile( (filename+ ".log").c_str(), std::ios::out | std::ios::app);
-	outputFile << log;
-	outputFile.close();
-}
-
-inline void writeLogNew(std::string filename, std::string log)
+inline void writeLog(std::string filename, std::string log)
 {
 	std::ofstream outputFile( (filename+ ".log").c_str(), std::ios::out);
 	outputFile << log;
 	outputFile.close();
 }
+
 #endif

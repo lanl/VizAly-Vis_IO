@@ -575,7 +575,7 @@ void GenericIO::write()
     // Octree
     if (hasOctree)
     {
-
+        #define DEBUG_ON 1
       #ifdef DEBUG_ON
         std::stringstream log;
       #endif
@@ -616,11 +616,19 @@ void GenericIO::write()
         else
             gioOctree.init(numOctreeLevels, myRankExtents);
 
+        gioOctree.setRankExtents(myRankExtents);
+
         gioOctree.buildOctree();
         gioOctree.myRank = myRank;
         int numOctreeLeaves = gioOctree.getNumNodes();
 
+      #ifdef DEBUG_ON
+        log << myRank << " ~ splitRank " <<  SplitRank << ", num Ranks: " << numRanks << std::endl;
 
+        log << "\n# my rank extents: " << myRankExtents[0] << "-" << myRankExtents[1] << ", "
+                                       << myRankExtents[2] << "-" << myRankExtents[3] << ", "
+                                       << myRankExtents[4] << "-" << myRankExtents[5] << std::endl;
+      #endif
 
         //
         // Find partitions for myRank
@@ -689,7 +697,9 @@ void GenericIO::write()
       #ifdef DEBUG_ON
         log << "\n# particles for my leaves: \n";
         for (int i=0; i<numleavesForMyRank; i++)
+        {
             log << myRank << " ~ leaf: " << i << ", leaf count: " << numParticlesForMyLeaf[i] << std::endl;
+        }
       #endif
       
 
@@ -761,57 +771,48 @@ void GenericIO::write()
 
         leafPosition.clear();
 
+        
+
         //
         // Gather information from other ranks 
 
         //
         // Gather num leaves each rank has
-        int *numLeavesPerRank = NULL;
-
-        if (myRank == 0)
-            numLeavesPerRank = new int[numRanks];
-
-        MPI_Gather( &numleavesForMyRank, 1, MPI_INT,  numLeavesPerRank, 1, MPI_INT, 0,  MPI_COMM_WORLD);
+        int *numLeavesPerRank = numLeavesPerRank = new int[numRanks];
+        MPI_Allgather( &numleavesForMyRank, 1, MPI_INT,  numLeavesPerRank, 1, MPI_INT,  MPI_COMM_WORLD);
     
       #ifdef DEBUG_ON
-        if (myRank == 0)
         {
             log << "\nALL Gather Num leaves per rank: \n";
             for (int i=0; i<numRanks; i++)
-                log << numLeavesPerRank[i] << std::endl;
+            {
+                log << i << " leaves for rank " << numLeavesPerRank[i] << std::endl;
+            }
         }
       #endif
 
-
         //
         // Gather num particles in each leaf for each rank
-        int *_offsets = NULL;
-        uint64_t *numParticlesPerLeaf = NULL;
-        int totalLeavesForSim;
+        int totalLeavesForSim = numLeavesPerRank[0];
 
-        if (myRank == 0)
+        int *_offsets = new int[numRanks];
+        _offsets[0] = 0;
+
+        for (int i=1; i<numRanks; i++)
         {
-            _offsets = new int[numRanks];
-            _offsets[0] = 0;
-            totalLeavesForSim = numLeavesPerRank[0];
-            for (int i=1; i<numRanks; i++)
-            {
-                totalLeavesForSim += numLeavesPerRank[i];
-                _offsets[i] = _offsets[i-1] + numLeavesPerRank[i-1];
-            }
-
-            numParticlesPerLeaf = new uint64_t[totalLeavesForSim];
+            totalLeavesForSim += numLeavesPerRank[i];
+            _offsets[i] = _offsets[i-1] + numLeavesPerRank[i-1];
         }
 
+        uint64_t *numParticlesPerLeaf = new uint64_t[totalLeavesForSim];
         uint64_t *myLeavesCount = &numParticlesForMyLeaf[0];
-        MPI_Gatherv( myLeavesCount, numleavesForMyRank, MPI_UINT64_T,  numParticlesPerLeaf, numLeavesPerRank, _offsets, MPI_UINT64_T, 0,  MPI_COMM_WORLD); 
+        MPI_Allgatherv( myLeavesCount, numleavesForMyRank, MPI_UINT64_T,  numParticlesPerLeaf, numLeavesPerRank, _offsets, MPI_UINT64_T,  MPI_COMM_WORLD); 
 
-         if (_offsets != NULL)
+        if (_offsets != NULL)
             delete []_offsets;
 
 
       #ifdef DEBUG_ON
-        if (myRank == 0)
         {
             log << "\ntotal Leaves For Sim: " << totalLeavesForSim << std::endl;
             log << "\nAll Gatherv Num particles per leaf: \n";
@@ -821,28 +822,22 @@ void GenericIO::write()
       #endif
 
 
-
         //
-        // Gather extents for each rank
-        int *_extentsCountPerRank = NULL;
-        float *allOctreeLeavesExtents = NULL;
-        int *_offsetsExtents = NULL;
-        if (myRank == 0)
+        // Gather extents for each rank        
+        int *_extentsCountPerRank = new int[numRanks];
+        int *_offsetsExtents = new int[numRanks];
+        float *allOctreeLeavesExtents = new float[totalLeavesForSim*6];
+        
+        _offsetsExtents[0] = 0;
+        _extentsCountPerRank[0] = numLeavesPerRank[0]*6;
+        for (int r=1; r<numRanks; r++)
         {
-            _extentsCountPerRank = new int[numRanks];
-            allOctreeLeavesExtents = new float[totalLeavesForSim*6];
-            _offsetsExtents = new int[numRanks];
-
-            _offsetsExtents[0] = 0;
-            _extentsCountPerRank[0] = numLeavesPerRank[0]*6;
-            for (int r=1; r<numRanks; r++)
-            {
-                _extentsCountPerRank[r] = numLeavesPerRank[r]*6;
-                _offsetsExtents[r] = _offsetsExtents[r-1] + numLeavesPerRank[r-1]*6;
-            }
+            _extentsCountPerRank[r] = numLeavesPerRank[r]*6;
+            _offsetsExtents[r] = _offsetsExtents[r-1] + numLeavesPerRank[r-1]*6;
         }
+        
+        MPI_Allgatherv(leavesExtents, numleavesForMyRank*6, MPI_FLOAT,  allOctreeLeavesExtents, _extentsCountPerRank, _offsetsExtents, MPI_FLOAT,  MPI_COMM_WORLD); 
 
-        MPI_Gatherv(leavesExtents, numleavesForMyRank*6, MPI_FLOAT,  allOctreeLeavesExtents, _extentsCountPerRank, _offsetsExtents, MPI_FLOAT, 0,  MPI_COMM_WORLD); 
 
         if (_offsetsExtents != NULL)
             delete []_offsetsExtents;
@@ -863,15 +858,16 @@ void GenericIO::write()
         }
       #endif
       
-        //
-        // Create Header info
-        if (myRank == 0)
+
+        if (SplitRank == 0)
+        {
+            //
+            // Create Header info
             addOctreeHeader((uint64_t)((int)octreeLeafshuffle), (uint64_t)numOctreeLevels, (uint64_t)numOctreeLeaves);
 
-        //
-        // Add Octree ranks
-        _leafCounter = 0;
-        if (myRank == 0)
+            //
+            // Add Octree ranks
+            _leafCounter = 0;
             for (int r=0; r<numRanks; r++)
             {
                 uint64_t offsetInRank = 0;
@@ -887,10 +883,7 @@ void GenericIO::write()
                     _leafCounter++;
                 }
             }
-        
-
-        if (numParticlesPerLeaf != NULL)
-            delete []numParticlesPerLeaf;
+        }
 
         if (leavesExtents != NULL)
             delete []leavesExtents;
@@ -898,11 +891,14 @@ void GenericIO::write()
         if (numLeavesPerRank != NULL)
             delete []numLeavesPerRank;
 
+        if (numParticlesPerLeaf != NULL)
+            delete []numParticlesPerLeaf;
+
         if (allOctreeLeavesExtents != NULL)
             delete []allOctreeLeavesExtents;
 
       #ifdef DEBUG_ON
-        writeLogApp("log_" + std::to_string(myRank) ,log.str());
+        writeLog("log_" + std::to_string(myRank) ,log.str());
       #endif
 
     }   // end octree
@@ -979,7 +975,7 @@ void GenericIO::write()
     double StartTime = MPI_Wtime();
 
     if (SplitRank == 0)
-    {
+    {        
         std::string serializedOctree;
         uint64_t octreeSize = 0;
         if (hasOctree)
