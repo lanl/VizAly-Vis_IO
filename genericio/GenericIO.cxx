@@ -337,8 +337,8 @@ struct GlobalHeader
     endian_specific_value<double,   IsBigEndian> PhysScale[3];
     endian_specific_value<uint64_t, IsBigEndian> BlocksSize;
     endian_specific_value<uint64_t, IsBigEndian> BlocksStart;
-    endian_specific_value<uint64_t, IsBigEndian> octreeSize;
-    endian_specific_value<uint64_t, IsBigEndian> octreeStart;
+    endian_specific_value<uint64_t, IsBigEndian> OctreeSize;
+    endian_specific_value<uint64_t, IsBigEndian> OctreeStart;
 };
 
 enum
@@ -1014,8 +1014,8 @@ void GenericIO::write()
             octreeStart = sizeof(GlobalHeader<IsBigEndian>);
             std::copy( serializedOctree.begin(), serializedOctree.end(), &Header[GH->GlobalHeaderSize] );
         }
-        GH->octreeSize = octreeSize;
-        GH->octreeStart = octreeStart;
+        GH->OctreeSize = octreeSize;
+        GH->OctreeStart = octreeStart;
 
 
         if (!NeedsBlockHeaders)
@@ -1519,11 +1519,11 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
     int octreeStart = 0;
     int octreeSize = 0;
     if (GH->VarsStart != 168)      // for files that do not have octrees
-        if (GH->octreeSize != 0)   // for files with octree support but have no octree in place
+        if (GH->OctreeSize != 0)   // for files with octree support but have no octree in place
         {
             hasOctree = true;
-            octreeSize = GH->octreeSize;
-            octreeStart = GH->octreeStart;
+            octreeSize = GH->OctreeSize;
+            octreeStart = GH->OctreeStart;
             
             readOctreeHeader(octreeStart, octreeSize);
         }
