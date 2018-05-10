@@ -337,6 +337,7 @@ struct GlobalHeader
     endian_specific_value<double,   IsBigEndian> PhysScale[3];
     endian_specific_value<uint64_t, IsBigEndian> BlocksSize;
     endian_specific_value<uint64_t, IsBigEndian> BlocksStart;
+    endian_specific_value<uint64_t, IsBigEndian> octreeSize;
     endian_specific_value<uint64_t, IsBigEndian> octreeStart;
 };
 
@@ -978,21 +979,18 @@ void GenericIO::write()
     {        
         std::string serializedOctree;
         uint64_t octreeSize = 0;
+        uint64_t octreeStart = 0;
         if (hasOctree)
         {
             serializedOctree = octreeData.serialize();
-            octreeSize = serializedOctree.size();
+            octreeSize  = serializedOctree.size();
         }
-
 
         uint64_t HeaderSize = sizeof(GlobalHeader<IsBigEndian>) + Vars.size() * sizeof(VariableHeader<IsBigEndian>) +
                               SplitNRanks * sizeof(RankHeader<IsBigEndian>) + CRCSize + octreeSize;
 
-
         if (NeedsBlockHeaders)
             HeaderSize += SplitNRanks * Vars.size() * sizeof(BlockHeader<IsBigEndian>) + octreeSize;
-
-
 
         vector<char> Header(HeaderSize, 0);
         GlobalHeader<IsBigEndian> *GH = (GlobalHeader<IsBigEndian> *) &Header[0];
@@ -1010,11 +1008,15 @@ void GenericIO::write()
         std::copy(PhysOrigin, PhysOrigin + 3, GH->PhysOrigin);
         std::copy(PhysScale,  PhysScale  + 3, GH->PhysScale);
 
+
         if (hasOctree)
         {
-            GH->octreeStart = sizeof(GlobalHeader<IsBigEndian>);
+            octreeStart = sizeof(GlobalHeader<IsBigEndian>);
             std::copy( serializedOctree.begin(), serializedOctree.end(), &Header[GH->GlobalHeaderSize] );
         }
+        GH->octreeSize = octreeSize;
+        GH->octreeStart = octreeStart;
+
 
         if (!NeedsBlockHeaders)
         {
@@ -1514,16 +1516,15 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
 
 
     // Read Octree info if one is present
-    
     int octreeStart = 0;
     int octreeSize = 0;
-    if (GH->VarsStart != 168)       // for files that do not have octrees
-        if (GH->octreeStart != 0)   // for files with octree support but have no octree in place
+    if (GH->VarsStart != 168)      // for files that do not have octrees
+        if (GH->octreeSize != 0)   // for files with octree support but have no octree in place
         {
             hasOctree = true;
+            octreeSize = GH->octreeSize;
             octreeStart = GH->octreeStart;
-            octreeSize = GH->VarsStart - GH->octreeStart;
-
+            
             readOctreeHeader(octreeStart, octreeSize);
         }
     

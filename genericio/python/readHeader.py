@@ -58,8 +58,10 @@ class GenericIOHeader:
 		self.physScale = []
 		self.blockSize = 0
 		self.blockStart = 0
+		self.octreeSize = 0
 		self.octreeStart = 0
 	
+
 	def printMe(self):
 		print("Filetype:", self.filetype )
 		print("HeadeSize:", self.headerSize )
@@ -76,6 +78,7 @@ class GenericIOHeader:
 		print("Scale:", self.physScale[0], self.physScale[1], self.physScale[2] )
 		print("block size:", self.blockSize )
 		print("block start:", self.blockStart )
+		print("octree size:", self.octreeSize )
 		print("octree start:", self.octreeStart )
 
 
@@ -233,9 +236,16 @@ def main(argv):
 	headerInfo.blockStart = struct.unpack("q", fileContent[pos:pos+8])[0] 
 	pos = pos + 8
 
-	headerInfo.octreeStart = struct.unpack("q", fileContent[pos:pos+8])[0] 
-	pos = pos + 8
-	
+	if headerInfo.globalHeaderSize == 184:
+		headerInfo.octreeSize = struct.unpack("q", fileContent[pos:pos+8])[0] 
+		pos = pos + 8
+
+		headerInfo.octreeStart = struct.unpack("q", fileContent[pos:pos+8])[0] 
+		pos = pos + 8
+	else:
+		headerInfo.octreeSize = 0
+		headerInfo.octreeStart = 0
+
 	headerInfo.printMe()
 
 	#print("\n")
@@ -243,7 +253,7 @@ def main(argv):
 
 
 	# Octree
-	if headerInfo.octreeStart != 0:
+	if headerInfo.octreeSize != 0:
 		octreeData = Octree()
 
 		octreeData.preShuffled = struct.unpack("q", fileContent[pos:pos+8])[0]
