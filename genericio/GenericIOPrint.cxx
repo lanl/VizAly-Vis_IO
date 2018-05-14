@@ -234,6 +234,7 @@ int main(int argc, char *argv[])
             }
 
             if (GIO.isOctree())
+                //std::cout << "has octree" << std::endl;
                 GIO.printOctree();
 
             if (!VIX.empty())
