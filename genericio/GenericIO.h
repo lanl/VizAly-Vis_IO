@@ -384,9 +384,10 @@ class GenericIO
         hasOctree = true;
     }
 
-    void addOctreeHeader(uint64_t _preShuffled, uint64_t _decompositionLevel, uint64_t _numEntries)
+    void addOctreeHeader(uint64_t _preShuffled, uint64_t _decompositionType, uint64_t _decompositionLevel, uint64_t _numEntries)
     {
-        octreeData.preShuffled = _preShuffled;
+        octreeData.preShuffled = _preShuffled; 
+        octreeData.decompositionType = _decompositionType;
         octreeData.decompositionLevel = _decompositionLevel;
         octreeData.numEntries = _numEntries;
     }
@@ -490,7 +491,7 @@ class GenericIO
 
     void printOctree(){ octreeData.print(); }
 
-    void readOctreeHeader(int octreeOffset, int octreeStringSize);
+    void readOctreeHeader(int octreeOffset, int octreeStringSize, bool bigEndian);
 
     void readNoMPIBarrier(int EffRank = -1, bool PrintStats = true, bool CollStats = true);
 

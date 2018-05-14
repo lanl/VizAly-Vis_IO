@@ -864,7 +864,7 @@ void GenericIO::write()
         {
             //
             // Create Header info
-            addOctreeHeader((uint64_t)((int)octreeLeafshuffle), (uint64_t)numOctreeLevels, (uint64_t)numOctreeLeaves);
+            addOctreeHeader( (uint64_t)((int)octreeLeafshuffle), (uint64_t)((int)simGlobalOctree), (uint64_t)numOctreeLevels, (uint64_t)numOctreeLeaves );
 
             //
             // Add Octree ranks
@@ -982,7 +982,7 @@ void GenericIO::write()
         uint64_t octreeStart = 0;
         if (hasOctree)
         {
-            serializedOctree = octreeData.serialize();
+            serializedOctree = octreeData.serialize(IsBigEndian);
             octreeSize  = serializedOctree.size();
         }
 
@@ -1319,15 +1319,13 @@ void GenericIO::readHeaderLeader(void *GHPtr, MismatchBehavior MB, int NRanks,
 
 }
 
-void GenericIO::readOctreeHeader(int octreeOffset, int octreeStringSize)
+void GenericIO::readOctreeHeader(int octreeOffset, int octreeStringSize, bool bigEndian)
 {
     std::vector<char> octreeHeader;
     octreeHeader.resize(octreeStringSize);
     FH.get()->read(&octreeHeader[0], octreeStringSize, octreeOffset, "Octree Header");
 
-    octreeData.deserialize(&octreeHeader[0]);
-
-    //octreeData.print();
+    octreeData.deserialize(&octreeHeader[0], bigEndian);
 }
 
 // Note: Errors from this function should be recoverable. This means that if
@@ -1521,11 +1519,12 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
     if (GH->VarsStart != 168)      // for files that do not have octrees
         if (GH->OctreeSize != 0)   // for files with octree support but have no octree in place
         {
+            bool isBigEndian = string(GH->Magic, GH->Magic + MagicSize - 1) == MagicBE;
             hasOctree = true;
             octreeSize = GH->OctreeSize;
             octreeStart = GH->OctreeStart;
             
-            readOctreeHeader(octreeStart, octreeSize);
+            readOctreeHeader(octreeStart, octreeSize, isBigEndian);
         }
     
     

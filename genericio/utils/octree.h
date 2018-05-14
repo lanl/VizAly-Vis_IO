@@ -42,45 +42,46 @@ struct GIOOctreeRow
 
 struct GIOOctree
 {
-    uint64_t preShuffled;
-    uint64_t decompositionLevel;
-    uint64_t numEntries;
+    uint64_t preShuffled;			// particles shuffeed in leaves or not
+    uint64_t decompositionType;		// 1: global, 0: per rank
+    uint64_t decompositionLevel;	// 
+    uint64_t numEntries;			// # of octree leaves
     std::vector<GIOOctreeRow> rows;
 
-    std::string serialize()
+    std::string serialize(bool bigEndian)
     {
         std::stringstream ss;
 
-        ss << serialize_uint64(preShuffled);
-        ss << serialize_uint64(decompositionLevel);
-        ss << serialize_uint64(numEntries);
+        ss << serialize_uint64(preShuffled, bigEndian);
+        ss << serialize_uint64(decompositionType, bigEndian);
+        ss << serialize_uint64(decompositionLevel, bigEndian);
+        ss << serialize_uint64(numEntries, bigEndian);
 
 
         for (int i=0; i<numEntries; i++)
         {
-            ss << serialize_uint64(rows[i].blockID);
-            ss << serialize_uint64(rows[i].minX);
-            ss << serialize_uint64(rows[i].maxX);
-            ss << serialize_uint64(rows[i].minY);
-            ss << serialize_uint64(rows[i].maxY);
-            ss << serialize_uint64(rows[i].minZ);
-            ss << serialize_uint64(rows[i].maxZ);
-            ss << serialize_uint64(rows[i].numParticles);
-            ss << serialize_uint64(rows[i].offsetInFile);
-            ss << serialize_uint64(rows[i].partitionLocation);
+            ss << serialize_uint64(rows[i].blockID, bigEndian);
+            ss << serialize_uint64(rows[i].minX, bigEndian);
+            ss << serialize_uint64(rows[i].maxX, bigEndian);
+            ss << serialize_uint64(rows[i].minY, bigEndian);
+            ss << serialize_uint64(rows[i].maxY, bigEndian);
+            ss << serialize_uint64(rows[i].minZ, bigEndian);
+            ss << serialize_uint64(rows[i].maxZ, bigEndian);
+            ss << serialize_uint64(rows[i].numParticles, bigEndian);
+            ss << serialize_uint64(rows[i].offsetInFile, bigEndian);
+            ss << serialize_uint64(rows[i].partitionLocation, bigEndian);
         }
         
         return ss.str();
     }
 
 
-
-
-    void deserialize(char *serializedString)
+    void deserialize(char *serializedString, bool bigEndian)
     {
-        preShuffled = deserialize_uint64(&serializedString[0]);
-        decompositionLevel = deserialize_uint64(&serializedString[8]);
-        numEntries = deserialize_uint64(&serializedString[16]);
+        preShuffled 		= deserialize_uint64(&serializedString[0],  bigEndian);
+        decompositionType  	= deserialize_uint64(&serializedString[8],  bigEndian);
+        decompositionLevel 	= deserialize_uint64(&serializedString[16], bigEndian);
+        numEntries 			= deserialize_uint64(&serializedString[24], bigEndian);
 		
         rows.clear();
         int serializedOffset = 24;	// adding togehter the previous header
@@ -90,16 +91,16 @@ struct GIOOctree
         {
         	GIOOctreeRow temp;
 			
-            temp.blockID 	= deserialize_uint64(&serializedString[serializedOffset + 0]);
-            temp.minX 		= deserialize_uint64(&serializedString[serializedOffset + 8]);
-            temp.maxX 		= deserialize_uint64(&serializedString[serializedOffset + 16]);
-            temp.minY 		= deserialize_uint64(&serializedString[serializedOffset + 24]);
-            temp.maxY 		= deserialize_uint64(&serializedString[serializedOffset + 32]);
-            temp.minZ 		= deserialize_uint64(&serializedString[serializedOffset + 40]);
-            temp.maxZ 		= deserialize_uint64(&serializedString[serializedOffset + 48]);
-            temp.numParticles = deserialize_uint64(&serializedString[serializedOffset + 56]);
-            temp.offsetInFile = deserialize_uint64(&serializedString[serializedOffset + 64]);
-            temp.partitionLocation = deserialize_uint64(&serializedString[serializedOffset + 72]);
+            temp.blockID 	= deserialize_uint64(&serializedString[serializedOffset + 0], 		bigEndian);
+            temp.minX 		= deserialize_uint64(&serializedString[serializedOffset + 8], 		bigEndian);
+            temp.maxX 		= deserialize_uint64(&serializedString[serializedOffset + 16], 		bigEndian);
+            temp.minY 		= deserialize_uint64(&serializedString[serializedOffset + 24], 		bigEndian);
+            temp.maxY 		= deserialize_uint64(&serializedString[serializedOffset + 32], 		bigEndian);
+            temp.minZ 		= deserialize_uint64(&serializedString[serializedOffset + 40], 		bigEndian);
+            temp.maxZ 		= deserialize_uint64(&serializedString[serializedOffset + 48], 		bigEndian);
+            temp.numParticles = deserialize_uint64(&serializedString[serializedOffset + 56], 	bigEndian);
+            temp.offsetInFile = deserialize_uint64(&serializedString[serializedOffset + 64], 	bigEndian);
+            temp.partitionLocation = deserialize_uint64(&serializedString[serializedOffset + 72], bigEndian);
 			
             serializedOffset += 80;
             rows.push_back(temp);
@@ -108,21 +109,14 @@ struct GIOOctree
     }
 
 
-	uint64_t deserialize_uint64(char* serializedStr)
-	{
-		uint64_t num =   	
-			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[0])) << 0 ) |
-			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[1])) << 8 ) |
-			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[2])) << 16) |
-			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[3])) << 24) |
-			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[4])) << 32) |
-			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[5])) << 40) |
-			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[6])) << 48) |
-			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[7])) << 56) ;
 
-		// Big Endian
-		#if 0
-		uint64_t num =   	
+	uint64_t deserialize_uint64(char* serializedStr, bool bigEndian)
+	{
+		uint64_t num;
+
+		if (!bigEndian)
+		{
+		 	num =   	
 			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[0])) << 0 ) |
 			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[1])) << 8 ) |
 			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[2])) << 16) |
@@ -131,34 +125,48 @@ struct GIOOctree
 			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[5])) << 40) |
 			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[6])) << 48) |
 			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[7])) << 56) ;
-		#endif
+		}
+		else
+		{
+			// Big Endian
+			num =   	
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[0])) << 0 ) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[1])) << 8 ) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[2])) << 16) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[3])) << 24) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[4])) << 32) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[5])) << 40) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[6])) << 48) |
+			(static_cast<uint64_t>(static_cast<uint8_t>( serializedStr[7])) << 56) ;
+		}
 
 		return num;
 	}
 
-	std::string serialize_uint64(uint64_t t)
+	std::string serialize_uint64(uint64_t t, bool bigEndian)
 	{
 		std::vector<char> serializedString;
-
-		serializedString.push_back( static_cast<uint8_t>((t >> 0) & 0xff) );
-		serializedString.push_back( static_cast<uint8_t>((t >> 8) & 0xff) );
-		serializedString.push_back( static_cast<uint8_t>((t >> 16)& 0xff) );
-		serializedString.push_back( static_cast<uint8_t>((t >> 24)& 0xff) );
-		serializedString.push_back( static_cast<uint8_t>((t >> 32)& 0xff) );
-		serializedString.push_back( static_cast<uint8_t>((t >> 40)& 0xff) );
-		serializedString.push_back( static_cast<uint8_t>((t >> 48)& 0xff) );
-		serializedString.push_back( static_cast<uint8_t>((t >> 56)& 0xff) );
-
-	// Big Endian
-	#if 0
-		serializedString.push_back( static_cast<uint8_t>((t >> 56)& 0xff) );
-		serializedString.push_back( static_cast<uint8_t>((t >> 40)& 0xff) );
-		serializedString.push_back( static_cast<uint8_t>((t >> 32)& 0xff) );
-		serializedString.push_back( static_cast<uint8_t>((t >> 24)& 0xff) );
-		serializedString.push_back( static_cast<uint8_t>((t >> 16)& 0xff) );
-		serializedString.push_back( static_cast<uint8_t>((t >> 8) & 0xff) );
-		serializedString.push_back( static_cast<uint8_t>((t >> 0) & 0xff) );
-	#endif
+		if (!bigEndian)
+		{
+			serializedString.push_back( static_cast<uint8_t>((t >> 0) & 0xff) );
+			serializedString.push_back( static_cast<uint8_t>((t >> 8) & 0xff) );
+			serializedString.push_back( static_cast<uint8_t>((t >> 16)& 0xff) );
+			serializedString.push_back( static_cast<uint8_t>((t >> 24)& 0xff) );
+			serializedString.push_back( static_cast<uint8_t>((t >> 32)& 0xff) );
+			serializedString.push_back( static_cast<uint8_t>((t >> 40)& 0xff) );
+			serializedString.push_back( static_cast<uint8_t>((t >> 48)& 0xff) );
+			serializedString.push_back( static_cast<uint8_t>((t >> 56)& 0xff) );
+		}
+		else
+		{
+			serializedString.push_back( static_cast<uint8_t>((t >> 56)& 0xff) );
+			serializedString.push_back( static_cast<uint8_t>((t >> 40)& 0xff) );
+			serializedString.push_back( static_cast<uint8_t>((t >> 32)& 0xff) );
+			serializedString.push_back( static_cast<uint8_t>((t >> 24)& 0xff) );
+			serializedString.push_back( static_cast<uint8_t>((t >> 16)& 0xff) );
+			serializedString.push_back( static_cast<uint8_t>((t >> 8) & 0xff) );
+			serializedString.push_back( static_cast<uint8_t>((t >> 0) & 0xff) );
+		}
 
 		std::stringstream ss;
 		for (int i=0; i<8; i++)
@@ -170,11 +178,12 @@ struct GIOOctree
 
     void print()
     {
-    	std::cout << "\nPre-Shuffled:" << preShuffled << std::endl;
-    	std::cout << "Decomposition Level:" << decompositionLevel << std::endl;
-    	std::cout << "Num Entries:" << numEntries << std::endl;
+    	std::cout << "\nPre-Shuffled (0=No, 1=Yes): " << preShuffled << std::endl;
+    	std::cout << "Decomposition Type (0=Per Rank, 1=Sim): " << decompositionType << std::endl;
+    	std::cout << "Decomposition Level: " << decompositionLevel << std::endl;
+    	std::cout << "Num Entries: " << numEntries << std::endl;
 
-    	std::cout << "\nIndex : minX - maxX, minY - maxY, minZ - maxZ, #particles, offset_in_file, rank_location"<< std::endl;
+    	std::cout << "\nIndex : minX - maxX, minY - maxY, minZ - maxZ, #particles, offset in file, rank location"<< std::endl;
     	for (int i=0; i<numEntries; i++)
     	{
     		std::cout << rows[i].blockID << " : "
@@ -190,7 +199,6 @@ struct GIOOctree
     	}
     	std::cout << "\n"<< std::endl;
     }
-	
 };
 
 
