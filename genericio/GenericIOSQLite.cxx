@@ -146,6 +146,7 @@ typedef struct OctreeNode OctreeNode;
 // See: http://www.sqlite.org/c3ref/load_extension.html
 // See: http://www.sqlite.org/vtab.html
 
+//TODO
 struct gio_vtab
 {
     gio_vtab(const string &FN) : GIO(FN), MaxNumElems(0)
@@ -170,8 +171,14 @@ struct gio_vtab
     vector< vector<OctreeNode> > OctreeNodes;
     int                          RankColumnIndex;       // not sure yet y needed
     int                          PercentColumnIndex;    // not sure yet y needed
+
+    int preShuffled;           // particles shuffeed in leaves or not
+    int decompositionType;     // 1: global, 0: per rank
+    int decompositionLevel;    // 
+    int numEntries;            // # of octree leaves
 };
 
+//TODO
 struct gio_cursor
 {
     gio_cursor(const GenericIO &G, size_t MaxNElem) : GIO(G)
@@ -237,6 +244,8 @@ struct gio_cursor
     int                           PercentColumnIndex;
 };
 
+
+//TODO
 static
 int gio_connect(sqlite3* db, void *, int argc, const char *const *argv,
                 sqlite3_vtab **ppVTab, char **pzErr)
@@ -257,7 +266,10 @@ int gio_connect(sqlite3* db, void *, int argc, const char *const *argv,
         if (!tab)
             return SQLITE_ERROR;
 
-
+        if (tab->GIO.isOctree())
+        {
+            HasOctree = true;
+        }
 
         vector<GenericIO::VariableInfo> VI;
         tab->GIO.getVariableInfo(VI);
@@ -318,7 +330,7 @@ int gio_destroy(sqlite3_vtab *pVTab)
     return gio_disconnect(pVTab);
 }
 
-
+//TODO
 static
 int gio_best_index(sqlite3_vtab *pVTab, sqlite3_index_info *pInfo)
 {
@@ -420,6 +432,7 @@ int gio_close(sqlite3_vtab_cursor* pCursor)
     return SQLITE_OK;
 }
 
+//TODO
 static
 int gio_filter(sqlite3_vtab_cursor* pCursor, int idxNum, const char *idxStr,
                int argc, sqlite3_value **argv)
@@ -498,6 +511,7 @@ int gio_filter(sqlite3_vtab_cursor* pCursor, int idxNum, const char *idxStr,
     return SQLITE_OK;
 }
 
+//TODO
 static
 int gio_next(sqlite3_vtab_cursor* pCursor)
 {
@@ -556,6 +570,8 @@ int gio_eof(sqlite3_vtab_cursor* pCursor)
     return 0;
 }
 
+
+//TODO
 static
 int gio_column(sqlite3_vtab_cursor* pCursor, sqlite3_context* cxt, int n)
 {

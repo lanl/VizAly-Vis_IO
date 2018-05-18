@@ -497,8 +497,7 @@ class GenericIO
 
     void readOctreeHeader(int octreeOffset, int octreeStringSize, bool bigEndian);
 
-    
-
+    GIOOctree getAllOctreeData(){ return octreeData; }
     
 
 
