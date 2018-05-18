@@ -269,6 +269,18 @@ int gio_connect(sqlite3* db, void *, int argc, const char *const *argv,
         if (tab->GIO.isOctree())
         {
             HasOctree = true;
+            preShuffled = (int)tab->GIO.octreeData.preShuffled;
+            preShuffled = (int)tab->GIO.octreeData.preShuffled;
+            preShuffled = (int)tab->GIO.octreeData.preShuffled;
+            preShuffled = (int)tab->GIO.octreeData.preShuffled;
+
+            /*
+            int preShuffled;           // particles shuffeed in leaves or not
+    int decompositionType;     // 1: global, 0: per rank
+    int decompositionLevel;    // 
+    int numEntries;            // # of octree leaves
+};
+            */
         }
 
         vector<GenericIO::VariableInfo> VI;
