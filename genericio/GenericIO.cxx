@@ -1833,21 +1833,111 @@ void GenericIO::readCoords(int Coords[3], int EffRank)
     std::copy(RH->Coords, RH->Coords + 3, Coords);
 }
 
+
+
+
+void GenericIO::getVariableInfo(vector<VariableInfo> &VI)
+{
+    if (FH.isBigEndian())
+        getVariableInfo<true>(VI);
+    else
+        getVariableInfo<false>(VI);
+}
+
+template <bool IsBigEndian>
+void GenericIO::getVariableInfo(vector<VariableInfo> &VI)
+{
+    assert(FH.getHeaderCache().size() && "HeaderCache must not be empty");
+
+    GlobalHeader<IsBigEndian> *GH = (GlobalHeader<IsBigEndian> *) &FH.getHeaderCache()[0];
+    for (uint64_t j = 0; j < GH->NVars; ++j)
+    {
+        VariableHeader<IsBigEndian> *VH = (VariableHeader<IsBigEndian> *) &FH.getHeaderCache()[GH->VarsStart +
+                                          j * GH->VarsSize];
+
+        string VName(VH->Name, VH->Name + NameSize);
+        size_t VNameNull = VName.find('\0');
+        if (VNameNull < NameSize)
+            VName.resize(VNameNull);
+
+        size_t ElementSize = VH->Size;
+        if (offsetof_safe(VH, ElementSize) < GH->VarsSize)
+            ElementSize = VH->ElementSize;
+
+        bool IsFloat = (bool) (VH->Flags & FloatValue),
+             IsSigned = (bool) (VH->Flags & SignedValue),
+             IsPhysCoordX = (bool) (VH->Flags & ValueIsPhysCoordX),
+             IsPhysCoordY = (bool) (VH->Flags & ValueIsPhysCoordY),
+             IsPhysCoordZ = (bool) (VH->Flags & ValueIsPhysCoordZ),
+             MaybePhysGhost = (bool) (VH->Flags & ValueMaybePhysGhost);
+        VI.push_back(VariableInfo(VName, (size_t) VH->Size, IsFloat, IsSigned,
+                                  IsPhysCoordX, IsPhysCoordY, IsPhysCoordZ,
+                                  MaybePhysGhost, ElementSize));
+    }
+}
+
+void GenericIO::setNaturalDefaultPartition()
+{
+    #ifdef __bgq__
+    DefaultPartition = MPIX_IO_link_id();
+    #else
+    #ifndef GENERICIO_NO_MPI
+    bool UseName = true;
+    const char *EnvStr = getenv("GENERICIO_PARTITIONS_USE_NAME");
+    if (EnvStr)
+    {
+        int Mod = atoi(EnvStr);
+        UseName = (Mod != 0);
+    }
+
+    if (UseName)
+    {
+        // This is a heuristic to generate ~256 partitions based on the
+        // names of the nodes.
+        char Name[MPI_MAX_PROCESSOR_NAME];
+        int Len = 0;
+
+        MPI_Get_processor_name(Name, &Len);
+        unsigned char color = 0;
+        for (int i = 0; i < Len; ++i)
+            color += (unsigned char) Name[i];
+
+        DefaultPartition = color;
+    }
+
+    // This is for debugging.
+    EnvStr = getenv("GENERICIO_RANK_PARTITIONS");
+    if (EnvStr)
+    {
+        int Mod = atoi(EnvStr);
+        if (Mod > 0)
+        {
+            int Rank;
+            MPI_Comm_rank(MPI_COMM_WORLD, &Rank);
+            DefaultPartition += Rank % Mod;
+        }
+    }
+    #endif
+    #endif
+}
+
+
+
 void GenericIO::readData(int EffRank, bool PrintStats, bool CollStats)
 {
     int Rank;
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     MPI_Comm_rank(Comm, &Rank);
-    #else
+  #else
     Rank = 0;
-    #endif
+  #endif
 
     uint64_t TotalReadSize = 0;
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     double StartTime = MPI_Wtime();
-    #else
+  #else
     double StartTime = double(clock()) / CLOCKS_PER_SEC;
-    #endif
+  #endif
 
     int NErrs[3] = { 0, 0, 0 };
 
@@ -1870,11 +1960,11 @@ void GenericIO::readData(int EffRank, bool PrintStats, bool CollStats)
     }
 
     int AllNErrs[3];
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     MPI_Allreduce(NErrs, AllNErrs, 3, MPI_INT, MPI_SUM, Comm);
-    #else
+  #else
     AllNErrs[0] = NErrs[0]; AllNErrs[1] = NErrs[1]; AllNErrs[2] = NErrs[2];
-    #endif
+  #endif
 
     if (AllNErrs[0] > 0 || AllNErrs[1] > 0 || AllNErrs[2] > 0)
     {
@@ -1885,31 +1975,31 @@ void GenericIO::readData(int EffRank, bool PrintStats, bool CollStats)
         throw runtime_error(ss.str());
     }
 
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     MPI_Barrier(Comm);
-    #endif
+  #endif
 
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     double EndTime = MPI_Wtime();
-    #else
+  #else
     double EndTime = double(clock()) / CLOCKS_PER_SEC;
-    #endif
+  #endif
 
     double TotalTime = EndTime - StartTime;
     double MaxTotalTime;
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     if (CollStats)
         MPI_Reduce(&TotalTime, &MaxTotalTime, 1, MPI_DOUBLE, MPI_MAX, 0, Comm);
     else
-    #endif
+  #endif
         MaxTotalTime = TotalTime;
 
     uint64_t AllTotalReadSize;
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     if (CollStats)
         MPI_Reduce(&TotalReadSize, &AllTotalReadSize, 1, MPI_UINT64_T, MPI_SUM, 0, Comm);
     else
-    #endif
+  #endif
         AllTotalReadSize = TotalReadSize;
 
     if (Rank == 0 && PrintStats)
@@ -2237,196 +2327,23 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
     }
 }
 
-void GenericIO::getVariableInfo(vector<VariableInfo> &VI)
-{
-    if (FH.isBigEndian())
-        getVariableInfo<true>(VI);
-    else
-        getVariableInfo<false>(VI);
-}
-
-template <bool IsBigEndian>
-void GenericIO::getVariableInfo(vector<VariableInfo> &VI)
-{
-    assert(FH.getHeaderCache().size() && "HeaderCache must not be empty");
-
-    GlobalHeader<IsBigEndian> *GH = (GlobalHeader<IsBigEndian> *) &FH.getHeaderCache()[0];
-    for (uint64_t j = 0; j < GH->NVars; ++j)
-    {
-        VariableHeader<IsBigEndian> *VH = (VariableHeader<IsBigEndian> *) &FH.getHeaderCache()[GH->VarsStart +
-                                          j * GH->VarsSize];
-
-        string VName(VH->Name, VH->Name + NameSize);
-        size_t VNameNull = VName.find('\0');
-        if (VNameNull < NameSize)
-            VName.resize(VNameNull);
-
-        size_t ElementSize = VH->Size;
-        if (offsetof_safe(VH, ElementSize) < GH->VarsSize)
-            ElementSize = VH->ElementSize;
-
-        bool IsFloat = (bool) (VH->Flags & FloatValue),
-             IsSigned = (bool) (VH->Flags & SignedValue),
-             IsPhysCoordX = (bool) (VH->Flags & ValueIsPhysCoordX),
-             IsPhysCoordY = (bool) (VH->Flags & ValueIsPhysCoordY),
-             IsPhysCoordZ = (bool) (VH->Flags & ValueIsPhysCoordZ),
-             MaybePhysGhost = (bool) (VH->Flags & ValueMaybePhysGhost);
-        VI.push_back(VariableInfo(VName, (size_t) VH->Size, IsFloat, IsSigned,
-                                  IsPhysCoordX, IsPhysCoordY, IsPhysCoordZ,
-                                  MaybePhysGhost, ElementSize));
-    }
-}
-
-void GenericIO::setNaturalDefaultPartition()
-{
-    #ifdef __bgq__
-    DefaultPartition = MPIX_IO_link_id();
-    #else
-    #ifndef GENERICIO_NO_MPI
-    bool UseName = true;
-    const char *EnvStr = getenv("GENERICIO_PARTITIONS_USE_NAME");
-    if (EnvStr)
-    {
-        int Mod = atoi(EnvStr);
-        UseName = (Mod != 0);
-    }
-
-    if (UseName)
-    {
-        // This is a heuristic to generate ~256 partitions based on the
-        // names of the nodes.
-        char Name[MPI_MAX_PROCESSOR_NAME];
-        int Len = 0;
-
-        MPI_Get_processor_name(Name, &Len);
-        unsigned char color = 0;
-        for (int i = 0; i < Len; ++i)
-            color += (unsigned char) Name[i];
-
-        DefaultPartition = color;
-    }
-
-    // This is for debugging.
-    EnvStr = getenv("GENERICIO_RANK_PARTITIONS");
-    if (EnvStr)
-    {
-        int Mod = atoi(EnvStr);
-        if (Mod > 0)
-        {
-            int Rank;
-            MPI_Comm_rank(MPI_COMM_WORLD, &Rank);
-            DefaultPartition += Rank % Mod;
-        }
-    }
-    #endif
-    #endif
-}
-
-
-void GenericIO::readDataSectionNoMPIBarrier(size_t readOffset, size_t readNumRows, int EffRank, bool PrintStats, bool CollStats)
-{
-    int Rank;
-    #ifndef GENERICIO_NO_MPI
-    MPI_Comm_rank(Comm, &Rank);
-    #else
-    Rank = 0;
-    #endif
-
-    uint64_t TotalReadSize = 0;
-    #ifndef GENERICIO_NO_MPI
-    double StartTime = MPI_Wtime();
-    #else
-    double StartTime = double(clock()) / CLOCKS_PER_SEC;
-    #endif
-
-    int NErrs[3] = { 0, 0, 0 };
-
-    if (EffRank == -1 && Redistributing)
-    {
-        DisableCollErrChecking = true;
-
-        size_t RowOffset = 0;
-        for (int i = 0, ie = SourceRanks.size(); i != ie; ++i)
-        {
-            readDataSection(readOffset, readNumRows, SourceRanks[i], RowOffset, Rank, TotalReadSize, NErrs);
-            RowOffset += readNumElems(SourceRanks[i]);
-        }
-
-        DisableCollErrChecking = false;
-    }
-    else
-    {
-        readDataSection(readOffset, readNumRows, EffRank, 0, Rank, TotalReadSize, NErrs);
-    }
-
-    int AllNErrs[3];
-    // #ifndef GENERICIO_NO_MPI
-    //   MPI_Allreduce(NErrs, AllNErrs, 3, MPI_INT, MPI_SUM, Comm);
-    // #else
-    AllNErrs[0] = NErrs[0]; AllNErrs[1] = NErrs[1]; AllNErrs[2] = NErrs[2];
-    // #endif
-
-    if (AllNErrs[0] > 0 || AllNErrs[1] > 0 || AllNErrs[2] > 0)
-    {
-        stringstream ss;
-        ss << "Experienced " << AllNErrs[0] << " I/O error(s), " <<
-           AllNErrs[1] << " CRC error(s) and " << AllNErrs[2] <<
-           " decompression CRC error(s) reading: " << OpenFileName;
-        throw runtime_error(ss.str());
-    }
-
-    // #ifndef GENERICIO_NO_MPI
-    //   MPI_Barrier(Comm);
-    // #endif
-
-    #ifndef GENERICIO_NO_MPI
-    double EndTime = MPI_Wtime();
-    #else
-    double EndTime = double(clock()) / CLOCKS_PER_SEC;
-    #endif
-
-    double TotalTime = EndTime - StartTime;
-    double MaxTotalTime;
-    // #ifndef GENERICIO_NO_MPI
-    //   if (CollStats)
-    //       MPI_Reduce(&TotalTime, &MaxTotalTime, 1, MPI_DOUBLE, MPI_MAX, 0, Comm);
-    //   else
-    // #endif
-    MaxTotalTime = TotalTime;
-
-    uint64_t AllTotalReadSize;
-    // #ifndef GENERICIO_NO_MPI
-    //   if (CollStats)
-    //       MPI_Reduce(&TotalReadSize, &AllTotalReadSize, 1, MPI_UINT64_T, MPI_SUM, 0, Comm);
-    //   else
-    // #endif
-    AllTotalReadSize = TotalReadSize;
-
-    if (Rank == 0 && PrintStats)
-    {
-        double Rate = ((double) AllTotalReadSize) / MaxTotalTime / (1024.*1024.);
-        cout << "Read " << Vars.size() << " variables from " << FileName <<
-             " (" << AllTotalReadSize << " bytes) in " << MaxTotalTime << "s: " <<
-             Rate << " MB/s [excluding header read]" << endl;
-    }
-}
 
 
 void GenericIO::readDataSection(size_t readOffset, size_t readNumRows, int EffRank, bool PrintStats, bool CollStats)
 {
     int Rank;
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     MPI_Comm_rank(Comm, &Rank);
-    #else
+  #else
     Rank = 0;
-    #endif
+  #endif
 
     uint64_t TotalReadSize = 0;
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     double StartTime = MPI_Wtime();
-    #else
+  #else
     double StartTime = double(clock()) / CLOCKS_PER_SEC;
-    #endif
+  #endif
 
     int NErrs[3] = { 0, 0, 0 };
 
@@ -2449,11 +2366,11 @@ void GenericIO::readDataSection(size_t readOffset, size_t readNumRows, int EffRa
     }
 
     int AllNErrs[3];
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     MPI_Allreduce(NErrs, AllNErrs, 3, MPI_INT, MPI_SUM, Comm);
-    #else
+  #else
     AllNErrs[0] = NErrs[0]; AllNErrs[1] = NErrs[1]; AllNErrs[2] = NErrs[2];
-    #endif
+  #endif
 
     if (AllNErrs[0] > 0 || AllNErrs[1] > 0 || AllNErrs[2] > 0)
     {
@@ -2464,31 +2381,31 @@ void GenericIO::readDataSection(size_t readOffset, size_t readNumRows, int EffRa
         throw runtime_error(ss.str());
     }
 
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     MPI_Barrier(Comm);
-    #endif
+  #endif
 
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     double EndTime = MPI_Wtime();
-    #else
+  #else
     double EndTime = double(clock()) / CLOCKS_PER_SEC;
-    #endif
+  #endif
 
     double TotalTime = EndTime - StartTime;
     double MaxTotalTime;
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     if (CollStats)
         MPI_Reduce(&TotalTime, &MaxTotalTime, 1, MPI_DOUBLE, MPI_MAX, 0, Comm);
     else
-    #endif
+  #endif
         MaxTotalTime = TotalTime;
 
     uint64_t AllTotalReadSize;
-    #ifndef GENERICIO_NO_MPI
+  #ifndef GENERICIO_NO_MPI
     if (CollStats)
         MPI_Reduce(&TotalReadSize, &AllTotalReadSize, 1, MPI_UINT64_T, MPI_SUM, 0, Comm);
     else
-    #endif
+  #endif
         AllTotalReadSize = TotalReadSize;
 
     if (Rank == 0 && PrintStats)
@@ -2501,8 +2418,15 @@ void GenericIO::readDataSection(size_t readOffset, size_t readNumRows, int EffRa
 }
 
 
-// Note: Errors from this function should be recoverable. This means that if
-// one rank throws an exception, then all ranks should.
+void GenericIO::readDataSection(size_t readOffset, size_t readNumRows, int EffRank, size_t RowOffset, int Rank, uint64_t &TotalReadSize, int NErrs[3])
+{
+    if (FH.isBigEndian())
+        readDataSection<true>(readOffset, readNumRows, EffRank, RowOffset, Rank, TotalReadSize, NErrs);
+    else
+        readDataSection<false>(readOffset, readNumRows, EffRank, RowOffset, Rank, TotalReadSize, NErrs);
+}
+
+
 template <bool IsBigEndian>
 void GenericIO::readDataSection(size_t readOffset, size_t readNumRows, int EffRank, size_t RowOffset, int Rank, uint64_t &TotalReadSize, int NErrs[3])
 {
@@ -2646,11 +2570,11 @@ void GenericIO::readDataSection(size_t readOffset, size_t readNumRows, int EffRa
                         if (Mod > 0)
                         {
                             int Rank;
-                            #ifndef GENERICIO_NO_MPI
+                          #ifndef GENERICIO_NO_MPI
                             MPI_Comm_rank(MPI_COMM_WORLD, &Rank);
-                            #else
+                          #else
                             Rank = 0;
-                            #endif
+                          #endif
 
                             std::cerr << "Rank " << Rank << ": " << Retry <<
                                       " I/O retries were necessary for reading " <<
@@ -2681,12 +2605,76 @@ void GenericIO::readDataSection(size_t readOffset, size_t readNumRows, int EffRa
 }
 
 
-void GenericIO::readDataSection(size_t readOffset, size_t readNumRows, int EffRank, size_t RowOffset, int Rank, uint64_t &TotalReadSize, int NErrs[3])
+
+
+void GenericIO::readDataSectionNoMPIBarrier(size_t readOffset, size_t readNumRows, int EffRank, bool PrintStats, bool CollStats)
 {
-    if (FH.isBigEndian())
-        readDataSection<true>(readOffset, readNumRows, EffRank, RowOffset, Rank, TotalReadSize, NErrs);
+    int Rank;
+  #ifndef GENERICIO_NO_MPI
+    MPI_Comm_rank(Comm, &Rank);
+  #else
+    Rank = 0;
+  #endif
+
+    uint64_t TotalReadSize = 0;
+  #ifndef GENERICIO_NO_MPI
+    double StartTime = MPI_Wtime();
+  #else
+    double StartTime = double(clock()) / CLOCKS_PER_SEC;
+  #endif
+
+    int NErrs[3] = { 0, 0, 0 };
+
+    if (EffRank == -1 && Redistributing)
+    {
+        DisableCollErrChecking = true;
+
+        size_t RowOffset = 0;
+        for (int i = 0, ie = SourceRanks.size(); i != ie; ++i)
+        {
+            readDataSection(readOffset, readNumRows, SourceRanks[i], RowOffset, Rank, TotalReadSize, NErrs);
+            RowOffset += readNumElems(SourceRanks[i]);
+        }
+
+        DisableCollErrChecking = false;
+    }
     else
-        readDataSection<false>(readOffset, readNumRows, EffRank, RowOffset, Rank, TotalReadSize, NErrs);
+    {
+        readDataSection(readOffset, readNumRows, EffRank, 0, Rank, TotalReadSize, NErrs);
+    }
+
+    int AllNErrs[3];
+    AllNErrs[0] = NErrs[0]; AllNErrs[1] = NErrs[1]; AllNErrs[2] = NErrs[2];
+
+    if (AllNErrs[0] > 0 || AllNErrs[1] > 0 || AllNErrs[2] > 0)
+    {
+        stringstream ss;
+        ss << "Experienced " << AllNErrs[0] << " I/O error(s), " <<
+           AllNErrs[1] << " CRC error(s) and " << AllNErrs[2] <<
+           " decompression CRC error(s) reading: " << OpenFileName;
+        throw runtime_error(ss.str());
+    }
+
+  #ifndef GENERICIO_NO_MPI
+    double EndTime = MPI_Wtime();
+  #else
+    double EndTime = double(clock()) / CLOCKS_PER_SEC;
+  #endif
+
+    double TotalTime = EndTime - StartTime;
+    double MaxTotalTime;
+    MaxTotalTime = TotalTime;
+
+    uint64_t AllTotalReadSize;
+    AllTotalReadSize = TotalReadSize;
+
+    if (Rank == 0 && PrintStats)
+    {
+        double Rate = ((double) AllTotalReadSize) / MaxTotalTime / (1024.*1024.);
+        cout << "Read " << Vars.size() << " variables from " << FileName <<
+             " (" << AllTotalReadSize << " bytes) in " << MaxTotalTime << "s: " <<
+             Rate << " MB/s [excluding header read]" << endl;
+    }
 }
 
 
@@ -2697,6 +2685,7 @@ void GenericIO::readDataSectionNoMPIBarrier(size_t readOffset, size_t readNumRow
     else
         readDataSectionNoMPIBarrier<false>(readOffset, readNumRows, EffRank, RowOffset, Rank, TotalReadSize, NErrs);
 }
+
 
 template <bool IsBigEndian>
 void GenericIO::readDataSectionNoMPIBarrier(size_t readOffset, size_t readNumRows, int EffRank, size_t RowOffset, int Rank, uint64_t &TotalReadSize, int NErrs[3])

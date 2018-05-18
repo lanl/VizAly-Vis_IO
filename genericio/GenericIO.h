@@ -487,17 +487,19 @@ class GenericIO
 
     void readData(int EffRank = -1, bool PrintStats = true, bool CollStats = true);
 
+    void readDataSection(size_t readOffset, size_t readNumRows, int EffRank = -1, bool PrintStats = true, bool CollStats = true);
+
+    void readDataSectionNoMPIBarrier(size_t readOffset, size_t readNumRows, int EffRank = -1, bool PrintStats = true, bool CollStats = true);
+
     bool isOctree(){ return hasOctree; }
 
     void printOctree(){ octreeData.print(); }
 
     void readOctreeHeader(int octreeOffset, int octreeStringSize, bool bigEndian);
 
-    void readNoMPIBarrier(int EffRank = -1, bool PrintStats = true, bool CollStats = true);
+    
 
-    void readDataSection(size_t readOffset, size_t readNumRows, int EffRank = -1, bool PrintStats = true, bool CollStats = true);
-
-    void readDataSectionNoMPIBarrier(size_t readOffset, size_t readNumRows, int EffRank = -1, bool PrintStats = true, bool CollStats = true);
+    
 
 
     void getSourceRanks(std::vector<int> &SR);

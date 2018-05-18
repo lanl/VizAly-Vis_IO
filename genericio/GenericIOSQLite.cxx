@@ -47,6 +47,7 @@
 #include <limits>
 #include <sstream>
 #include <sqlite3ext.h>
+#include <math.h>
 SQLITE_EXTENSION_INIT1
 
 #define GIO_EQUAL_CONSTRAINT 'E'
@@ -56,6 +57,7 @@ SQLITE_EXTENSION_INIT1
 #define GIO_LESST_CONSTRAINT 'l'
 
 #define GIO_RANK_INDEX 'r'
+#define GIO_PERCENT_INDEX 'p'
 #define GIO_X_INDEX 'x'
 #define GIO_Y_INDEX 'y'
 #define GIO_Z_INDEX 'z'
@@ -121,6 +123,23 @@ PrinterBase *addPrinter(GenericIO::VariableInfo &V,
     return new Printer<T>(GIO, MNE, V.Name);
 }
 
+
+struct OctreeNode
+{
+    uint64_t index;
+    uint64_t xMin;
+    uint64_t xMax;
+    uint64_t yMin;
+    uint64_t yMax;
+    uint64_t zMin;
+    uint64_t zMax;
+    uint64_t rows;
+    uint64_t offsetInFile;
+    uint64_t partitionLocation;
+};
+
+typedef struct OctreeNode OctreeNode;
+
 // See: Michael Owens. Query Anything with SQLite.
 // Dr. Dobb's Journal. Nov. 2007.
 // http://www.drdobbs.com/database/query-anything-with-sqlite/202802959
@@ -140,42 +159,17 @@ struct gio_vtab
             size_t NElem = GIO.readNumElems(i);
             MaxNumElems = max(MaxNumElems, NElem);
         }
-
-         vector<GenericIO::VariableInfo> VI;
-        GIO.getVariableInfo(VI);
-
-        for (size_t i = 0; i < VI.size(); ++i)
-        {
-            PrinterBase *P = 0;
-
-            // try creating conversion routines in this precedence
-          #define ADD_PRINTER(T) \
-            if (!P) P = addPrinter<T>(VI[i], GIO, MaxNumElems)
-
-            ADD_PRINTER(float);
-            ADD_PRINTER(double);
-            ADD_PRINTER(unsigned char);
-            ADD_PRINTER(signed char);
-            ADD_PRINTER(int16_t);
-            ADD_PRINTER(uint16_t);
-            ADD_PRINTER(int32_t);
-            ADD_PRINTER(uint32_t);
-            ADD_PRINTER(int64_t);
-            ADD_PRINTER(uint64_t);
-          #undef ADD_PRINTER
-
-            Printers.push_back(P);
-        }
     }
 
     sqlite3_vtab vtab;
     GenericIO    GIO;
     size_t       MaxNumElems;
 
-    int                          RankColumnIndex;
-    int                          PercentColumnIndex;
-
-    vector<PrinterBase *>        Printers;
+    // Octree
+    bool                         HasOctree;
+    vector< vector<OctreeNode> > OctreeNodes;
+    int                          RankColumnIndex;       // not sure yet y needed
+    int                          PercentColumnIndex;    // not sure yet y needed
 };
 
 struct gio_cursor
@@ -208,6 +202,11 @@ struct gio_cursor
 
             if (P) Printers.push_back(P);
         }
+
+        this->HasOctree = vtab->HasOctree;
+        this->OctreeNodes = &(vtab->OctreeNodes);
+        this->RankColumnIndex = vtab->RankColumnIndex;
+        this->PercentColumnIndex = vtab->PercentColumnIndex;
     }
 
     sqlite3_vtab_cursor    cursor;
@@ -218,6 +217,24 @@ struct gio_cursor
     vector< vector<char> > Vars;
     vector<PrinterBase *>  Printers;
     vector<bool>           RankMask;
+
+
+    size_t                 Rank;
+    size_t                 Leaf;
+    size_t                 Index;
+    size_t                 Count;
+    size_t                 Offset;
+    size_t                 Remain;
+    uint64_t               RowId;
+    vector<bool>           RankMask;
+    vector< vector<bool> > OctreeMask;
+    double                 PercentageStart;
+    double                 PercentageEnd;
+
+    bool                          HasOctree;
+    vector< vector<OctreeNode> >* OctreeNodes;
+    int                           RankColumnIndex;
+    int                           PercentColumnIndex;
 };
 
 static
