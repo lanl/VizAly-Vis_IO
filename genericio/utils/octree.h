@@ -372,11 +372,80 @@ inline std::vector<uint64_t> Octree::findLeaf(T inputArrayX[], T inputArrayY[], 
 			if ( checkPosition(&leavesExtents[l*6], inputArrayX[i], inputArrayY[i], inputArrayZ[i]) )
 				break;
 
+
 		// double check with less or equal
 		if (l >= numLeaves)
 			for (l=0; l<numLeaves; l++)
 				if ( checkPositionInclusive(&leavesExtents[l*6], inputArrayX[i], inputArrayY[i], inputArrayZ[i]) )
 					break;
+
+
+		// check for particles that cycle; instead of being 256 they are 0
+		if (l >= numLeaves)
+			for (l=0; l<numLeaves; l++)
+			{
+				int cycleType = -1;
+
+				// Move Cycled patciles at 256 border
+				if (rankExtents[1] == 256 && inputArrayX[i] == 0)
+				{
+					cycleType = 1;
+					inputArrayX[i] = 256;
+				}
+
+				if (rankExtents[3] == 256 && inputArrayY[i] == 0)
+				{
+					cycleType = 3;
+					inputArrayY[i] = 256;
+				}
+
+				if (rankExtents[5] == 256 && inputArrayZ[i] == 0)
+				{
+					cycleType = 5;
+					inputArrayZ[i] = 256;
+				}
+
+				// Move Cycled patciles at 0 border
+				if (rankExtents[0] == 0 && inputArrayX[i] == 256)
+				{
+					cycleType = 0;
+					inputArrayX[i] = 0;
+				}
+
+				if (rankExtents[2] == 0 && inputArrayY[i] == 256)
+				{
+					cycleType = 2;
+					inputArrayY[i] = 0;
+				}
+
+				if (rankExtents[4] == 0 && inputArrayZ[i] == 256)
+				{
+					cycleType = 4;
+					inputArrayZ[i] = 0;
+				}
+
+				bool leafFound = checkPositionInclusive(&leavesExtents[l*6], inputArrayX[i], inputArrayY[i], inputArrayZ[i]);
+
+				if (cycleType != -1)
+					std::cout << "cycleType: " << cycleType << " New Pos: " << inputArrayX[i] << ", " << inputArrayY[i] << ", " << inputArrayZ[i] << std::endl; 
+
+				// Restore to the correct value
+				if (cycleType == 0)
+					inputArrayX[i] = 256;
+				else if (cycleType == 1)
+					inputArrayX[i] = 0;
+				else if (cycleType == 2)
+					inputArrayY[i] = 256;
+				else if (cycleType == 3)
+					inputArrayY[i] = 0;
+				else if (cycleType == 4)
+					inputArrayZ[i] = 256;
+				else if (cycleType == 5)
+					inputArrayZ[i] = 0;
+
+				if (leafFound)
+					break;
+			}
 
 		if (l >= numLeaves)
 		{
