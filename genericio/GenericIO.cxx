@@ -886,6 +886,8 @@ void GenericIO::write()
             }
         }
 
+        //octreeData.print();
+
         if (leavesExtents != NULL)
             delete []leavesExtents;
 

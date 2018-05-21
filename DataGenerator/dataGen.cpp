@@ -75,35 +75,35 @@ int main(int argc, char* argv[])
 		int _8RankOffset = 128;
 		if (myRank == 0)
 		{
-			offsetX = 0;	offsetY = 0;	offsetZ = 0;
+			offsetX = 0;				offsetY = 0;			offsetZ = 0;
 		}
 		else if (myRank == 1)
 		{
-			offsetX = 0;	offsetY = 0;	offsetZ = _8RankOffset;
+			offsetX = 0;				offsetY = 0;			offsetZ = _8RankOffset;
 		}
 		else if (myRank == 2)
 		{
-			offsetX = 0;	offsetY = _8RankOffset;	offsetZ = 0;
+			offsetX = 0;				offsetY = _8RankOffset;	offsetZ = 0;
 		}
 		else if (myRank == 3)
 		{
-			offsetX = 0;	offsetY = _8RankOffset;	offsetZ = _8RankOffset;
+			offsetX = 0;				offsetY = _8RankOffset;	offsetZ = _8RankOffset;
 		}
 		else if (myRank == 4)
 		{
-			offsetX = _8RankOffset;	offsetY = 0;	offsetZ = 0;
+			offsetX = _8RankOffset;		offsetY = 0;			offsetZ = 0;
 		}
 		else if (myRank == 5)
 		{
-			offsetX = _8RankOffset;	offsetY = 0;	offsetZ = _8RankOffset;
+			offsetX = _8RankOffset;		offsetY = 0;			offsetZ = _8RankOffset;
 		}
 		else if (myRank == 6)
 		{
-			offsetX = _8RankOffset;	offsetY = _8RankOffset;	offsetZ = 0;
+			offsetX = _8RankOffset;		offsetY = _8RankOffset;	offsetZ = 0;
 		}
 		else if (myRank == 7)
 		{
-			offsetX = _8RankOffset;	offsetY = _8RankOffset;	offsetZ = _8RankOffset;
+			offsetX = _8RankOffset;		offsetY = _8RankOffset;	offsetZ = _8RankOffset;
 		}
 
 		MPI_Barrier(MPI_COMM_WORLD);

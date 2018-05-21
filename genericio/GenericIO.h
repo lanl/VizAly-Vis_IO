@@ -497,10 +497,8 @@ class GenericIO
 
     void readOctreeHeader(int octreeOffset, int octreeStringSize, bool bigEndian);
 
-    GIOOctree getAllOctreeData(){ return octreeData; }
+    GIOOctree getOctree(){ return octreeData; }
     
-
-
     void getSourceRanks(std::vector<int> &SR);
 
     template <typename T>
