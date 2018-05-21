@@ -84,7 +84,7 @@ struct GIOOctree
         numEntries 			= deserialize_uint64(&serializedString[24], bigEndian);
 		
         rows.clear();
-        int serializedOffset = 24;	// adding togehter the previous header
+        int serializedOffset = 32;	// adding togehter the previous header
 
 		
         for (int i=0; i<numEntries; i++)
@@ -160,6 +160,7 @@ struct GIOOctree
 		else
 		{
 			serializedString.push_back( static_cast<uint8_t>((t >> 56)& 0xff) );
+			serializedString.push_back( static_cast<uint8_t>((t >> 48)& 0xff) );
 			serializedString.push_back( static_cast<uint8_t>((t >> 40)& 0xff) );
 			serializedString.push_back( static_cast<uint8_t>((t >> 32)& 0xff) );
 			serializedString.push_back( static_cast<uint8_t>((t >> 24)& 0xff) );
