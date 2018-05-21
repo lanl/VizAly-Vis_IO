@@ -252,7 +252,6 @@ static
 int gio_connect(sqlite3* db, void *, int argc, const char *const *argv,
                 sqlite3_vtab **ppVTab, char **pzErr)
 {
-    sqlite3_mprintf("%s", "AAAAAAAAAAAAAAAAAA!");
     if (argc < 4)
     {
         *pzErr = sqlite3_mprintf("%s", "No input file specified!");
