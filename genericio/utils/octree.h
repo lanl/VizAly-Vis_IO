@@ -358,13 +358,15 @@ inline std::vector<uint64_t> Octree::findLeaf(T inputArrayX[], T inputArrayY[], 
 {
 	std::vector<uint64_t>leafCount;		// # particles in leaf
 
-	if (myRank == 0)
-		std::cout <<  "numLeaves: " << numLeaves << std::endl;
+	//if (myRank == 0)
+	//	std::cout <<  "numLeaves: " << numLeaves << std::endl;
 
-	// initialize count of leaf
+	// Initialize count of leaf
 	for (int l=0; l<numLeaves; l++)
 		leafCount.push_back(0);
 
+
+	// Find leaf position for each element in the rank
 	for (size_t i=0; i<numElements; i++)
 	{
 		// leavesExtents[] - minX, maxY  minY, maxY, minZ, maxZ
@@ -380,80 +382,52 @@ inline std::vector<uint64_t> Octree::findLeaf(T inputArrayX[], T inputArrayY[], 
 				if ( checkPositionInclusive(&leavesExtents[l*6], inputArrayX[i], inputArrayY[i], inputArrayZ[i]) )
 					break;
 
-
-		// check for particles that cycle; instead of being 256 they are 0
+		//
+		// triple check for particles that cycle; instead of being 256 they are 0 and vice versa
 		if (l >= numLeaves)
+		{
+			// Duplicate leaf coordinates so as not to change position
+			std::vector<T> tempCoords;
+			tempCoords.push_back( inputArrayX[i] );
+			tempCoords.push_back( inputArrayY[i] );
+			tempCoords.push_back( inputArrayZ[i] );
+
+			// Move Cycled patciles at 256 border
+			if (rankExtents[1] == 256 && tempCoords[0] == 0)
+				tempCoords[0] = 256;
+
+			if (rankExtents[3] == 256 && tempCoords[1] == 0)
+				tempCoords[1] = 256;
+
+			if (rankExtents[5] == 256 && tempCoords[2] == 0)
+				tempCoords[2] = 256;
+
+
+			// Move Cycled patciles at 0 border
+			if (rankExtents[0] == 0 && tempCoords[0] == 256)
+				tempCoords[0] = 0;
+
+			if (rankExtents[2] == 0 && tempCoords[1] == 256)
+				tempCoords[1] = 0;
+
+			if (rankExtents[4] == 0 && tempCoords[2] == 256)
+				tempCoords[2] = 0;
+
+			std::cout << " Old Pos: " << inputArrayX[i] << ", " << inputArrayY[i] << ", " << inputArrayZ[i] 
+					  << " New Pos: " << tempCoords[0]  << ", " << tempCoords[1]  << ", " << tempCoords[2]<< std::endl; 
+			
 			for (l=0; l<numLeaves; l++)
-			{
-				int cycleType = -1;
-
-				// Move Cycled patciles at 256 border
-				if (rankExtents[1] == 256 && inputArrayX[i] == 0)
-				{
-					cycleType = 1;
-					inputArrayX[i] = 256;
-				}
-
-				if (rankExtents[3] == 256 && inputArrayY[i] == 0)
-				{
-					cycleType = 3;
-					inputArrayY[i] = 256;
-				}
-
-				if (rankExtents[5] == 256 && inputArrayZ[i] == 0)
-				{
-					cycleType = 5;
-					inputArrayZ[i] = 256;
-				}
-
-				// Move Cycled patciles at 0 border
-				if (rankExtents[0] == 0 && inputArrayX[i] == 256)
-				{
-					cycleType = 0;
-					inputArrayX[i] = 0;
-				}
-
-				if (rankExtents[2] == 0 && inputArrayY[i] == 256)
-				{
-					cycleType = 2;
-					inputArrayY[i] = 0;
-				}
-
-				if (rankExtents[4] == 0 && inputArrayZ[i] == 256)
-				{
-					cycleType = 4;
-					inputArrayZ[i] = 0;
-				}
-
-				bool leafFound = checkPositionInclusive(&leavesExtents[l*6], inputArrayX[i], inputArrayY[i], inputArrayZ[i]);
-
-				if (cycleType != -1)
-					std::cout << "cycleType: " << cycleType << " New Pos: " << inputArrayX[i] << ", " << inputArrayY[i] << ", " << inputArrayZ[i] << std::endl; 
-
-				// Restore to the correct value
-				if (cycleType == 0)
-					inputArrayX[i] = 256;
-				else if (cycleType == 1)
-					inputArrayX[i] = 0;
-				else if (cycleType == 2)
-					inputArrayY[i] = 256;
-				else if (cycleType == 3)
-					inputArrayY[i] = 0;
-				else if (cycleType == 4)
-					inputArrayZ[i] = 256;
-				else if (cycleType == 5)
-					inputArrayZ[i] = 0;
-
-				if (leafFound)
+				if ( checkPositionInclusive(&leavesExtents[l*6], tempCoords[0], tempCoords[1], tempCoords[2]) )
 					break;
-			}
+		}
+
 
 		if (l >= numLeaves)
 		{
 			std::cout << "\n" << myRank << " ~ " << inputArrayX[i] << ", " << inputArrayY[i] << ", " << inputArrayZ[i] << " is in NO partition!!! " << std::endl;
 			std::cout << "my rank extents: " << rankExtents[0] << "-" << rankExtents[1] << ", "
-									   << rankExtents[2] << "-" << rankExtents[3] << ", "
-									   << rankExtents[4] << "-" << rankExtents[5] << std::endl;
+									   		 << rankExtents[2] << "-" << rankExtents[3] << ", "
+									   		 << rankExtents[4] << "-" << rankExtents[5] << std::endl;
 			// Put it in the last partition
 			l=numLeaves-1;
 		}
