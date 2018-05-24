@@ -2333,7 +2333,6 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
 
 void GenericIO::readDataSection(size_t readOffset, size_t readNumRows, int EffRank, bool PrintStats, bool CollStats)
 {
-    std::cout << "readDataSection" << std::endl;
     int Rank;
   #ifndef GENERICIO_NO_MPI
     MPI_Comm_rank(Comm, &Rank);
