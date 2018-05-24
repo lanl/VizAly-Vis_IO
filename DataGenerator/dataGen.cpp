@@ -110,6 +110,8 @@ int main(int argc, char* argv[])
 		//log << offsetX << ", " << offsetY << ", " << offsetZ << std::endl;
 
 
+		double maxX, maxY, maxZ;
+		maxX = maxY = maxZ = 0;
 		double randomNum;
 		for (uint64_t i=0; i<numParticles; i++)
 		{
@@ -128,8 +130,16 @@ int main(int argc, char* argv[])
 			phi[i] = (double) (rand() % 1000 / 100.0);
 			mask[i] = (uint16_t)myRank;
 			id[i] = myRank*numParticles + i;
+
+			if (xx[i] > maxX)
+				maxX = xx[i];
+			if (yy[i] > maxY)
+				maxY = yy[i];
+			if (zz[i] > maxZ)
+				maxZ = zz[i];
 		}
 
+		std::cout << "maxX " << maxX << ", maxY: " << maxY << ", maxZ: " << maxZ << std::endl;
 
 		unsigned CoordFlagsX = GenericIO::VarIsPhysCoordX;
         unsigned CoordFlagsY = GenericIO::VarIsPhysCoordY;
@@ -145,7 +155,7 @@ int main(int argc, char* argv[])
 		newGIO.addVariable("id", id, GenericIO::VarHasExtraSpace);
 		newGIO.addVariable("mask", mask, GenericIO::VarHasExtraSpace);
 
-		newGIO.useOctree(false, 2, true);
+		newGIO.useOctree(true, 2, true);
         newGIO.write();
 
 		MPI_Barrier(MPI_COMM_WORLD);
