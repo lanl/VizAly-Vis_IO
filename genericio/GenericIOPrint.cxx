@@ -74,7 +74,10 @@ class Printer : public PrinterBase
     {
         for (size_t j = 0; j < NumElements; ++j)
         {
-            os << scientific << setprecision(numeric_limits<T>::digits10) <<
+            //os << scientific << setprecision(numeric_limits<T>::digits10) <<
+            //   Data[i * NumElements + j];
+
+            os  << setprecision(numeric_limits<T>::digits10) <<
                Data[i * NumElements + j];
 
             if (j != NumElements - 1)
