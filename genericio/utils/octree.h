@@ -413,7 +413,10 @@ inline std::vector<uint64_t> Octree::findLeaf(T inputArrayX[], T inputArrayY[], 
 			if (rankExtents[4] == 0 && tempCoords[2] == 256)
 				tempCoords[2] = 0;
 
-			std::cout << " Old Pos: " << inputArrayX[i] << ", " << inputArrayY[i] << ", " << inputArrayZ[i] 
+			std::cout << "my rank extents: " << rankExtents[0] << "-" << rankExtents[1] << ", "
+									   		 << rankExtents[2] << "-" << rankExtents[3] << ", "
+									   		 << rankExtents[4] << "-" << rankExtents[5] 
+					  << " Old Pos: " << inputArrayX[i] << ", " << inputArrayY[i] << ", " << inputArrayZ[i] 
 					  << " New Pos: " << tempCoords[0]  << ", " << tempCoords[1]  << ", " << tempCoords[2]<< std::endl; 
 			
 			for (l=0; l<numLeaves; l++)
