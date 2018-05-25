@@ -1150,10 +1150,13 @@ sqlite3
 .headers on
 .mode csv
 
+      /projects/groups/vizproject/ExaSky/VizAly/genericio/frontend/GenericIOSQLite.so
 .load /home/pascal/projects/VizAly/genericio/frontend/GenericIOSQLite.so
 CREATE VIRTUAL TABLE foo USING GenericIO("/home/pascal/projects/VizAly/DataGenerator/outputFileOct");
 PRAGMA table_info(foo) ;
 
 SELECT count(*) FROM foo ;
 SELECT count(*) FROM foo where _rank = 0 ;
+
+/projects/groups/vizproject/ExaSky/VizAly/genericio/frontend/GenericIOSQLite.so
 */

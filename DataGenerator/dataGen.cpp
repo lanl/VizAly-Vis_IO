@@ -139,7 +139,7 @@ int main(int argc, char* argv[])
 				maxZ = zz[i];
 		}
 
-		std::cout << "maxX " << maxX << ", maxY: " << maxY << ", maxZ: " << maxZ << std::endl;
+		std::cout << myRank  << " ~ maxX " << maxX << ", maxY: " << maxY << ", maxZ: " << maxZ << std::endl;
 
 		unsigned CoordFlagsX = GenericIO::VarIsPhysCoordX;
         unsigned CoordFlagsY = GenericIO::VarIsPhysCoordY;

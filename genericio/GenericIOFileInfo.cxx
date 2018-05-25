@@ -170,6 +170,8 @@ int main(int argc, char *argv[])
                       ") -> (" << physScale[0]  << ", " << physScale[1]  << ", " << physScale[2]  << ") " << std::endl;
 
 
+            if (GIO.isOctree())
+                GIO.printOctree();
 
             std::cout << "\n# Ranks in file: " << numRanksInInput << std::endl;
             std::cout << "# Partitions: " << (mapInfo ? std::to_string(partitionCounting.size()) : "1") << std::endl;
