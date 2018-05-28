@@ -3,7 +3,7 @@
  *                               All Rights Reserved
  *
  *                               Generic IO (ANL-15-066)
- *                  Pascal Grosset, Los Alamos National Library
+ *                 Pascal Grosset, Los Alamos National Laboratory
  *
  *                              OPEN SOURCE LICENSE
  *
