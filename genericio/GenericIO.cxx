@@ -576,6 +576,9 @@ void GenericIO::write()
     // Octree
     if (hasOctree)
     {
+        Timer createOctreeClock;
+        createOctreeClock.start();
+
         #define DEBUG_ON 1
       #ifdef DEBUG_ON
         std::stringstream log;
@@ -771,6 +774,7 @@ void GenericIO::write()
         }
 
         leafPosition.clear();
+        leafPosition.shrink_to_fit();
 
         
 
@@ -903,6 +907,8 @@ void GenericIO::write()
       #ifdef DEBUG_ON
         writeLog("log_" + std::to_string(myRank) ,log.str());
       #endif
+
+        createOctreeClock.stop();
 
     }   // end octree
     
@@ -1516,6 +1522,9 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
 
 
     // Read Octree info if one is present
+    Timer readOctreeClock;
+    readOctreeClock.start();
+
     int octreeStart = 0;
     int octreeSize = 0;
     if (GH->VarsStart != 168)      // for files that do not have octrees
@@ -1528,7 +1537,7 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
             
             readOctreeHeader(octreeStart, octreeSize, isBigEndian);
         }
-    
+    readOctreeClock.stop();
     
 
     FH.setIsBigEndian(string(GH->Magic, GH->Magic + MagicSize - 1) == MagicBE);

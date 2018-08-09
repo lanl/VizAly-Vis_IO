@@ -7,10 +7,13 @@
 #include <stdint.h>
 #include <string>
 #include <fstream>
+#include <sstream>
 #include <algorithm>
 #include <random>
 #include <stdio.h>
 
+#include "memory.h"
+#include "timer.h"
 
 struct GIOOctreeRow
 {
@@ -222,6 +225,8 @@ class Octree
 	std::vector<uintptr_t> octreeLevels;				// stores the real nodes
 
 	void chopVolume(float rootExtents[6], int _numLevels, std::list<PartitionExtents> &partitions);
+
+	std::stringstream log;
 	
   public:
   	std::vector<PartitionExtents> octreePartitions;		// stores only extents of all leaves
@@ -241,6 +246,7 @@ class Octree
 
 	std::string getPartitions();
 	void displayPartitions();
+	std::string getLog(){ return log.str(); }
 
 	template <typename T> void fillArray(int numPartitions, std::vector<int>partitionCount, T array[], size_t numElements);
 	template <typename T> void reorganizeArray(int numPartitions, std::vector<uint64_t>partitionCount, std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle);
@@ -294,6 +300,9 @@ inline bool Octree::checkOverlap(T extents1[], T extents2[])
 template <typename T>				    	
 inline void Octree::fillArray(int numPartitions, std::vector<int>partitionCount, T array[], size_t numElements)
 {
+	Timer clock;
+	clock.start();
+
 	size_t count = 0;
 	for (int i=0; i<numPartitions; i++)
 	{
@@ -303,6 +312,9 @@ inline void Octree::fillArray(int numPartitions, std::vector<int>partitionCount,
 			count++;
 		}
 	}
+
+	clock.stop();
+	log << "Octree::fillArray took " << clock.getDuration() << " s " << std::endl;
 }
 
 
@@ -310,19 +322,36 @@ template <typename T>
 inline void Octree::reorganizeArray(int numPartitions, std::vector<uint64_t>partitionCount, 
 									std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle)
 {
+	Timer clock;
+	clock.start();
+
+	Memory memCheck, partitionOffsetMem, currentPartitionCountMem, tempVectorMem;
+
+  memCheck.start();
+	
+
 	// Get offset
+  partitionOffsetMem.start();
 	std::vector<int> partitionOffset;
 	partitionOffset.push_back(0);
 	for (int i=0; i<numPartitions; i++)
 		partitionOffset.push_back( partitionOffset[i] + partitionCount[i] );
 
+  partitionOffsetMem.stop();
+
+
+	
 
 	// Partition count
+  currentPartitionCountMem.start();
 	std::vector<int> currentPartitionCount;
 	for (int i=0; i<numPartitions; i++)
 		currentPartitionCount.push_back(0);
+  currentPartitionCountMem.stop();
+
 
 	// Duplicating original data array
+  tempVectorMem.start();
 	std::vector<T> tempVector(numElements);
 	std::copy(array, array+numElements, tempVector.begin());
 
@@ -335,7 +364,13 @@ inline void Octree::reorganizeArray(int numPartitions, std::vector<uint64_t>part
 		array[pos] = tempVector[i];
 		currentPartitionCount[partition]++;
 	}
+  tempVectorMem.stop();
 
+  	// Clear memory ASAP
+  	tempVector.clear();				tempVector.shrink_to_fit();
+  	currentPartitionCount.clear();	currentPartitionCount.shrink_to_fit();
+  	
+  	
 
 	if (shuffle)
 	{
@@ -349,6 +384,20 @@ inline void Octree::reorganizeArray(int numPartitions, std::vector<uint64_t>part
 			startPos += partitionCount[p];
 		}
 	}
+
+	partitionCount.clear();	partitionCount.shrink_to_fit();
+
+	memCheck.stop();
+	clock.stop();
+
+	memCheck, partitionOffsetMem, currentPartitionCountMem, tempVectorMem;
+
+
+	log << "Octree::reorganizeArray overall mem usage " << memCheck.getMemorySizeInMB() << " MB " << std::endl;
+	log << "Octree::reorganizeArray partitionOffset mem usage " << partitionOffsetMem.getMemorySizeInMB() << " MB " << std::endl;
+	log << "Octree::reorganizeArray currentPartitionCount mem usage " << currentPartitionCountMem.getMemorySizeInMB() << " MB " << std::endl;
+	log << "Octree::reorganizeArray tempVector mem usage " << tempVectorMem.getMemorySizeInMB() << " MB " << std::endl;
+	log << "Octree::reorganizeArray took " << clock.getDuration() << " s " << std::endl;
 }
 
 
@@ -356,6 +405,12 @@ template <typename T>
 inline std::vector<uint64_t> Octree::findLeaf(T inputArrayX[], T inputArrayY[], T inputArrayZ[], 
 											size_t numElements, int numLeaves, float leavesExtents[], std::vector<int> &leafPosition)
 {
+	Timer clock;
+	clock.start();
+
+	Memory leafCountMem;
+	leafCountMem.start();
+
 	std::vector<uint64_t>leafCount;		// # particles in leaf
 
 	//if (myRank == 0)
@@ -440,6 +495,11 @@ inline std::vector<uint64_t> Octree::findLeaf(T inputArrayX[], T inputArrayY[], 
 		leafCount[l]++;
 	}
 
+	leafCountMem.stop();
+	clock.stop();
+	log << "Octree::findLeaf took " << clock.getDuration() << " s " << std::endl;
+	log << "Octree::findLeaf leafCount mem usage " << leafCountMem.getMemorySizeInMB() << " MB " << std::endl;
+
 	return leafCount;
 }
 
@@ -465,6 +525,9 @@ inline void Octree::buildOctree()
 
 inline void Octree::chopVolume(float rootExtents[6], int _numLevels, std::list<PartitionExtents> & partitionList)
 {
+	Timer clock;
+	clock.start();
+
 	//std::cout << "rootExtents: " << rootExtents[0] << ", " << rootExtents[1] << "   " << rootExtents[2] << ", " << rootExtents[3] << "   "  << rootExtents[4] << ", " << rootExtents[5] << std::endl;
 	PartitionExtents temp(rootExtents);				// Set the first partition as root 
 	partitionList.push_back(temp);
@@ -559,6 +622,9 @@ inline void Octree::chopVolume(float rootExtents[6], int _numLevels, std::list<P
 
 		numBlocks = partitionList.size();
 	}
+
+	clock.stop();
+	log << "Octree::chopVolume took " << clock.getDuration() << " s " << std::endl;
 }
 
 
@@ -594,6 +660,9 @@ inline void Octree::getLeafExtents( int leafId, float _extents[6])
 
 inline int Octree::getLeafIndex(float pos[3])
 {
+	Timer clock;
+	clock.start();
+
     //extents
 	float xDiv = (pos[0]-extents[0])/(extents[1]-extents[0]);
 	float yDiv = (pos[1]-extents[2])/(extents[3]-extents[2]);
@@ -665,6 +734,9 @@ inline int Octree::getLeafIndex(float pos[3])
 	if (index < 0 || index >= pow(8.0,numLevels))
 		std::cout << "Index " << index << " Error at pos " << pos[0] << ", " << pos[1] << ", " << pos[2] << std::endl;
 	return index;
+
+	clock.stop();
+	log << "Octree::getLeafIndex took " << clock.getDuration() << " s " << std::endl;
 }
 
 
