@@ -58,9 +58,11 @@
 
 #include <unistd.h>
 
-#include "utils/octree.h"
+
+#include "utils/octree.hpp"
 #include "utils/timer.h"
 #include "utils/memory.h"
+
 
 
 namespace gio

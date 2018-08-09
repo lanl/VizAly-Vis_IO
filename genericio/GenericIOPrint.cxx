@@ -74,10 +74,7 @@ class Printer : public PrinterBase
     {
         for (size_t j = 0; j < NumElements; ++j)
         {
-            //os << scientific << setprecision(numeric_limits<T>::digits10) <<
-            //   Data[i * NumElements + j];
-
-            os  << setprecision(numeric_limits<T>::digits10) <<
+            os << scientific << setprecision(numeric_limits<T>::digits10) <<
                Data[i * NumElements + j];
 
             if (j != NumElements - 1)
@@ -114,6 +111,8 @@ int main(int argc, char *argv[])
     bool ShowMap = false;
     bool NoData = false;
     bool PrintRankInfo = true;
+    bool OctreeSample = false;
+    float octreeSamplePercentage = 0.1;
     int FileNameIdx = 1;
     if (argc > 2)
     {
@@ -135,11 +134,22 @@ int main(int argc, char *argv[])
             ++FileNameIdx;
             --argc;
         }
+        else if (string(argv[1]) == "--octree-sample")
+        {
+            if (argc == 4)
+            {
+                octreeSamplePercentage = atof( argv[2] );
+                OctreeSample = true;
+            
+                ++FileNameIdx;  ++FileNameIdx;
+                --argc; --argc; 
+            }
+        }
     }
 
-    if (argc != 2)
+    if (argc < 2)
     {
-        cerr << "Usage: " << argv[0] << " [--no-rank-info|--no-data|--show-map] <mpiioName>" << endl;
+        cerr << "Usage: " << argv[0] << " [--no-rank-info|--no-data|--show-map|--octree-sample x] <mpiioName>" << endl;
         exit(-1);
     }
 
@@ -237,7 +247,6 @@ int main(int argc, char *argv[])
             }
 
             if (GIO.isOctree())
-                //std::cout << "has octree" << std::endl;
                 GIO.printOctree();
 
             if (!VIX.empty())
@@ -358,20 +367,61 @@ int main(int argc, char *argv[])
                 cout << "# rank " << GIO.readGlobalRankNumber(i) << ": " <<
                      Coords[0] << "," << Coords[1] << "," <<
                      Coords[2] << ": " << NElem << " row(s)" << endl;
-            if (NoData)
-                continue;
 
-            GIO.readData(i, false);
-            for (size_t j = 0; j < NElem; ++j)
+            if (!OctreeSample)
+                if (NoData)
+                    continue;
+
+            
+            if (!OctreeSample)
             {
-                for (size_t k = 0; k < Printers.size(); ++k)
+                GIO.readData(i, false);
+
+                for (size_t j = 0; j < NElem; ++j)
                 {
-                    Printers[k]->print(cout, j);
-                    if (k != Printers.size() - 1)
-                        cout << "\t";
+                    for (size_t k = 0; k < Printers.size(); ++k)
+                    {
+                        Printers[k]->print(cout, j);
+                        if (k != Printers.size() - 1)
+                            cout << "\t";
+                    }
+                    cout << endl;
                 }
-                cout << endl;
             }
+            else
+            {
+                GIOOctree octreeData = GIO.getOctree();
+                for (int l=0; l<octreeData.rows.size(); l++)
+                {
+                    size_t octreeRankOffset, octreeRankNumRows;
+                    if ( octreeData.rows[l].partitionLocation ==  i)    // Find ranks that i am reading now 
+                    {
+                        octreeRankOffset  = octreeData.rows[l].offsetInFile;
+                        octreeRankNumRows = octreeData.rows[l].numParticles * octreeSamplePercentage;
+                    
+                        GIO.readDataSection(octreeRankOffset, octreeRankNumRows, i, false); 
+                
+                        cout << "# Reading " << octreeRankNumRows << " out of " << octreeData.rows[l].numParticles << 
+                            " rows for octree leaf " << l << " in rank " << i << " with extents " <<
+                            octreeData.rows[l].minX << "-" << octreeData.rows[l].maxX << ", " <<
+                            octreeData.rows[l].minY << "-" << octreeData.rows[l].maxY << ", " <<
+                            octreeData.rows[l].minZ << "-" << octreeData.rows[l].maxZ << std::endl;
+
+                        for (size_t j = 0; j < octreeRankNumRows; ++j)
+                        {
+                            for (size_t k = 0; k < Printers.size(); ++k)
+                            {
+                                Printers[k]->print(cout, j);
+                                if (k != Printers.size() - 1)
+                                    cout << "\t";
+                            }
+                            cout << endl;
+                        }
+                    }
+                }
+            }
+
+            
         }
 
         for (size_t i = 0; i < Printers.size(); ++i)
@@ -388,3 +438,5 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+// sed '/^#/ d'
+// grep -v '^#' <filename>

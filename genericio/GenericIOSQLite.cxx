@@ -4,7 +4,8 @@
  *
  *                               Generic IO (ANL-15-066)
  *                     Hal Finkel, Argonne National Laboratory
- *                     Jon Woodring, Los Alamos National Laboratory
+ *                  Jon Woodring, Los Alamos National Laboratory
+ *                 Pascal Grosset, Los Alamos National Laboratory
  *
  *                              OPEN SOURCE LICENSE
  *
