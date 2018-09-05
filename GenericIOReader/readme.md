@@ -36,4 +36,5 @@ cmake ../../paraview-superbuild \
 -DENABLE_genericio=TRUE
 ``
 ## Sample Datasets
-Sample datasets are available at: https://oceans11.lanl.gov/~qwofford/woodring_data/
+A small halo dataset is available at: https://github.com/lanl/VizAly-Vis_IO/blob/master/GenericIOReader/sodproperties.zip
+Sample large datasets are available at: https://oceans11.lanl.gov/~qwofford/woodring_data/
