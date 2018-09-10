@@ -5,11 +5,10 @@ sudo: false
 os: linux
 dist: trusty
 
-compiler:
-  - gcc
+compiler: g++
 
 before_install:
-  # C++11
+  # C++14
   - sudo apt-get update
 
 addons:
@@ -17,15 +16,18 @@ addons:
     sources:
     - ubuntu-toolchain-r-test
     packages:
-    - gcc-6
-    - g++-6
+    - gcc-7
+    - g++-7
     - libopenmpi-dev
     - openmpi-bin
 
 install:
-  export CXX="g++-6 -std=c++11"
-  
+  # C++14
+  export CXX=gcc-7
+  export CXX=g++-7
+
+
 script:
-  # C++11
+  # C++14
   - source build.sh
   - mpirun -np 8 dataGen outputFile
