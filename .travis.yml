@@ -3,6 +3,7 @@ language: cpp
 sudo: false
 
 os: linux
+dist: trusty
 
 compiler:
   - gcc
@@ -15,6 +16,7 @@ addons:
     sources:
     - ubuntu-toolchain-r-test
     packages:
+    - gcc-6
     - g++-6
     - libopenmpi-dev
     - openmpi-bin
