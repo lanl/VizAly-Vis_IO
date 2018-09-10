@@ -23,9 +23,7 @@ int main(int argc, char *argv[])
     }
 
     GenericIO::setNaturalDefaultPartition();
-    //GenericIO::setDefaultShouldCompress(true);
-    GenericIO::setDefaultShouldCompress(false);
-
+    GenericIO::setDefaultShouldCompress(true);
 
     {
         int arg = 1;
@@ -34,7 +32,6 @@ int main(int argc, char *argv[])
         MPI_Comm_size(MPI_COMM_WORLD, &NRanks);
 
         string FileName(argv[arg++]);
-        string NewFileName(argv[arg++]);
 
         unsigned Method = GenericIO::FileIOPOSIX;
         const char *EnvStr = getenv("GENERICIO_USE_MPIIO");
@@ -69,37 +66,44 @@ int main(int argc, char *argv[])
 
         GIO.readData(-1, false);
 
-        MPI_Comm Comm = MPI_COMM_WORLD;
-        if (NR == NRanks)
-        {
-            int Periods[3] = { 0, 0, 0 };
-            int Dims[3];
-            GIO.readDims(Dims);
-            MPI_Cart_create(Comm, 3, Dims, Periods, 0, &Comm);
-        }
+		int Dims[3];
+        GIO.readDims(Dims);
+		std::cout << "Dims: " << Dims[0] << ", " << Dims[1] << ", " << Dims[2] << std::endl;
+		std::cout << "PhysOrigin:" << PhysOrigin[0] << ", " << PhysOrigin[1] << ", " << PhysOrigin[2] << std::endl;
+		std::cout << "readPhysScale:" << PhysScale[0] << ", " << PhysScale[1] << ", " << PhysScale[2] << std::endl;
+	
 
-        GenericIO NewGIO(Comm, NewFileName);
-        NewGIO.setNumElems(NElem);
+        // MPI_Comm Comm = MPI_COMM_WORLD;
+        // if (NR == NRanks)
+        // {
+        //     int Periods[3] = { 0, 0, 0 };
+        //     int Dims[3];
+        //     GIO.readDims(Dims);
+        //     MPI_Cart_create(Comm, 3, Dims, Periods, 0, &Comm);
+        // }
+ 
+        // GenericIO NewGIO(Comm, NewFileName);
+        // NewGIO.setNumElems(NElem);
 
-        for (int d = 0; d < 3; ++d)
-        {
-            NewGIO.setPhysOrigin(PhysOrigin[d], d);
-            NewGIO.setPhysScale(PhysScale[d], d);
-        }
+        // for (int d = 0; d < 3; ++d)e
+        // {
+        //     NewGIO.setPhysOrigin(PhysOrigin[d], d);
+        //     NewGIO.setPhysScale(PhysScale[d], d);
+        // }
 
-        for (size_t i = 0; i < VI.size(); ++i)
-        {
-            if (NR != NRanks)
-            {
-                // When dropping topology information, also drop the related column tags.
-                VI[i].IsPhysCoordX = VI[i].IsPhysCoordY = VI[i].IsPhysCoordZ =
-                                         VI[i].MaybePhysGhost = false;
-            }
+        // for (size_t i = 0; i < VI.size(); ++i)
+        // {
+        //     if (NR != NRanks)
+        //     {
+        //         // When dropping topology information, also drop the related column tags.
+        //         VI[i].IsPhysCoordX = VI[i].IsPhysCoordY = VI[i].IsPhysCoordZ =
+        //                                  VI[i].MaybePhysGhost = false;
+        //     }
 
-            NewGIO.addVariable(VI[i], &Vars[i][0], GenericIO::VarHasExtraSpace);
-        }
+        //     NewGIO.addVariable(VI[i], &Vars[i][0], GenericIO::VarHasExtraSpace);
+        // }
 
-        NewGIO.write();
+        // NewGIO.write();
     }
 
     MPI_Barrier(MPI_COMM_WORLD);

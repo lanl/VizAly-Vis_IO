@@ -45,11 +45,11 @@ name = sys.argv[1]
 gio.gio_inspect(name)
 
 if gio.gio_has_variable(name, "x"):
-  x = gio.gio_read(name, "x")
-  y = gio.gio_read(name, "y")
-  z = gio.gio_read(name, "z")
-  print np.column_stack((x, y, z))
+    x = gio.gio_read(name, "x")
+    y = gio.gio_read(name, "y")
+    z = gio.gio_read(name, "z")
+    print np.column_stack((x, y, z))
 else:
-  pos = gio.gio_read(name, "pos")
-  print pos
+    pos = gio.gio_read(name, "pos")
+    print pos
 
