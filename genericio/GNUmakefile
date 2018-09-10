@@ -59,7 +59,7 @@ BLOSC_CPPFLAGS := \
 	-Ithirdparty/blosc/internal-complibs/zstd-0.7.4/dictBuilder \
 	-Ithirdparty/blosc/internal-complibs/zstd-0.7.4/decompress
 
-BASE_CPPFLAGS := $(BLOSC_CPPFLAGS) -I. -D__STDC_CONSTANT_MACROS -DDEBUG_ON
+BASE_CPPFLAGS := $(BLOSC_CPPFLAGS) -I. -D__STDC_CONSTANT_MACROS -DDEBUG_ON -std=c++11
 #BASE_CPPFLAGS := $(BLOSC_CPPFLAGS) -I. -D__STDC_CONSTANT_MACROS
 
 FEDIR = frontend
