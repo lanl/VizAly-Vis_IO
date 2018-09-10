@@ -19,7 +19,7 @@ addons:
     - g++-6
     - libopenmpi-dev
 
-
 script:
-  - source DataGenerator/compile.sh
-  - mpirun -np 8 DataGenerator/dataGen outputFile
+  - cd DataGenerator
+  - source compile.sh
+  - mpirun -np 8 dataGen outputFile
