@@ -1,0 +1,25 @@
+#travis configuration for coverage testing
+language: cpp
+sudo: false
+
+os: linux
+
+compiler:
+  - gcc
+
+before_install:
+  - sudo apt-get update
+
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - gcc-6
+    - g++-6
+    - libopenmpi-dev
+
+
+script:
+  source DataGenerator/compile.sh
+  mpirun -np 8 DataGenerator/dataGen outputFile
