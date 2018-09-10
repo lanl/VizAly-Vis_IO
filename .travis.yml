@@ -8,7 +8,7 @@ dist: trusty
 compiler: g++
 
 before_install:
-  # C++14
+  # C++11
   - sudo apt-get update
 
 addons:
@@ -22,12 +22,13 @@ addons:
     - openmpi-bin
 
 install:
-  # C++14
+  # C++11
   export CXX=gcc-7
   export CXX=g++-7
+  export CXXFLAGS = '-std=c++11'
 
 
 script:
-  # C++14
+  # C++11
   - source build.sh
   - mpirun -np 8 dataGen outputFile
