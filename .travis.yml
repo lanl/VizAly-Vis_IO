@@ -9,6 +9,7 @@ compiler:
   - gcc
 
 before_install:
+  # C++11
   - sudo apt-get update
 
 addons:
@@ -21,6 +22,10 @@ addons:
     - libopenmpi-dev
     - openmpi-bin
 
+install:
+  export CXX="g++-6 -std=c++11"
+  
 script:
+  # C++11
   - source build.sh
   - mpirun -np 8 dataGen outputFile
