@@ -51,15 +51,15 @@ BLOSC_O="$PROJECT_HOME/genericio/mpi/thirdparty/blosc/blosc.o \
 
 echo $BLOSC_O:
 
-mpicxx fileReading.cpp -fopenmp -I$PROJECT_HOME/genericio \
+mpicxx fileReading.cpp -fopenmp -std=c++11 -I$PROJECT_HOME/genericio \
 	$PROJECT_HOME/genericio/mpi/GenericIO.o $BLOSC_O \
 	-o fileReading
 
 
-mpicxx dataGen.cpp -fopenmp -I$PROJECT_HOME/genericio \
+mpicxx dataGen.cpp -fopenmp -std=c++11 -I$PROJECT_HOME/genericio \
 	$PROJECT_HOME/genericio/mpi/GenericIO.o $BLOSC_O \
 	-o dataGen
 
-mpicxx dataGenNoOct.cpp -fopenmp -I$PROJECT_HOME/genericio \
+mpicxx dataGenNoOct.cpp -fopenmp -std=c++11 -I$PROJECT_HOME/genericio \
 	$PROJECT_HOME/genericio/mpi/GenericIO.o $BLOSC_O \
 	-o dataGenNoOct
