@@ -1,9 +1,8 @@
-#travis configuration for coverage testing
-language: cpp
-sudo: false
-
-os: linux
+sudo: required
 dist: trusty
+
+language: cpp
+os: linux
 
 compiler: g++
 
@@ -21,12 +20,7 @@ addons:
     - libopenmpi-dev
     - openmpi-bin
 
-install:
-  # C++11
-  export CXX=gcc-7
-  export CXX=g++-7
-  export CXXFLAGS = '-std=c++11'
-
+env: COMPILER=g++-7
 
 script:
   # C++11
