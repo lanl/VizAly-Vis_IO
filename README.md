@@ -15,3 +15,5 @@ LANS has asserted copyright on the software package C17078, entitled Framework f
 
 # Contact
 Pascal Grosset, pascalgrosset@lanl.gov
+
+[![Build Status](https://travis-ci.org/lanl/VizAly-Vis_IO.svg?branch=master)](https://travis-ci.org/lanl/VizAly-Vis_IO)
