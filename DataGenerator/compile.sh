@@ -1,5 +1,7 @@
 #!/bin/bash
-PROJECT_HOME=/home/pascal/projects/VizAly
+pushd ..
+PROJECT_HOME=$(pwd)
+popd
 
 BLOSC_O="$PROJECT_HOME/genericio/mpi/thirdparty/blosc/blosc.o \
 	$PROJECT_HOME/genericio/mpi/thirdparty/blosc/blosclz.o \

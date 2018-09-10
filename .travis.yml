@@ -19,10 +19,6 @@ addons:
     - libopenmpi-dev
     - openmpi-bin
 
-before_script: 
-  - cd DataGenerator
-  
 script:
-  - ls
-  - source compile.sh
+  - source build.sh
   - mpirun -np 8 dataGen outputFile
