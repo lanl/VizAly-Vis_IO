@@ -256,6 +256,24 @@ class Octree
 	template <typename T> std::vector<uint64_t> findLeaf(T inputArrayX[], T inputArrayY[], T inputArrayZ[], size_t numElements, int numPartitions, float partitionExtents[], std::vector<int> &partitionPosition);
 };
 
+inline void Octree::init(int _numLevels, float _extents[6])
+{
+	numLevels = _numLevels;
+
+	for (int i=0; i<6; i++) 
+		extents[i] = _extents[i];
+}
+
+
+inline void Octree::buildOctree()
+{
+	std::list<PartitionExtents> _octreePartitions;
+	chopVolume(extents, numLevels, _octreePartitions);
+
+	octreePartitions.resize( _octreePartitions.size() );
+	std::copy(_octreePartitions.begin(), _octreePartitions.end(), octreePartitions.begin());
+}
+
 
 template <typename T> 
 inline bool Octree::checkPosition(float extents[], T _x, T _y, T _z)
@@ -295,8 +313,6 @@ inline bool Octree::checkOverlap(T extents1[], T extents2[])
 }
 
 
-
-
 template <typename T>				    	
 inline void Octree::fillArray(int numPartitions, std::vector<int>partitionCount, T array[], size_t numElements)
 {
@@ -318,6 +334,10 @@ inline void Octree::fillArray(int numPartitions, std::vector<int>partitionCount,
 }
 
 
+
+
+
+// Main one
 template <typename T>				    	
 inline void Octree::reorganizeArray(int numPartitions, std::vector<uint64_t>partitionCount, 
 									std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle)
@@ -504,24 +524,6 @@ inline std::vector<uint64_t> Octree::findLeaf(T inputArrayX[], T inputArrayY[], 
 }
 
 
-inline void Octree::init(int _numLevels, float _extents[6])
-{
-	numLevels = _numLevels;
-
-	for (int i=0; i<6; i++) 
-		extents[i] = _extents[i];
-}
-
-
-inline void Octree::buildOctree()
-{
-	std::list<PartitionExtents> _octreePartitions;
-	chopVolume(extents, numLevels, _octreePartitions);
-
-	octreePartitions.resize( _octreePartitions.size() );
-	std::copy(_octreePartitions.begin(), _octreePartitions.end(), octreePartitions.begin());
-}
-
 
 inline void Octree::chopVolume(float rootExtents[6], int _numLevels, std::list<PartitionExtents> & partitionList)
 {
@@ -538,6 +540,7 @@ inline void Octree::chopVolume(float rootExtents[6], int _numLevels, std::list<P
 	int splittingAxis = 0;								// start with x-axis
 	int numDesiredBlocks = (int) pow(8.0f, _numLevels);	// Compute number of splits needed based on levels
 	int numBlocks = 1;
+
 
 	while (numBlocks < numDesiredBlocks)
 	{

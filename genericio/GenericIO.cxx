@@ -576,7 +576,9 @@ void GenericIO::write()
     // Octree
     if (hasOctree)
     {
+        Memory ongoingMem;
         Timer createOctreeClock;
+        ongoingMem.start();
         createOctreeClock.start();
 
         #define DEBUG_ON 1
@@ -627,11 +629,14 @@ void GenericIO::write()
         int numOctreeLeaves = gioOctree.getNumNodes();
 
       #ifdef DEBUG_ON
+        
         log << myRank << " ~ splitRank " <<  SplitRank << ", num Ranks: " << numRanks << std::endl;
 
         log << "\n# my rank extents: " << myRankExtents[0] << "-" << myRankExtents[1] << ", "
                                        << myRankExtents[2] << "-" << myRankExtents[3] << ", "
                                        << myRankExtents[4] << "-" << myRankExtents[5] << std::endl;
+
+        log << "|After build octree: " << ongoingMem.getMemoryInUseInMB() << " MB " << std::endl;
       #endif
 
         //
@@ -652,7 +657,9 @@ void GenericIO::write()
         // Determine partition extents for my rank
       #ifdef DEBUG_ON
         log << "\n# my leaves extents: \n";
+        log << "|After find partitions: " << ongoingMem.getMemoryInUseInMB() << " MB " << std::endl;
       #endif
+
         float *leavesExtents = new float[numleavesForMyRank*6];
         int _leafCounter = 0;
         for (auto it=myLeaves.begin(); it!=myLeaves.end(); ++it)
@@ -675,6 +682,7 @@ void GenericIO::write()
         }
       #ifdef DEBUG_ON
         log << "\nnum leaves For My Rank: " << numleavesForMyRank << std::endl;
+        log << "|After getLeafExtents: " << ongoingMem.getMemoryInUseInMB() << " MB " << std::endl;
       #endif
 
         //
@@ -704,6 +712,7 @@ void GenericIO::write()
         {
             log << myRank << " ~ leaf: " << i << ", leaf count: " << numParticlesForMyLeaf[i] << std::endl;
         }
+        log << "|After findLeaf: " << ongoingMem.getMemoryInUseInMB() << " MB " << std::endl;
       #endif
       
 
@@ -793,6 +802,8 @@ void GenericIO::write()
             {
                 log << i << " leaves for rank " << numLeavesPerRank[i] << std::endl;
             }
+
+            log << "|After reorganize array: " << ongoingMem.getMemoryInUseInMB() << " MB " << std::endl;
         }
       #endif
 
@@ -823,6 +834,8 @@ void GenericIO::write()
             log << "\nAll Gatherv Num particles per leaf: \n";
             for (int i=0; i<totalLeavesForSim; i++)
                 log << i << " ~ " << numParticlesPerLeaf[i] << std::endl;
+
+            log << "|After all gather: " << ongoingMem.getMemoryInUseInMB() << " MB " << std::endl;
         }
       #endif
 
@@ -904,7 +917,9 @@ void GenericIO::write()
         if (allOctreeLeavesExtents != NULL)
             delete []allOctreeLeavesExtents;
 
+        ongoingMem.stop();
       #ifdef DEBUG_ON
+        log << "|After, mem leaked: " << ongoingMem.getMemorySizeInMB() << " MB " << std::endl;
         writeLog("log_" + std::to_string(myRank) ,log.str());
       #endif
 
