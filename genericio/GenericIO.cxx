@@ -918,12 +918,14 @@ void GenericIO::write()
             delete []allOctreeLeavesExtents;
 
         ongoingMem.stop();
+        createOctreeClock.stop();
       #ifdef DEBUG_ON
         log << "|After, mem leaked: " << ongoingMem.getMemorySizeInMB() << " MB " << std::endl;
+        log << "Octree processing took:: " << createOctreeClock.getDuration() << " s " << std::endl;
         writeLog("log_" + std::to_string(myRank) ,log.str());
       #endif
 
-        createOctreeClock.stop();
+        
 
     }   // end octree
     
