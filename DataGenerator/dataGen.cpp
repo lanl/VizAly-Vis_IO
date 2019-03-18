@@ -155,7 +155,7 @@ int main(int argc, char* argv[])
 		newGIO.addVariable("id", id, GenericIO::VarHasExtraSpace);
 		newGIO.addVariable("mask", mask, GenericIO::VarHasExtraSpace);
 
-		newGIO.useOctree(true, 2, true);
+		newGIO.useOctree(2);	// num levels, shuffle true by default
         newGIO.write();
 
 		MPI_Barrier(MPI_COMM_WORLD);
@@ -172,4 +172,5 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
+// ./compile.sh
 // mpirun -np 8 ./dataGen outputFile

@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
             int dims[3];
             int coords[3];
             double physOrigin[3], physScale[3];
-
+            
 
             // Get partition Info
             std::vector<int32_t> partitionInfo;
@@ -90,6 +90,7 @@ int main(int argc, char *argv[])
                     if (partitionVI[1].Name == "$partition")
                         mapInfo = true;
             }
+
 
             if (mapInfo)
             {
@@ -124,8 +125,6 @@ int main(int argc, char *argv[])
                     }
                 }
             }
-
-
 
             // Get all the other info
             showMap = false;

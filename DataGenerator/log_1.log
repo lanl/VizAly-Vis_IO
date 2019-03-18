@@ -1,0 +1,110 @@
+1 ~ splitRank 1, num Ranks: 8
+
+# my rank extents: 0-128, 0-128, 128-256
+|After build octree: 0 MB 
+
+# my leaves extents: 
+|After find partitions: 0 MB 
+1 ~ leafExtents(leafCounter: 0, leaf: 8 = 0-64, 0-64, 128-192
+1 ~ leafExtents(leafCounter: 1, leaf: 9 = 0-64, 0-64, 192-256
+1 ~ leafExtents(leafCounter: 2, leaf: 10 = 0-64, 64-128, 128-192
+1 ~ leafExtents(leafCounter: 3, leaf: 11 = 0-64, 64-128, 192-256
+1 ~ leafExtents(leafCounter: 4, leaf: 12 = 64-128, 0-64, 128-192
+1 ~ leafExtents(leafCounter: 5, leaf: 13 = 64-128, 0-64, 192-256
+1 ~ leafExtents(leafCounter: 6, leaf: 14 = 64-128, 64-128, 128-192
+1 ~ leafExtents(leafCounter: 7, leaf: 15 = 64-128, 64-128, 192-256
+
+num leaves For My Rank: 8
+|After getLeafExtents: 0 MB 
+
+# particles for my leaves: 
+1 ~ leaf: 0, leaf count: 1265
+1 ~ leaf: 1, leaf count: 1255
+1 ~ leaf: 2, leaf count: 1228
+1 ~ leaf: 3, leaf count: 1260
+1 ~ leaf: 4, leaf count: 1240
+1 ~ leaf: 5, leaf count: 1213
+1 ~ leaf: 6, leaf count: 1252
+1 ~ leaf: 7, leaf count: 1287
+|After findLeaf: 0.140625 MB 
+
+ALL Gather Num leaves per rank: 
+0 leaves for rank 8
+1 leaves for rank 8
+2 leaves for rank 8
+3 leaves for rank 8
+4 leaves for rank 8
+5 leaves for rank 8
+6 leaves for rank 8
+7 leaves for rank 8
+|After reorganize array: 0.0625 MB 
+
+total Leaves For Sim: 64
+
+All Gatherv Num particles per leaf: 
+0 ~ 1229
+1 ~ 1266
+2 ~ 1242
+3 ~ 1266
+4 ~ 1262
+5 ~ 1219
+6 ~ 1262
+7 ~ 1254
+8 ~ 1265
+9 ~ 1255
+10 ~ 1228
+11 ~ 1260
+12 ~ 1240
+13 ~ 1213
+14 ~ 1252
+15 ~ 1287
+16 ~ 1270
+17 ~ 1248
+18 ~ 1263
+19 ~ 1229
+20 ~ 1255
+21 ~ 1246
+22 ~ 1232
+23 ~ 1257
+24 ~ 1277
+25 ~ 1253
+26 ~ 1224
+27 ~ 1235
+28 ~ 1269
+29 ~ 1241
+30 ~ 1254
+31 ~ 1247
+32 ~ 1223
+33 ~ 1227
+34 ~ 1246
+35 ~ 1179
+36 ~ 1312
+37 ~ 1251
+38 ~ 1280
+39 ~ 1282
+40 ~ 1284
+41 ~ 1242
+42 ~ 1212
+43 ~ 1241
+44 ~ 1299
+45 ~ 1178
+46 ~ 1277
+47 ~ 1267
+48 ~ 1195
+49 ~ 1259
+50 ~ 1244
+51 ~ 1199
+52 ~ 1244
+53 ~ 1254
+54 ~ 1307
+55 ~ 1298
+56 ~ 1314
+57 ~ 1256
+58 ~ 1272
+59 ~ 1210
+60 ~ 1268
+61 ~ 1221
+62 ~ 1274
+63 ~ 1185
+|After all gather: 0.0625 MB 
+|After, mem leaked: 0.0625 MB 

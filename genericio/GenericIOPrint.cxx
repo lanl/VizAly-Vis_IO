@@ -164,6 +164,7 @@ int main(int argc, char *argv[])
     NRanks = 1;
   #endif
 
+
     if (Rank == 0)
     {
         unsigned Method = GenericIO::FileIOPOSIX;
@@ -218,6 +219,7 @@ int main(int argc, char *argv[])
 
         int Dims[3];
         GIO.readDims(Dims);
+
 
         cout << "# " << FileName << ": " << NR << " rank(s): " <<
              Dims[0] << "x" << Dims[1] << "x" << Dims[2];
