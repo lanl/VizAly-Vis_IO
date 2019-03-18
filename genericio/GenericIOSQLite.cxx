@@ -163,7 +163,6 @@ struct gio_vtab
     gio_vtab(const string &FN) : GIO(FN), FileName(FN)
     {
         memset(&vtab, 0, sizeof(sqlite3_vtab));
-
         GIO.openAndReadHeader(GenericIO::MismatchAllowed);
     }
 

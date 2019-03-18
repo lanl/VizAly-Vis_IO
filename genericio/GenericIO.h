@@ -314,8 +314,8 @@ class GenericIO
     GenericIO(const MPI_Comm &C, const std::string &FN, unsigned FIOT = -1)
         : NElems(0), FileIOType(FIOT == (unsigned) - 1 ? DefaultFileIOType : FIOT),
           Partition(DefaultPartition), Comm(C), FileName(FN), Redistributing(false),
-          DisableCollErrChecking(false), SplitComm(MPI_COMM_NULL), hasOctree(false),
-          simGlobalOctree(true), octreeLeafshuffle(false), numOctreeLevels(0)
+          DisableCollErrChecking(false), SplitComm(MPI_COMM_NULL), 
+          hasOctree(false), octreeLeafshuffle(false), numOctreeLevels(0)
     {
         std::fill(PhysOrigin, PhysOrigin + 3, 0.0);
         std::fill(PhysScale,  PhysScale + 3, 0.0);
@@ -324,8 +324,7 @@ class GenericIO
     GenericIO(const std::string &FN, unsigned FIOT = -1)
         : NElems(0), FileIOType(FIOT == (unsigned) - 1 ? DefaultFileIOType : FIOT),
           Partition(DefaultPartition), FileName(FN), Redistributing(false),
-          DisableCollErrChecking(false), hasOctree(false),
-          simGlobalOctree(true), octreeLeafshuffle(false), numOctreeLevels(0)
+          DisableCollErrChecking(false), hasOctree(false), octreeLeafshuffle(false), numOctreeLevels(0)
     {
         std::fill(PhysOrigin, PhysOrigin + 3, 0.0);
         std::fill(PhysScale,  PhysScale + 3, 0.0);
@@ -380,18 +379,19 @@ class GenericIO
     }
 
 
-    void useOctree(bool _octreeLeafshuffle, int _numOctreeLevels, bool _simGlobalOctree)
+    void useOctree(int _numOctreeLevels, bool _octreeLeafshuffle=true)
     {
-        octreeLeafshuffle = _octreeLeafshuffle;
         numOctreeLevels = _numOctreeLevels;
-        _simGlobalOctree = simGlobalOctree;
+        octreeLeafshuffle = _octreeLeafshuffle;
+        
         hasOctree = true;
+
+        std::cout << "useOctree" << std::endl << std::endl;
     }
 
-    void addOctreeHeader(uint64_t _preShuffled, uint64_t _decompositionType, uint64_t _decompositionLevel, uint64_t _numEntries)
+    void addOctreeHeader(uint64_t _preShuffled, uint64_t _decompositionLevel, uint64_t _numEntries)
     {
         octreeData.preShuffled = _preShuffled; 
-        octreeData.decompositionType = _decompositionType;
         octreeData.decompositionLevel = _decompositionLevel;
         octreeData.numEntries = _numEntries;
     }
@@ -618,7 +618,6 @@ class GenericIO
     // Octree Data
     GIOOctree octreeData;
     bool hasOctree;         
-    bool simGlobalOctree;       // Octree for overall sim or based on rank 
     bool octreeLeafshuffle;     // shuffle paticles in a leaf
     int numOctreeLevels;        // num octree leaves = 8^numOctreeLevels
 
