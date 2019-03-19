@@ -155,7 +155,7 @@ int main(int argc, char* argv[])
 		newGIO.addVariable("id", id, GenericIO::VarHasExtraSpace);
 		newGIO.addVariable("mask", mask, GenericIO::VarHasExtraSpace);
 
-		newGIO.useOctree(2);	// num levels, shuffle true by default
+		newGIO.useOctree(3);	// num levels, shuffle true by default
         newGIO.write();
 
 		MPI_Barrier(MPI_COMM_WORLD);
