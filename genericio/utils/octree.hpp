@@ -272,8 +272,8 @@ class Octree
 	void getLeafExtents(int leafId, float extents[6]);
 	std::vector<int> getLeaves(int rank){ return rankLeaf[rank].leafId; }
 	std::string getPartitions();
-
-	std::string getLog(){ return log.str(); }
+	std::string getLog();
+	
 };
 
 
@@ -347,6 +347,7 @@ inline void Octree::reorganizeArray(int numPartitions, std::vector<uint64_t>part
 	// Get offset
   partitionOffsetMem.start();
 	std::vector<int> partitionOffset;
+
 	partitionOffset.push_back(0);
 	for (int i=0; i<numPartitions; i++)
 		partitionOffset.push_back( partitionOffset[i] + partitionCount[i] );
@@ -368,6 +369,7 @@ inline void Octree::reorganizeArray(int numPartitions, std::vector<uint64_t>part
 	std::copy(array, array+numElements, tempVector.begin());
 
 
+	// Move to correct position
 	for (size_t i=0; i<numElements; i++)
 	{
 		int partition = partitionPosition[i];	// Get the partition that index is in
@@ -376,18 +378,19 @@ inline void Octree::reorganizeArray(int numPartitions, std::vector<uint64_t>part
 		array[pos] = tempVector[i];
 		currentPartitionCount[partition]++;
 	}
+
   tempVectorMem.stop();
+
 
   	// Clear memory ASAP
   	tempVector.clear();				tempVector.shrink_to_fit();
   	currentPartitionCount.clear();	currentPartitionCount.shrink_to_fit();
   	
-  	
+
 
 	if (shuffle)
 	{
-		std::random_device rd;
-  		std::mt19937 g(rd());
+  		std::mt19937 g(0);	// to ensure reproducability
 
   		size_t startPos = 0;
 		for (int p=0; p<numPartitions; p++)
@@ -402,11 +405,11 @@ inline void Octree::reorganizeArray(int numPartitions, std::vector<uint64_t>part
 	memCheck.stop();
 	clock.stop();
 
-	log << "Octree::reorganizeArray overall mem usage " << memCheck.getMemorySizeInMB() << " MB " << std::endl;
+	log << "\nOctree::reorganizeArray overall mem usage " << memCheck.getMemorySizeInMB() << " MB " << std::endl;
 	log << "Octree::reorganizeArray partitionOffset mem usage " << partitionOffsetMem.getMemorySizeInMB() << " MB " << std::endl;
 	log << "Octree::reorganizeArray currentPartitionCount mem usage " << currentPartitionCountMem.getMemorySizeInMB() << " MB " << std::endl;
 	log << "Octree::reorganizeArray tempVector mem usage " << tempVectorMem.getMemorySizeInMB() << " MB " << std::endl;
-	log << "Octree::reorganizeArray took " << clock.getDuration() << " s " << std::endl;
+	log << "Octree::reorganizeArray took " << clock.getDuration() << " s " << std::endl << std::endl;
 }
 
 
@@ -753,6 +756,14 @@ inline void writeLog(std::string filename, std::string log)
 	std::ofstream outputFile( (filename+ ".log").c_str(), std::ios::out);
 	outputFile << log;
 	outputFile.close();
+}
+
+
+inline std::string Octree::getLog()
+{ 
+	std::string currentLog = log.str();
+	log.str("");
+	return currentLog;
 }
 
 #endif

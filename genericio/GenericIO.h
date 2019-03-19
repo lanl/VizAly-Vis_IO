@@ -385,8 +385,6 @@ class GenericIO
         octreeLeafshuffle = _octreeLeafshuffle;
         
         hasOctree = true;
-
-        //std::cout << "useOctree" << std::endl << std::endl;
     }
 
     void addOctreeHeader(uint64_t _preShuffled, uint64_t _decompositionLevel, uint64_t _numEntries)
