@@ -16,3 +16,7 @@ builds
 
 genericio/frontend/*
 genericio/mpi/*
+
+*.log
+.vscode/*
+DataGenerator/*.log
