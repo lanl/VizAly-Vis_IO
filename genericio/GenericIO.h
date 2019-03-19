@@ -386,7 +386,7 @@ class GenericIO
         
         hasOctree = true;
 
-        std::cout << "useOctree" << std::endl << std::endl;
+        //std::cout << "useOctree" << std::endl << std::endl;
     }
 
     void addOctreeHeader(uint64_t _preShuffled, uint64_t _decompositionLevel, uint64_t _numEntries)
