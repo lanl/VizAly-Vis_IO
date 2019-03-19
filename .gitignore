@@ -20,3 +20,8 @@ genericio/mpi/*
 *.log
 .vscode/*
 DataGenerator/*.log
+
+DataGenerator/dataGen
+DataGenerator/dataGenNoOct
+DataGenerator/fileReading
+DataGenerator/outputFileOct
