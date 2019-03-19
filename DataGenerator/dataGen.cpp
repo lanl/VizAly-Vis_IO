@@ -34,7 +34,7 @@ int main(int argc, char* argv[])
 		int periods[3] = { 0, 0, 0 };
 		int physOrigin[3] = {0, 0, 0};
 		int physScale[3] = {256, 256, 256};
-		size_t numParticles = 10000;
+		size_t numParticles = 100;
 
 
 		MPI_Cart_create(Comm, 3, dims, periods, 0, &Comm);
@@ -139,8 +139,6 @@ int main(int argc, char* argv[])
 				maxZ = zz[i];
 		}
 
-		std::cout << myRank  << " ~ maxX " << maxX << ", maxY: " << maxY << ", maxZ: " << maxZ << std::endl;
-
 		unsigned CoordFlagsX = GenericIO::VarIsPhysCoordX;
         unsigned CoordFlagsY = GenericIO::VarIsPhysCoordY;
         unsigned CoordFlagsZ = GenericIO::VarIsPhysCoordZ;
@@ -155,7 +153,7 @@ int main(int argc, char* argv[])
 		newGIO.addVariable("id", id, GenericIO::VarHasExtraSpace);
 		newGIO.addVariable("mask", mask, GenericIO::VarHasExtraSpace);
 
-		newGIO.useOctree(3);	// num levels, shuffle true by default
+		newGIO.useOctree(2);	// num levels, shuffle true by default
         newGIO.write();
 
 		MPI_Barrier(MPI_COMM_WORLD);

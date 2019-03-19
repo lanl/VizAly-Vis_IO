@@ -433,13 +433,13 @@ void GenericIO::write()
     MPI_Comm_size(SplitComm, &SplitNRanks);
 
 
-    std::cout << Rank << "/" << NRanks << " ~ " << "SplitRank: " << SplitRank << ", SplitNRanks: " << SplitNRanks << std::endl;
+    // std::cout << Rank << "/" << NRanks << " ~ " << "SplitRank: " << SplitRank << ", SplitNRanks: " << SplitNRanks << std::endl;
 
     string LocalFileName;
 
     if (SplitNRanks != NRanks)
     {
-        std::cout << "SplitNRanks != NRanks" << std::endl;
+        //std::cout << "SplitNRanks != NRanks" << std::endl;
 
         if (Rank == 0)
         {
@@ -497,7 +497,7 @@ void GenericIO::write()
     }
     else
     {
-        std::cout << "SplitNRanks == NRanks" << std::endl;
+        //std::cout << "SplitNRanks == NRanks" << std::endl;
         LocalFileName = FileName;
     }
 
@@ -519,17 +519,17 @@ void GenericIO::write()
         std::fill(Coords + 1, Coords + 3, 0);
     }
 
-    cout << Rank << "/" << NRanks << " ~ " << 
-            "# physical coordinates: (" << PhysOrigin[0] << "," << PhysOrigin[1] << "," << PhysOrigin[2] << 
-            ") -> (" << PhysScale[0] << "," << PhysScale[1] << "," << PhysScale[2] << ")" << endl;
-    std::cout << Rank << "/" << NRanks << " ~ " << "Dims: " << Dims[0] << ", "  << Dims[1] << ", "  << Dims[2] << std::endl;
-    std::cout << Rank << "/" << NRanks << " ~ " << "Coords: " << Coords[0] << ", "  << Coords[1] << ", "  << Coords[2] << std::endl;
-    std::cout << Rank << "/" << NRanks << " ~ " << "Periods: " << Periods[0] << ", "  << Periods[1] << ", "  << Periods[2] << std::endl;
+    // cout << Rank << "/" << NRanks << " ~ " << 
+    //         "# physical coordinates: (" << PhysOrigin[0] << "," << PhysOrigin[1] << "," << PhysOrigin[2] << 
+    //         ") -> (" << PhysScale[0] << "," << PhysScale[1] << "," << PhysScale[2] << ")" << endl;
+    // std::cout << Rank << "/" << NRanks << " ~ " << "Dims: " << Dims[0] << ", "  << Dims[1] << ", "  << Dims[2] << std::endl;
+    // std::cout << Rank << "/" << NRanks << " ~ " << "Coords: " << Coords[0] << ", "  << Coords[1] << ", "  << Coords[2] << std::endl;
+    // std::cout << Rank << "/" << NRanks << " ~ " << "Periods: " << Periods[0] << ", "  << Periods[1] << ", "  << Periods[2] << std::endl;
 
-    std::cout << Rank << "/" << NRanks << " ~ " << "Vars.size(): " << Vars.size() << std::endl;
-    std::cout << Rank << "/" << NRanks << " ~ " << "Vars[0].IsFloat: " << Vars[8].IsFloat 
-                                                << ", Vars[0].IsSigned: " << Vars[8].IsSigned 
-                                                << ", Vars[0].Size: " << Vars[8].Size << std::endl;
+    // std::cout << Rank << "/" << NRanks << " ~ " << "Vars.size(): " << Vars.size() << std::endl;
+    // std::cout << Rank << "/" << NRanks << " ~ " << "Vars[0].IsFloat: " << Vars[8].IsFloat 
+    //                                             << ", Vars[0].IsSigned: " << Vars[8].IsSigned 
+    //                                             << ", Vars[0].Size: " << Vars[8].Size << std::endl;
     // << "Vars.IsSigned: " << Vars.IsSigned << "Vars.IsFloat: " << Vars.IsFloat << std::endl;
 
 
@@ -546,15 +546,15 @@ void GenericIO::write()
         myExtents[i*2 + 1] = myExtents[i*2] + physicalDims[i];
     }
 
-    std::cout << Rank << "/" << NRanks << " ~ " << "myExtents: " << myExtents[0] << " - "  << myExtents[1] << ", "  
-                                                                 << myExtents[2] << " - "  << myExtents[3] << ", "  
-                                                                 << myExtents[4] << " - "  << myExtents[5] << std::endl;
+    // std::cout << Rank << "/" << NRanks << " ~ " << "myExtents: " << myExtents[0] << " - "  << myExtents[1] << ", "  
+    //                                                              << myExtents[2] << " - "  << myExtents[3] << ", "  
+    //                                                              << myExtents[4] << " - "  << myExtents[5] << std::endl;
     std::copy(Coords, Coords + 3, RHLocal.Coords);
     RHLocal.NElems = NElems;
     RHLocal.Start = 0;
     RHLocal.GlobalRank = Rank;
 
-    std::cout << Rank << "/" << NRanks << " ~ " << "RHLocal.NElems: " << RHLocal.NElems << std::endl;
+    // std::cout << Rank << "/" << NRanks << " ~ " << "RHLocal.NElems: " << RHLocal.NElems << std::endl;
 
     bool ShouldCompress = DefaultShouldCompress;
     const char *EnvStr = getenv("GENERICIO_COMPRESS");
@@ -587,10 +587,7 @@ void GenericIO::write()
         std::stringstream log;
       #endif
 
-        int displayRank = 1;
-
-        size_t numParticles = NElems;
-
+        size_t numParticles = NElems;   // num of particles for my rank
 
         //
         // MPI Rank 
@@ -616,15 +613,10 @@ void GenericIO::write()
         }
 
       
+
         //
         // Create octree structure
-        Octree gioOctree;
-        gioOctree.myRank = myRank;
-
-        // std::cout << "$$$$$$Dims: " << Dims[0] << ", " << Dims[1] << ", " << Dims[2] << std::endl;
-        // std::cout << myRank << " ~ myRankExtents: " << myRankExtents[0] << "-" << myRankExtents[1] << "," 
-        //                                           << myRankExtents[2] << "-" << myRankExtents[3] << "," 
-        //                                           << myRankExtents[4] << "-" << myRankExtents[5] << std::endl;
+        Octree gioOctree(myRank);
 
         //
         // Create Octree
@@ -638,7 +630,6 @@ void GenericIO::write()
 
 
       #ifdef DEBUG_ON
-        
         log << myRank << " ~ splitRank " <<  SplitRank << ", num Ranks: " << numRanks << std::endl;
 
         log << "\n# my rank extents: " << myRankExtents[0] << "-" << myRankExtents[1] << ", "
@@ -648,8 +639,10 @@ void GenericIO::write()
         log << "Num Octee nodes " << gioOctree.getNumNodes() << std::endl;
 
         log << "\n# my leaves extents: \n";
+        log << "\nnum leaves For My Rank: " << numleavesForMyRank << std::endl;
         log << "|After find partitions: " << ongoingMem.getMemoryInUseInMB() << " MB " << std::endl;
       #endif
+
 
         //
         // Get the extents of each of my leaves
@@ -673,14 +666,12 @@ void GenericIO::write()
 
             _leafCounter++;
         }
-      #ifdef DEBUG_ON
-        log << "\nnum leaves For My Rank: " << numleavesForMyRank << std::endl;
-        log << "|After getLeafExtents: " << ongoingMem.getMemoryInUseInMB() << " MB " << std::endl;
-      #endif
 
 
         //
         // Find the partition for each particle
+
+        // Pointer to data
         float *_xx, *_yy, *_zz;
         for (size_t i = 0; i < Vars.size(); ++i)
         {
@@ -699,6 +690,7 @@ void GenericIO::write()
         std::vector<uint64_t> numParticlesForMyLeaf;      // #particles per leaf
         numParticlesForMyLeaf = gioOctree.findLeaf(_xx,_yy,_zz, numParticles, numleavesForMyRank, leavesExtents, leafPosition);
 
+
       #ifdef DEBUG_ON
         log << "\n# particles for my leaves: \n";
         for (int i=0; i<numleavesForMyRank; i++)
@@ -708,6 +700,7 @@ void GenericIO::write()
       #endif
       
 
+        //
         // Rearrange the array based on leaves
         for (size_t i = 0; i < Vars.size(); ++i)
         {
@@ -777,27 +770,24 @@ void GenericIO::write()
         leafPosition.clear();
         leafPosition.shrink_to_fit();
 
-        
-
-        //
-        // Gather information from other ranks 
 
         //
         // Gather num leaves each rank has
         int *numLeavesPerRank = numLeavesPerRank = new int[numRanks];
         MPI_Allgather( &numleavesForMyRank, 1, MPI_INT,  numLeavesPerRank, 1, MPI_INT,  MPI_COMM_WORLD);
     
+
+
       #ifdef DEBUG_ON
         {
             log << "\nALL Gather Num leaves per rank: \n";
             for (int i=0; i<numRanks; i++)
-            {
                 log << i << " leaves for rank " << numLeavesPerRank[i] << std::endl;
-            }
 
             log << "|After reorganize array: " << ongoingMem.getMemoryInUseInMB() << " MB " << std::endl;
         }
       #endif
+
 
         //
         // Gather num particles in each leaf for each rank
@@ -900,8 +890,6 @@ void GenericIO::write()
             }
         }
 
-        //octreeData.print();
-
         if (leavesExtents != NULL)
             delete []leavesExtents;
 
@@ -916,6 +904,10 @@ void GenericIO::write()
 
         ongoingMem.stop();
         createOctreeClock.stop();
+
+
+
+
       #ifdef DEBUG_ON
         log << "|After, mem leaked: " << ongoingMem.getMemorySizeInMB() << " MB " << std::endl;
         log << "Octree processing took:: " << createOctreeClock.getDuration() << " s " << std::endl;
@@ -1004,7 +996,7 @@ void GenericIO::write()
         uint64_t octreeStart = 0;
         if (hasOctree)
         {
-            std::cout << "Serializing octree" << std::endl;
+            //std::cout << "Serializing octree" << std::endl;
             serializedOctree = octreeData.serialize(IsBigEndian);
             octreeSize  = serializedOctree.size();
         }

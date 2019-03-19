@@ -11,7 +11,7 @@
 #include <algorithm>
 #include <random>
 #include <stdio.h>
-//#include <mpi.h>
+
 
 #include "memory.h"
 #include "timer.h"
@@ -40,6 +40,23 @@ struct GIOOctreeRow
 		numParticles = _numP;
 		offsetInFile = _offsetInFile;
 		partitionLocation = _parLocation;
+	}
+
+	std::string serialize()
+	{
+		std::stringstream ss;
+		ss << blockID << " : "
+		  << minX << " - "
+		  << maxX << ", "
+		  << minY << " - "
+		  << maxY << ", "
+		  << minZ << " - "
+		  << maxZ << ", "
+		  << numParticles << ", "
+		  << offsetInFile << ", "
+		  << partitionLocation << std::endl;
+
+    	return ss.str();
 	}
 };
 
@@ -186,18 +203,7 @@ struct GIOOctree
 
     	std::cout << "\nIndex : minX - maxX, minY - maxY, minZ - maxZ, #particles, offset in file, rank location"<< std::endl;
     	for (int i=0; i<numEntries; i++)
-    	{
-    		std::cout << rows[i].blockID << " : "
-    				  << rows[i].minX << " - "
-    				  << rows[i].maxX << ", "
-    				  << rows[i].minY << " - "
-    				  << rows[i].maxY << ", "
-    				  << rows[i].minZ << " - "
-    				  << rows[i].maxZ << ", "
-    				  << rows[i].numParticles << ", "
-    				  << rows[i].offsetInFile << ", "
-    				  << rows[i].partitionLocation << std::endl;
-    	}
+    		std::cout << rows[i].serialize();
     	std::cout << "\n"<< std::endl;
     }
 };
@@ -210,18 +216,23 @@ struct PartitionExtents
 	PartitionExtents(){};
 	PartitionExtents(float _extents[6]){ for (int i=0; i<6; i++) extents[i]=_extents[i]; }
 
-	void print()
+	std::string serialize()
 	{ 
-		std::cout << extents[0] << " - " << extents[1] << ", " 
-			      << extents[2] << " - " << extents[3] << ", " 
-			      << extents[4] << " - " << extents[5] << std::endl; 
+		std::stringstream ss;
+		ss << extents[0] << " - " << extents[1] << ", " 
+			<< extents[2] << " - " << extents[3] << ", " 
+			<< extents[4] << " - " << extents[5] << std::endl; 
+
+		return ss.str();
 	}
 };
+
 
 struct Leaves
 {
 	std::vector<int> leafId;
 };
+
 
 class Octree
 {
@@ -244,30 +255,27 @@ class Octree
   	int myRank;
 
 	Octree(){};
-	Octree(int _numLevels, float _extents[6]):numLevels(_numLevels){ for (int i=0; i<6; i++) extents[i] = _extents[i]; };
+	Octree(int _myRank):myRank(_myRank){};
 	~Octree(){};
 	
 	void init(int _numLevels, float _extents[6], int xDiv, int yDiv, int zDiv);
 	void buildOctree();
+	template <typename T> void reorganizeArray(int numPartitions, std::vector<uint64_t>partitionCount, std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle);
+	template <typename T> std::vector<uint64_t> findLeaf(T inputArrayX[], T inputArrayY[], T inputArrayZ[], size_t numElements, int numPartitions, float partitionExtents[], std::vector<int> &partitionPosition);
 
+
+	template <typename T> bool checkPosition(float extents[], T _x, T _y, T _z);
+	template <typename T> bool checkPositionInclusive(float extents[], T _x, T _y, T _z);
 
 	int getNumNodes(){ return octreePartitions.size(); }
 	int getLeafIndex(float pos[3]);
 	void getLeafExtents(int leafId, float extents[6]);
-	void setRankExtents(float _rankExtents[6]){ for (int i=0;i<6;i++) rankExtents[i]=_rankExtents[i]; }
 	std::vector<int> getLeaves(int rank){ return rankLeaf[rank].leafId; }
-
 	std::string getPartitions();
-	void displayPartitions();
-	std::string getLog(){ return log.str(); }
 
-	template <typename T> void fillArray(int numPartitions, std::vector<int>partitionCount, T array[], size_t numElements);
-	template <typename T> void reorganizeArray(int numPartitions, std::vector<uint64_t>partitionCount, std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle);
-	template <typename T> bool checkPosition(float extents[], T _x, T _y, T _z);
-	template <typename T> bool checkPositionInclusive(float extents[], T _x, T _y, T _z);
-	template <typename T> bool checkOverlap(T extents1[], T extents2[]);;
-	template <typename T> std::vector<uint64_t> findLeaf(T inputArrayX[], T inputArrayY[], T inputArrayZ[], size_t numElements, int numPartitions, float partitionExtents[], std::vector<int> &partitionPosition);
+	std::string getLog(){ return log.str(); }
 };
+
 
 
 inline void Octree::init(int _numLevels, float _extents[6], int xDiv, int yDiv, int zDiv)
@@ -294,22 +302,6 @@ inline void Octree::buildOctree()
 
 	octreePartitions.resize( _octreePartitions.size() );
 	std::copy(_octreePartitions.begin(), _octreePartitions.end(), octreePartitions.begin());
-
-
-	if (myRank == 0)
-	{
-		std::cout << "Octree partitions: \n";
-		displayPartitions();
-
-
-		for (int i=0; i<rankLeaf.size(); i++)
-		{
-			std::cout << "Rank: " << i << std::endl;
-			for (int l=0; l<rankLeaf[i].leafId.size(); l++)
-				std::cout << rankLeaf[i].leafId[l] << ", ";
-			std::cout << "\n";
-		}
-	}
 }
 
 
@@ -335,43 +327,6 @@ inline bool Octree::checkPositionInclusive(float extents[], T _x, T _y, T _z)
 
 	return false;
 }
-
-template <typename T> 
-inline bool Octree::checkOverlap(T extents1[], T extents2[])
-{
-	if (extents1[1] <= extents2[0] || extents1[0] >= extents2[1])
-		return false;
-
-	if (extents1[3] <= extents2[2] || extents1[2] >= extents2[3])
-		return false;
-
-	if (extents1[5] <= extents2[4] || extents1[4] >= extents2[5])
-		return false;
-
-	return true;
-}
-
-
-template <typename T>				    	
-inline void Octree::fillArray(int numPartitions, std::vector<int>partitionCount, T array[], size_t numElements)
-{
-	Timer clock;
-	clock.start();
-
-	size_t count = 0;
-	for (int i=0; i<numPartitions; i++)
-	{
-		for (int j=0; j<partitionCount[i]; j++)
-		{
-			array[count] = i;
-			count++;
-		}
-	}
-
-	clock.stop();
-	log << "Octree::fillArray took " << clock.getDuration() << " s " << std::endl;
-}
-
 
 
 
@@ -499,24 +454,24 @@ inline std::vector<uint64_t> Octree::findLeaf(T inputArrayX[], T inputArrayY[], 
 			tempCoords.push_back( inputArrayZ[i] );
 
 			// Move Cycled patciles at 256 border
-			if (rankExtents[1] == 256 && tempCoords[0] == 0)
-				tempCoords[0] = 256;
+			if (rankExtents[1] == maxSimExtents[0] && tempCoords[0] == 0)
+				tempCoords[0] = maxSimExtents[0];
 
-			if (rankExtents[3] == 256 && tempCoords[1] == 0)
-				tempCoords[1] = 256;
+			if (rankExtents[3] == maxSimExtents[1] && tempCoords[1] == 0)
+				tempCoords[1] = maxSimExtents[1];
 
-			if (rankExtents[5] == 256 && tempCoords[2] == 0)
-				tempCoords[2] = 256;
+			if (rankExtents[5] == maxSimExtents[2] && tempCoords[2] == 0)
+				tempCoords[2] = maxSimExtents[2];
 
 
 			// Move Cycled patciles at 0 border
-			if (rankExtents[0] == 0 && tempCoords[0] == 256)
+			if (rankExtents[0] == 0 && tempCoords[0] == maxSimExtents[0])
 				tempCoords[0] = 0;
 
-			if (rankExtents[2] == 0 && tempCoords[1] == 256)
+			if (rankExtents[2] == 0 && tempCoords[1] == maxSimExtents[1])
 				tempCoords[1] = 0;
 
-			if (rankExtents[4] == 0 && tempCoords[2] == 256)
+			if (rankExtents[4] == 0 && tempCoords[2] == maxSimExtents[2])
 				tempCoords[2] = 0;
 
 			std::cout << "my rank extents: " << rankExtents[0] << "-" << rankExtents[1] << ", "
@@ -748,29 +703,6 @@ inline void Octree::chopVolume(float rootExtents[6], int _numLevels, int partiti
 }
 
 
-
-inline void Octree::displayPartitions()
-{
-	int count = 0;
-	for (auto it=octreePartitions.begin(); it!=octreePartitions.end(); it++, count++)
-		std::cout << count << " : " << (*it).extents[0] << ", " << (*it).extents[1] <<  "   "
-				  					<< (*it).extents[2] << ", " << (*it).extents[3] <<  "   "
-				  					<< (*it).extents[4] << ", " << (*it).extents[5] <<  std::endl;
-}
-
-
-inline std::string Octree::getPartitions()
-{
-	std::string outputString = "";
-	int count = 0;
-	for (auto it=octreePartitions.begin(); it!=octreePartitions.end(); it++, count++)
-		outputString += std::to_string(count) + " : " + std::to_string((*it).extents[0]) + ", " + std::to_string((*it).extents[1]) + "  "
-				  									  + std::to_string((*it).extents[2]) + ", " + std::to_string((*it).extents[3]) + "  "
-				  									  + std::to_string((*it).extents[4]) + ", " + std::to_string((*it).extents[5]) + "\n";
-	return outputString;
-}
-
-
 inline void Octree::getLeafExtents( int leafId, float _extents[6])
 {
 	int count = 0;
@@ -800,6 +732,20 @@ inline int Octree::getLeafIndex(float pos[3])
 
 	return -1;
 }
+
+
+
+inline std::string Octree::getPartitions()
+{
+	std::stringstream ss;
+	int count = 0;
+	for (auto it=octreePartitions.begin(); it!=octreePartitions.end(); it++, count++)
+		ss << count << " : " << (*it).extents[0] << ", " << (*it).extents[1] <<  "   "
+				  			 << (*it).extents[2] << ", " << (*it).extents[3] <<  "   "
+				  			 << (*it).extents[4] << ", " << (*it).extents[5] <<  std::endl;
+	return ss.str();
+}
+
 
 
 inline void writeLog(std::string filename, std::string log)
