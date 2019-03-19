@@ -81,11 +81,11 @@ struct GIOOctree
     void deserialize(char *serializedString, bool bigEndian)
     {
         preShuffled 		= deserialize_uint64(&serializedString[0],  bigEndian);
-        decompositionLevel 	= deserialize_uint64(&serializedString[16], bigEndian);
-        numEntries 			= deserialize_uint64(&serializedString[24], bigEndian);
+        decompositionLevel 	= deserialize_uint64(&serializedString[8], bigEndian);
+        numEntries 			= deserialize_uint64(&serializedString[16], bigEndian);
 		
         rows.clear();
-        int serializedOffset = 32;	// adding togehter the previous header
+        int serializedOffset = 24;	// adding togehter the previous header
 
 		
         for (int i=0; i<numEntries; i++)

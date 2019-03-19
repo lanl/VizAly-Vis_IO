@@ -261,9 +261,6 @@ def main(argv):
 		octreeData.preShuffled = struct.unpack("q", fileContent[pos:pos+8])[0]
 		pos = pos + 8
 
-		octreeData.decompositionType = struct.unpack("q", fileContent[pos:pos+8])[0]
-		pos = pos + 8
-
 		octreeData.decompositionLevel = struct.unpack("q", fileContent[pos:pos+8])[0]
 		pos = pos + 8
 
