@@ -4,6 +4,7 @@
 #include <vector>
 #include <sstream>
 #include <stdlib.h>
+#include <iomanip>
 #include <time.h>
 
 #include <mpi.h>
@@ -26,7 +27,8 @@ int main(int argc, char* argv[])
 	MPI_Comm Comm = MPI_COMM_WORLD;
 
 
-	srand (time(NULL) + myRank);
+	//srand (time(NULL) + myRank);
+	srand (989 + myRank);
 	
 	{
 		// float simExtents[6]={0,256, 0,256, 0,256};
@@ -34,7 +36,7 @@ int main(int argc, char* argv[])
 		int periods[3] = { 0, 0, 0 };
 		int physOrigin[3] = {0, 0, 0};
 		int physScale[3] = {256, 256, 256};
-		size_t numParticles = 100;
+		size_t numParticles = 10000;
 
 
 		MPI_Cart_create(Comm, 3, dims, periods, 0, &Comm);
@@ -152,6 +154,28 @@ int main(int argc, char* argv[])
         newGIO.addVariable("phi", phi, GenericIO::VarHasExtraSpace);
 		newGIO.addVariable("id", id, GenericIO::VarHasExtraSpace);
 		newGIO.addVariable("mask", mask, GenericIO::VarHasExtraSpace);
+
+		std::stringstream ss;
+		for (int i=0; i<numParticles; i++)
+		{
+			ss 	<< std::setw(8) << xx[i] << "  " 
+				<< std::setw(8) << yy[i] << "  " 
+				<< std::setw(8) << zz[i]  << "  " 
+				<< std::setw(8) << vx[i] << "  " 
+				<< std::setw(8) << vy[i] << "  " 
+				<< std::setw(8) << vz[i] << "  " 
+				<< std::setw(8) << phi[i] << "  " 
+				<< std::setw(8) << id[i] << "  " 
+				<< std::setw(8) << mask[i] << std::endl;
+
+			//<< "  " << vx[i] << "  " << vy[i] << "  " << vz[i] << "  " << phi[i] < "  " << id[i] < "  " << mask[i] << std::endl;
+		}
+
+		std::ofstream myfile;
+  		myfile.open ("raw_output" + std::to_string(myRank) + ".csv");
+  		myfile << ss.str();
+  		myfile.close();
+  
 
 		newGIO.useOctree(2);	// num levels, shuffle true by default
         newGIO.write();

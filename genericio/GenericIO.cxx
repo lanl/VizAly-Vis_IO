@@ -573,6 +573,43 @@ void GenericIO::write()
     }
 
 
+    
+    //Check if we can build an octree
+    if (hasOctree)
+    {
+        bool foundx, foundy, foundz;
+        foundx = foundy = foundz = false;
+        
+        for (size_t i = 0; i < Vars.size(); ++i)
+            if (Vars[i].IsPhysCoordX)
+            {
+                foundx = true;
+                break;
+            }
+
+
+        for (size_t i = 0; i < Vars.size(); ++i)
+            if (Vars[i].IsPhysCoordY)
+            {
+                foundy = true;
+                break;
+            }
+
+
+        for (size_t i = 0; i < Vars.size(); ++i)
+            if (Vars[i].IsPhysCoordZ)
+            {
+                foundz = true;
+                break;
+            }
+
+
+        // If the data has no position data, we can't build an octree
+        hasOctree = hasOctree && foundx;
+        hasOctree = hasOctree && foundy;
+        hasOctree = hasOctree && foundz;
+    }
+
     //
     // Octree
     if (hasOctree)
@@ -671,19 +708,31 @@ void GenericIO::write()
         //
         // Find the partition for each particle
 
-        // Pointer to data
+        // First instance of position
         float *_xx, *_yy, *_zz;
         for (size_t i = 0; i < Vars.size(); ++i)
-        {
             if (Vars[i].IsPhysCoordX)
+            {
                 _xx = (float*)Vars[i].Data;
+                break;
+            }
 
+
+        for (size_t i = 0; i < Vars.size(); ++i)
             if (Vars[i].IsPhysCoordY)
+            {
                 _yy = (float*)Vars[i].Data;
+                break;
+            }
 
+
+        for (size_t i = 0; i < Vars.size(); ++i)
             if (Vars[i].IsPhysCoordZ)
+            {
                 _zz = (float*)Vars[i].Data;
-        }
+                break;
+            }
+    
 
         // Find the partition
         std::vector<int> leafPosition;                    // which leaf is the particle in
@@ -692,10 +741,10 @@ void GenericIO::write()
 
 
       #ifdef DEBUG_ON
-        log << "\n# particles for my leaves: \n";
-        for (int i=0; i<numleavesForMyRank; i++)
-            log << myRank << " ~ leaf: " << i << ", leaf count: " << numParticlesForMyLeaf[i] << std::endl;
-
+        log << "\nnumleavesForMyRank: " << numleavesForMyRank << std::endl;
+        log << "\nnumParticles: " << numParticles << "\n";
+        log << "\noctreeLeafshuffle: " << octreeLeafshuffle << "\n";
+        
         log << "|After findLeaf: " << ongoingMem.getMemoryInUseInMB() << " MB " << std::endl;
       #endif
       
@@ -725,13 +774,13 @@ void GenericIO::write()
                         _temp = (int16_t*)Vars[i].Data;
                         gioOctree.reorganizeArray(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
-                    else if (Vars[i].Size == 3)
+                    else if (Vars[i].Size == 4)
                     {
                         int32_t *_temp;
                         _temp = (int32_t*)Vars[i].Data;
                         gioOctree.reorganizeArray(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
-                    else if (Vars[i].Size == 4)
+                    else if (Vars[i].Size == 8)
                     {
                         int64_t *_temp;
                         _temp = (int64_t*)Vars[i].Data;
@@ -752,24 +801,30 @@ void GenericIO::write()
                         _temp = (uint16_t*)Vars[i].Data;
                         gioOctree.reorganizeArray(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
-                    else if (Vars[i].Size == 3)
+                    else if (Vars[i].Size == 4)
                     {
                         uint32_t *_temp;
                         _temp = (uint32_t*)Vars[i].Data;
                         gioOctree.reorganizeArray(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
-                    else if (Vars[i].Size == 4)
+                    else if (Vars[i].Size == 8)
                     {
                         uint64_t *_temp;
                         _temp = (uint64_t*)Vars[i].Data;
                         gioOctree.reorganizeArray(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
+                    
                 }
+
+          #ifdef DEBUG_ON
+            log << gioOctree.getLog();
+          #endif
         }
 
         leafPosition.clear();
         leafPosition.shrink_to_fit();
 
+      
 
         //
         // Gather num leaves each rank has
@@ -881,7 +936,7 @@ void GenericIO::write()
                     for (int i=0; i<6; i++)
                         _leafExtents[i] = (uint64_t) round( allOctreeLeavesExtents[_leafCounter*6 + i] );
 
-                    log << "\n addOctreeRow: " << _leafCounter  << ", , " << numParticlesPerLeaf[_leafCounter] << ", " << offsetInRank << "," << r << std::endl;
+                    log << "addOctreeRow: " << _leafCounter  << ", , " << numParticlesPerLeaf[_leafCounter] << ", " << offsetInRank << "," << r << std::endl;
                     addOctreeRow(_leafCounter, _leafExtents, numParticlesPerLeaf[_leafCounter], offsetInRank, r);
 
                     offsetInRank += numParticlesPerLeaf[_leafCounter];

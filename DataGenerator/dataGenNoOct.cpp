@@ -15,6 +15,7 @@ using namespace gio;
 int main(int argc, char* argv[])
 {
 	std::string filename(argv[1]);
+	//std::stringstream log;
 
 	//
 	// MPI Init
@@ -25,22 +26,24 @@ int main(int argc, char* argv[])
 	MPI_Comm Comm = MPI_COMM_WORLD;
 
 
-	srand (time(NULL) + myRank);
+	//srand (time(NULL) + myRank);
+	srand (989 + myRank);
 	
 	{
-		float simExtents[6]={0,256, 0,256, 0,256};
-		
+		// float simExtents[6]={0,256, 0,256, 0,256};
+		int dims[3]= {2, 2, 2};
+		int periods[3] = { 0, 0, 0 };
 		int physOrigin[3] = {0, 0, 0};
 		int physScale[3] = {256, 256, 256};
 		size_t numParticles = 100;
 
-		//int dims[3]= {2, 2, 2};		// 8
-		//int dims[3]= {4, 4, 2};		// 32
-		//int periods[3] = { 0, 0, 0 };
-		//MPI_Cart_create(Comm, 3, dims, periods, 0, &Comm);
+
+		MPI_Cart_create(Comm, 3, dims, periods, 0, &Comm);
 		
 		unsigned method = GenericIO::FileIOMPI;
+		//unsigned method = GenericIO::FileIOPOSIX;
 
+		filename.append("NoOct");
 		GenericIO newGIO(Comm, filename);//, method);
 		newGIO.setNumElems(numParticles);
 
@@ -73,38 +76,43 @@ int main(int argc, char* argv[])
 		int _8RankOffset = 128;
 		if (myRank == 0)
 		{
-			offsetX = 0;	offsetY = 0;	offsetZ = 0;
+			offsetX = 0;				offsetY = 0;			offsetZ = 0;
 		}
 		else if (myRank == 1)
 		{
-			offsetX = 0;	offsetY = 0;	offsetZ = _8RankOffset;
+			offsetX = 0;				offsetY = 0;			offsetZ = _8RankOffset;
 		}
 		else if (myRank == 2)
 		{
-			offsetX = 0;	offsetY = _8RankOffset;	offsetZ = 0;
+			offsetX = 0;				offsetY = _8RankOffset;	offsetZ = 0;
 		}
 		else if (myRank == 3)
 		{
-			offsetX = 0;	offsetY = _8RankOffset;	offsetZ = _8RankOffset;
+			offsetX = 0;				offsetY = _8RankOffset;	offsetZ = _8RankOffset;
 		}
 		else if (myRank == 4)
 		{
-			offsetX = _8RankOffset;	offsetY = 0;	offsetZ = 0;
+			offsetX = _8RankOffset;		offsetY = 0;			offsetZ = 0;
 		}
 		else if (myRank == 5)
 		{
-			offsetX = _8RankOffset;	offsetY = 0;	offsetZ = _8RankOffset;
+			offsetX = _8RankOffset;		offsetY = 0;			offsetZ = _8RankOffset;
 		}
 		else if (myRank == 6)
 		{
-			offsetX = _8RankOffset;	offsetY = _8RankOffset;	offsetZ = 0;
+			offsetX = _8RankOffset;		offsetY = _8RankOffset;	offsetZ = 0;
 		}
 		else if (myRank == 7)
 		{
-			offsetX = _8RankOffset;	offsetY = _8RankOffset;	offsetZ = _8RankOffset;
+			offsetX = _8RankOffset;		offsetY = _8RankOffset;	offsetZ = _8RankOffset;
 		}
 
+		MPI_Barrier(MPI_COMM_WORLD);
+		//log << offsetX << ", " << offsetY << ", " << offsetZ << std::endl;
 
+
+		double maxX, maxY, maxZ;
+		maxX = maxY = maxZ = 0;
 		double randomNum;
 		for (uint64_t i=0; i<numParticles; i++)
 		{
@@ -123,6 +131,13 @@ int main(int argc, char* argv[])
 			phi[i] = (double) (rand() % 1000 / 100.0);
 			mask[i] = (uint16_t)myRank;
 			id[i] = myRank*numParticles + i;
+
+			if (xx[i] > maxX)
+				maxX = xx[i];
+			if (yy[i] > maxY)
+				maxY = yy[i];
+			if (zz[i] > maxZ)
+				maxZ = zz[i];
 		}
 
 		unsigned CoordFlagsX = GenericIO::VarIsPhysCoordX;
@@ -139,7 +154,10 @@ int main(int argc, char* argv[])
 		newGIO.addVariable("id", id, GenericIO::VarHasExtraSpace);
 		newGIO.addVariable("mask", mask, GenericIO::VarHasExtraSpace);
 
+		//newGIO.useOctree(2);	// num levels, shuffle true by default
         newGIO.write();
+
+		MPI_Barrier(MPI_COMM_WORLD);
 	}
 
 	
@@ -153,5 +171,5 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
-// mpirun -np 8 ./dataGenNoOct outputFile8
-// mpirun -np 32 ./dataGenNoOct outputFile32
+// ./compile.sh
+// mpirun -np 8 ./dataGen outputFile

@@ -74,7 +74,8 @@ class Printer : public PrinterBase
     {
         for (size_t j = 0; j < NumElements; ++j)
         {
-            os << scientific << setprecision(numeric_limits<T>::digits10) << Data[i * NumElements + j];
+            //os << scientific << setprecision(numeric_limits<T>::digits10) << Data[i * NumElements + j];
+            os << Data[i * NumElements + j];
 
             if (j != NumElements - 1)
                 os << "\t";
@@ -402,7 +403,7 @@ int main(int argc, char *argv[])
                     
                         GIO.readDataSection(octreeRankOffset, octreeRankNumRows, i, false); 
                 
-                        cout << "# Reading " << octreeRankNumRows << " out of " << octreeData.rows[l].numParticles << 
+                        cout << "\n# Reading " << octreeRankNumRows << " out of " << octreeData.rows[l].numParticles << 
                             " rows for octree leaf " << l << " in rank " << i << " with extents " <<
                             octreeData.rows[l].minX << "-" << octreeData.rows[l].maxX << ", " <<
                             octreeData.rows[l].minY << "-" << octreeData.rows[l].maxY << ", " <<
