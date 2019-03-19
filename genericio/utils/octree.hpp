@@ -447,9 +447,6 @@ inline void Octree::reorganizeArray(int numPartitions, std::vector<uint64_t>part
 	memCheck.stop();
 	clock.stop();
 
-	memCheck, partitionOffsetMem, currentPartitionCountMem, tempVectorMem;
-
-
 	log << "Octree::reorganizeArray overall mem usage " << memCheck.getMemorySizeInMB() << " MB " << std::endl;
 	log << "Octree::reorganizeArray partitionOffset mem usage " << partitionOffsetMem.getMemorySizeInMB() << " MB " << std::endl;
 	log << "Octree::reorganizeArray currentPartitionCount mem usage " << currentPartitionCountMem.getMemorySizeInMB() << " MB " << std::endl;
@@ -459,8 +456,8 @@ inline void Octree::reorganizeArray(int numPartitions, std::vector<uint64_t>part
 
 
 template <typename T> 
-inline std::vector<uint64_t> Octree::findLeaf(T inputArrayX[], T inputArrayY[], T inputArrayZ[], 
-											size_t numElements, int numLeaves, float leavesExtents[], std::vector<int> &leafPosition)
+inline std::vector<uint64_t> Octree::findLeaf(T inputArrayX[], T inputArrayY[], T inputArrayZ[], size_t numElements,
+											 int numLeaves, float leavesExtents[], std::vector<int> &leafPosition)
 {
 	Timer clock;
 	clock.start();
@@ -468,12 +465,9 @@ inline std::vector<uint64_t> Octree::findLeaf(T inputArrayX[], T inputArrayY[], 
 	Memory leafCountMem;
 	leafCountMem.start();
 
+	
+	// Initialize count of leaf to 0
 	std::vector<uint64_t>leafCount;		// # particles in leaf
-
-	//if (myRank == 0)
-	//	std::cout <<  "numLeaves: " << numLeaves << std::endl;
-
-	// Initialize count of leaf
 	for (int l=0; l<numLeaves; l++)
 		leafCount.push_back(0);
 
