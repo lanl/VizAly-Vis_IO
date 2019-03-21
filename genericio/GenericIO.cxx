@@ -603,11 +603,16 @@ void GenericIO::write()
                 break;
             }
 
-
+        
         // If the data has no position data, we can't build an octree
         hasOctree = hasOctree && foundx;
         hasOctree = hasOctree && foundy;
         hasOctree = hasOctree && foundz;
+
+
+        // Only makes sense to build octree if we are going to partition the ranks
+        if (numOctreeLevels < 2)
+            hasOctree = false;
     }
 
     //
@@ -653,11 +658,13 @@ void GenericIO::write()
 
         //
         // Create octree structure
-        Octree gioOctree(myRank);
+        Octree gioOctree(myRank, myRankExtents);
+        gioOctree.init(numOctreeLevels, simExtents, Dims[0], Dims[1], Dims[2]); // num octree levels, sim extent, sim decompisition
 
+
+        /*
         //
         // Create Octree
-        gioOctree.init(numOctreeLevels, simExtents, Dims[0], Dims[1], Dims[2]); // num octree levels, sim extent, sim decompisition
         gioOctree.buildOctree();
 
         //
@@ -703,6 +710,13 @@ void GenericIO::write()
 
             _leafCounter++;
         }
+        */
+
+
+        // Get the extents of each of my leaves
+        std::vector<float> leavesExtentsVec = gioOctree.getMyLeavesExtent(myRankExtents, numOctreeLevels);
+        int numleavesForMyRank = leavesExtentsVec.size()/6;
+        float *leavesExtents = &leavesExtentsVec[0];
 
 
         //
@@ -738,6 +752,7 @@ void GenericIO::write()
         std::vector<int> leafPosition;                    // which leaf is the particle in
         std::vector<uint64_t> numParticlesForMyLeaf;      // #particles per leaf
         numParticlesForMyLeaf = gioOctree.findLeaf(_xx,_yy,_zz, numParticles, numleavesForMyRank, leavesExtents, leafPosition);
+
 
 
       #ifdef DEBUG_ON
@@ -828,7 +843,7 @@ void GenericIO::write()
 
         //
         // Gather num leaves each rank has
-        int *numLeavesPerRank = numLeavesPerRank = new int[numRanks];
+        int *numLeavesPerRank = new int[numRanks];
         MPI_Allgather( &numleavesForMyRank, 1, MPI_INT,  numLeavesPerRank, 1, MPI_INT,  MPI_COMM_WORLD);
     
 
@@ -920,11 +935,11 @@ void GenericIO::write()
             // Create Header info
             log << "\naddOctreeHeader \n";
             
-            addOctreeHeader( (uint64_t)((int)octreeLeafshuffle), (uint64_t)numOctreeLevels, (uint64_t)gioOctree.getNumNodes() );
+            addOctreeHeader( (uint64_t)((int)octreeLeafshuffle), (uint64_t)numOctreeLevels, (uint64_t)totalLeavesForSim );
 
             //
             // Add Octree ranks
-            _leafCounter = 0;
+            int _leafCounter = 0;
             for (int r=0; r<numRanks; r++)
             {
                 log << "\n numLeavesPerRank[r]: " << numLeavesPerRank[r] << std::endl;
@@ -936,7 +951,12 @@ void GenericIO::write()
                     for (int i=0; i<6; i++)
                         _leafExtents[i] = (uint64_t) round( allOctreeLeavesExtents[_leafCounter*6 + i] );
 
-                    log << "addOctreeRow: " << _leafCounter  << ", , " << numParticlesPerLeaf[_leafCounter] << ", " << offsetInRank << "," << r << std::endl;
+
+                    log  << _leafCounter  << " | " << _leafExtents[0] << " - " << _leafExtents[1] << ", " 
+                                                << _leafExtents[2] << " - " << _leafExtents[3] << ", " 
+                                                << _leafExtents[4] << " - " << _leafExtents[5] << ", " 
+                                        << numParticlesPerLeaf[_leafCounter] << ", " << offsetInRank << ", " << r << std::endl;
+                                            
                     addOctreeRow(_leafCounter, _leafExtents, numParticlesPerLeaf[_leafCounter], offsetInRank, r);
 
                     offsetInRank += numParticlesPerLeaf[_leafCounter];
@@ -962,15 +982,11 @@ void GenericIO::write()
 
 
 
-
       #ifdef DEBUG_ON
         log << "|After, mem leaked: " << ongoingMem.getMemorySizeInMB() << " MB " << std::endl;
         log << "Octree processing took:: " << createOctreeClock.getDuration() << " s " << std::endl;
         writeLog("log_" + std::to_string(myRank) ,log.str());
       #endif
-
-        
-
     }   // end octree
     
 
@@ -1051,7 +1067,6 @@ void GenericIO::write()
         uint64_t octreeStart = 0;
         if (hasOctree)
         {
-            //std::cout << "Serializing octree" << std::endl;
             serializedOctree = octreeData.serialize(IsBigEndian);
             octreeSize  = serializedOctree.size();
         }

@@ -18,9 +18,15 @@ int main(int argc, char *argv[])
 
     if (argc < 2)
     {
-        cerr << "Usage: " << argv[0] << " <mpiioOld> <mpiioNew>" << endl;
+        cerr << "Usage: " << argv[0] << " <mpiioOld> <mpiioNew> --with-octree-levels x" << endl;
         exit(-1);
     }
+
+    int numOctreeLevels = 0;
+    if (argc == 5)
+        if (string(argv[3]) == "--with-octree-levels")
+            numOctreeLevels = atoi( argv[4] );
+       
 
     GenericIO::setNaturalDefaultPartition();
     //GenericIO::setDefaultShouldCompress(true);
@@ -98,6 +104,9 @@ int main(int argc, char *argv[])
 
             NewGIO.addVariable(VI[i], &Vars[i][0], GenericIO::VarHasExtraSpace);
         }
+
+        if (numOctreeLevels != 0)
+            NewGIO.useOctree(numOctreeLevels);
 
         NewGIO.write();
     }

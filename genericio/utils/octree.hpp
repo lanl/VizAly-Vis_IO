@@ -244,7 +244,7 @@ class Octree
 
 	std::vector<Leaves> rankLeaf;	// Specify which leaves are in each rank
 
-	float rankExtents[6];	// extents of the current rank ???
+	float rankExtents[6];	// extents of the current rank
 
 	void chopVolume(float rootExtents[6], int _numLevels, int partitions[3], std::list<PartitionExtents> & partitionList);
 
@@ -255,8 +255,11 @@ class Octree
   	int myRank;
 
 	Octree(){};
-	Octree(int _myRank):myRank(_myRank){};
+	Octree(int _myRank, float _rankExtents[6]):myRank(_myRank){ for (int i=0; i<6; i++) rankExtents[i]=_rankExtents[i]; };
 	~Octree(){};
+
+	std::vector<float> getMyLeavesExtent(float myRankExtents[6], int numLevels);
+	std::vector<PartitionExtents> ComputeMyLeaves(float myRankExtents[6], int _numLevels);
 	
 	void init(int _numLevels, float _extents[6], int xDiv, int yDiv, int zDiv);
 	void buildOctree();
@@ -274,6 +277,7 @@ class Octree
 	std::string getPartitions();
 	std::string getLog();
 	
+
 };
 
 
@@ -477,11 +481,11 @@ inline std::vector<uint64_t> Octree::findLeaf(T inputArrayX[], T inputArrayY[], 
 			if (rankExtents[4] == 0 && tempCoords[2] == maxSimExtents[2])
 				tempCoords[2] = 0;
 
-			std::cout << "my rank extents: " << rankExtents[0] << "-" << rankExtents[1] << ", "
-									   		 << rankExtents[2] << "-" << rankExtents[3] << ", "
-									   		 << rankExtents[4] << "-" << rankExtents[5] 
-					  << " Old Pos: " << inputArrayX[i] << ", " << inputArrayY[i] << ", " << inputArrayZ[i] 
-					  << " New Pos: " << tempCoords[0]  << ", " << tempCoords[1]  << ", " << tempCoords[2]<< std::endl; 
+			std::cout << "\n" << myRank << " ~ my rank extents: " << rankExtents[0] << " - " << rankExtents[1] << ", "
+									   		 					  << rankExtents[2] << " - " << rankExtents[3] << ", "
+									   		 					  << rankExtents[4] << " - " << rankExtents[5] 
+					  << "\n || Old Pos: " << inputArrayX[i] << ", " << inputArrayY[i] << ", " << inputArrayZ[i] 
+					  << "\n || New Pos: " << tempCoords[0]  << ", " << tempCoords[1]  << ", " << tempCoords[2]<< std::endl; 
 			
 			for (l=0; l<numLeaves; l++)
 				if ( checkPositionInclusive(&leavesExtents[l*6], tempCoords[0], tempCoords[1], tempCoords[2]) )
@@ -491,10 +495,10 @@ inline std::vector<uint64_t> Octree::findLeaf(T inputArrayX[], T inputArrayY[], 
 
 		if (l >= numLeaves)
 		{
-			std::cout << "\n" << myRank << " ~ " << inputArrayX[i] << ", " << inputArrayY[i] << ", " << inputArrayZ[i] << " is in NO partition!!! " << std::endl;
-			std::cout << "my rank extents: " << rankExtents[0] << "-" << rankExtents[1] << ", "
-									   		 << rankExtents[2] << "-" << rankExtents[3] << ", "
-									   		 << rankExtents[4] << "-" << rankExtents[5] << std::endl;
+			std::cout << "\n" << myRank << " ~ " << inputArrayX[i] << ", " << inputArrayY[i] << ", " << inputArrayZ[i] << " is in NO partition!!! "
+					  << "\n my rank extents: " << rankExtents[0] << " - " << rankExtents[1] << ", "
+									   		 << rankExtents[2] << " - " << rankExtents[3] << ", "
+									   		 << rankExtents[4] << " - " << rankExtents[5] << std::endl;
 			// Put it in the last partition
 			l=numLeaves-1;
 		}
@@ -703,6 +707,120 @@ inline void Octree::chopVolume(float rootExtents[6], int _numLevels, int partiti
 
 	clock.stop();
 	log << "Octree::chopVolume took " << clock.getDuration() << " s " << std::endl;
+}
+
+
+inline std::vector<float> Octree::getMyLeavesExtent(float myRankExtents[6], int numLevels)
+{
+	std::vector<PartitionExtents> myLeaves = ComputeMyLeaves(myRankExtents, numLevels);
+	std::vector<float> leavesExtent;
+
+	for (int l=0; l<myLeaves.size(); l++)
+		for (int i=0; i<6; i++)
+			leavesExtent.push_back(myLeaves[l].extents[i]);
+
+	return leavesExtent;
+}
+
+
+inline std::vector<PartitionExtents> Octree::ComputeMyLeaves(float myRankExtents[6], int _numLevels)
+{
+	Timer clock;
+	clock.start();
+
+	// Create partitions
+	PartitionExtents firstHalf, secondHalf;
+	PartitionExtents currentRoot(myRankExtents);
+
+
+	// Initialize rank with current partition
+	std::list<PartitionExtents> currentPatitionList;
+	currentPatitionList.push_back(currentRoot);
+
+
+	//  Start
+	int numDesiredBlocks = (int) pow(8.0f, _numLevels-1);	// Compute number of splits needed based on levels
+	int splittingAxis = 0;									// start with x-axis
+	int numBlocks = 1;
+
+	while (numBlocks < numDesiredBlocks)
+	{
+		int numCurrentBlocks = currentPatitionList.size();
+
+		for (int i=0; i<numCurrentBlocks; i++)
+		{
+			PartitionExtents temp = currentPatitionList.front();
+			currentPatitionList.pop_front();
+
+			if (splittingAxis == 0)			// x-axis
+			{
+				firstHalf.extents[0] =  temp.extents[0];
+				firstHalf.extents[1] = (temp.extents[0] + temp.extents[1])/2;
+
+				secondHalf.extents[0] = (temp.extents[0] + temp.extents[1])/2;
+				secondHalf.extents[1] =  temp.extents[1];
+
+
+				firstHalf.extents[2] = secondHalf.extents[2] = temp.extents[2];
+				firstHalf.extents[3] = secondHalf.extents[3] = temp.extents[3];
+
+				firstHalf.extents[4] = secondHalf.extents[4] = temp.extents[4];
+				firstHalf.extents[5] = secondHalf.extents[5] = temp.extents[5];
+			}
+			else
+				if (splittingAxis == 1)		// y-axis
+				{
+					firstHalf.extents[0] = secondHalf.extents[0] = temp.extents[0];
+					firstHalf.extents[1] = secondHalf.extents[1] = temp.extents[1];
+
+
+					firstHalf.extents[2] =  temp.extents[2];
+					firstHalf.extents[3] = (temp.extents[2] + temp.extents[3])/2;
+
+					secondHalf.extents[2] = (temp.extents[2] + temp.extents[3])/2;
+					secondHalf.extents[3] =  temp.extents[3];
+
+
+					firstHalf.extents[4] = secondHalf.extents[4] = temp.extents[4];
+					firstHalf.extents[5] = secondHalf.extents[5] = temp.extents[5];
+				}
+				else
+					if (splittingAxis == 2)	// z-axis
+					{
+						firstHalf.extents[0] = secondHalf.extents[0] = temp.extents[0];
+						firstHalf.extents[1] = secondHalf.extents[1] = temp.extents[1];
+
+						firstHalf.extents[2] = secondHalf.extents[2] = temp.extents[2];
+						firstHalf.extents[3] = secondHalf.extents[3] = temp.extents[3];
+
+
+						firstHalf.extents[4] =  temp.extents[4];
+						firstHalf.extents[5] = (temp.extents[4] + temp.extents[5])/2;
+
+						secondHalf.extents[4] = (temp.extents[4] + temp.extents[5])/2;
+						secondHalf.extents[5] =  temp.extents[5];
+					}
+
+			currentPatitionList.push_back(firstHalf);
+			currentPatitionList.push_back(secondHalf);
+		}
+
+		// cycle axis
+		splittingAxis++;
+		if (splittingAxis == 3)
+			splittingAxis = 0;
+
+		numBlocks = currentPatitionList.size();
+	}
+
+	// Put list into vector
+	std::vector<PartitionExtents> v{ std::begin(currentPatitionList), std::end(currentPatitionList) };
+
+
+	clock.stop();
+	log << "Octree::chopVolume took " << clock.getDuration() << " s " << std::endl;
+
+	return v;
 }
 
 
