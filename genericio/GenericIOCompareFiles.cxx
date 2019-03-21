@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
 		std::cout << "\nreading file  " << argv[2] << std::endl;
 
 		gio::GenericIO *gioReader;
-		gioReader = new gio::GenericIO(argv[1], gio::GenericIO::FileIOPOSIX);
+		gioReader = new gio::GenericIO(argv[2], gio::GenericIO::FileIOPOSIX);
 
 		gioReader->openAndReadHeader(gio::GenericIO::MismatchAllowed);
 		int numDataRanks = gioReader->readNRanks();
@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
 		for (int r=0; r<numDataRanks; ++r)
 	    {
 	    	std::cout << "processing rank " << r << std::endl;
-	    	
+
 	        size_t NElem = gioReader->readNumElems(r);
 
 
