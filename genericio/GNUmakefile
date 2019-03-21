@@ -136,6 +136,9 @@ $(FEDIR)/GenericIOPrint: $(FEDIR)/GenericIOPrint.o $(FEDIR)/GenericIO.o $(FE_BLO
 $(FEDIR)/GenericIOVerify: $(FEDIR)/GenericIOVerify.o $(FEDIR)/GenericIO.o $(FE_BLOSC_O)
 	$(CXX) $(FE_CFLAGS) -o $@ $^ 
 
+$(FEDIR)/GenericIOCompareFiles: $(FEDIR)/GenericIOCompareFiles.o $(FEDIR)/GenericIO.o $(FE_BLOSC_O)
+	$(CXX) $(FE_CFLAGS) -o $@ $^ 
+
 $(FEDIR)/GenericIOVerifyOctree: $(FEDIR)/GenericIOVerifyOctree.o $(FEDIR)/GenericIO.o $(FE_BLOSC_O)
 	$(CXX) $(FE_CFLAGS) -o $@ $^ 
 
@@ -194,7 +197,7 @@ $(MPIDIR)/GenericIOBenchmarkWrite: $(MPIDIR)/GenericIOBenchmarkWrite.o $(MPIDIR)
 $(MPIDIR)/GenericIORewrite: $(MPIDIR)/GenericIORewrite.o $(MPIDIR)/GenericIO.o $(MPI_BLOSC_O)
 	$(MPICXX) $(MPI_CFLAGS) -o $@ $^ 
 
-frontend-progs: $(FEDIR)/GenericIOPrint $(FEDIR)/GenericIOVerify $(FEDIR)/GenericIOVerifyOctree $(FEDIR)/GenericIOFileInfo $(FEDIR)/libpygio.so
+frontend-progs: $(FEDIR)/GenericIOPrint $(FEDIR)/GenericIOVerify $(FEDIR)/GenericIOVerifyOctree $(FEDIR)/GenericIOCompareFiles $(FEDIR)/GenericIOFileInfo $(FEDIR)/libpygio.so
 fe-progs: frontend-progs
 
 mpi-progs: $(MPIDIR)/GenericIOPrint $(MPIDIR)/GenericIOVerify $(MPIDIR)/GenericIOBenchmarkRead $(MPIDIR)/GenericIOBenchmarkWrite $(MPIDIR)/GenericIORewrite
