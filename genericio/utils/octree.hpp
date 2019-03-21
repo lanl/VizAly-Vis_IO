@@ -462,7 +462,7 @@ inline std::vector<uint64_t> Octree::findLeaf(T inputArrayX[], T inputArrayY[], 
 			if (rankExtents[4] == 0 && tempCoords[2] == maxSimExtents[2])
 				tempCoords[2] = 0;
 
-			std::cout << "\n" << myRank << " ~ my rank extents: " << rankExtents[0] << " - " << rankExtents[1] << ", "
+			log << "\n" << myRank << " ~ my rank extents: " << rankExtents[0] << " - " << rankExtents[1] << ", "
 									   		 					  << rankExtents[2] << " - " << rankExtents[3] << ", "
 									   		 					  << rankExtents[4] << " - " << rankExtents[5] 
 					  << "\n || Old Pos: " << inputArrayX[i] << ", " << inputArrayY[i] << ", " << inputArrayZ[i] 
@@ -476,7 +476,7 @@ inline std::vector<uint64_t> Octree::findLeaf(T inputArrayX[], T inputArrayY[], 
 
 		if (l >= numLeaves)
 		{
-			std::cout << "\n" << myRank << " ~ " << inputArrayX[i] << ", " << inputArrayY[i] << ", " << inputArrayZ[i] << " is in NO partition!!! "
+			log << "\n" << myRank << " ~ " << inputArrayX[i] << ", " << inputArrayY[i] << ", " << inputArrayZ[i] << " is in NO partition!!! "
 					  << "\n my rank extents: " << rankExtents[0] << " - " << rankExtents[1] << ", "
 									   		 << rankExtents[2] << " - " << rankExtents[3] << ", "
 									   		 << rankExtents[4] << " - " << rankExtents[5] << std::endl;

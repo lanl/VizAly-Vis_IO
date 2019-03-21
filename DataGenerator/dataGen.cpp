@@ -36,7 +36,11 @@ int main(int argc, char* argv[])
 		int periods[3] = { 0, 0, 0 };
 		int physOrigin[3] = {0, 0, 0};
 		int physScale[3] = {256, 256, 256};
-		size_t numParticles = 10000;
+		
+		size_t numParticles = 1000;
+		if (argc == 3)
+			numParticles = atoi(argv[2]);
+		std::cout << "num particles: " << numParticles << std::endl;
 
 
 		MPI_Cart_create(Comm, 3, dims, periods, 0, &Comm);
@@ -195,4 +199,4 @@ int main(int argc, char* argv[])
 }
 
 // ./compile.sh
-// mpirun -np 8 ./dataGen outputFile
+// mpirun -np 8 ./dataGen outputFile 10000
