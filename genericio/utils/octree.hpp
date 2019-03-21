@@ -236,48 +236,37 @@ struct Leaves
 
 class Octree
 {
+	int myRank;
+
 	float extents[6];		// Extents of the HACC sim
 	int maxSimExtents[3];	// border of the sim, usually 256
 
 	int filePartition[3];	// Decomposition on the sim
 	int numLevels;			// number of octree levels
 
-	std::vector<Leaves> rankLeaf;	// Specify which leaves are in each rank
-
 	float rankExtents[6];	// extents of the current rank
-
-	void chopVolume(float rootExtents[6], int _numLevels, int partitions[3], std::list<PartitionExtents> & partitionList);
 
 	std::stringstream log;
 	
   public:
-  	std::vector<PartitionExtents> octreePartitions;		// stores only extents of all leaves
-  	int myRank;
+  	
 
 	Octree(){};
 	Octree(int _myRank, float _rankExtents[6]):myRank(_myRank){ for (int i=0; i<6; i++) rankExtents[i]=_rankExtents[i]; };
 	~Octree(){};
 
+	void init(int _numLevels, float _extents[6], int xDiv, int yDiv, int zDiv);
+
 	std::vector<float> getMyLeavesExtent(float myRankExtents[6], int numLevels);
 	std::vector<PartitionExtents> ComputeMyLeaves(float myRankExtents[6], int _numLevels);
 	
-	void init(int _numLevels, float _extents[6], int xDiv, int yDiv, int zDiv);
-	void buildOctree();
 	template <typename T> void reorganizeArray(int numPartitions, std::vector<uint64_t>partitionCount, std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle);
 	template <typename T> std::vector<uint64_t> findLeaf(T inputArrayX[], T inputArrayY[], T inputArrayZ[], size_t numElements, int numPartitions, float partitionExtents[], std::vector<int> &partitionPosition);
-
 
 	template <typename T> bool checkPosition(float extents[], T _x, T _y, T _z);
 	template <typename T> bool checkPositionInclusive(float extents[], T _x, T _y, T _z);
 
-	int getNumNodes(){ return octreePartitions.size(); }
-	int getLeafIndex(float pos[3]);
-	void getLeafExtents(int leafId, float extents[6]);
-	std::vector<int> getLeaves(int rank){ return rankLeaf[rank].leafId; }
-	std::string getPartitions();
 	std::string getLog();
-	
-
 };
 
 
@@ -299,14 +288,6 @@ inline void Octree::init(int _numLevels, float _extents[6], int xDiv, int yDiv, 
 }
 
 
-inline void Octree::buildOctree()
-{
-	std::list<PartitionExtents> _octreePartitions;
-	chopVolume(extents, numLevels, filePartition, _octreePartitions);
-
-	octreePartitions.resize( _octreePartitions.size() );
-	std::copy(_octreePartitions.begin(), _octreePartitions.end(), octreePartitions.begin());
-}
 
 
 
@@ -409,11 +390,11 @@ inline void Octree::reorganizeArray(int numPartitions, std::vector<uint64_t>part
 	memCheck.stop();
 	clock.stop();
 
-	log << "\nOctree::reorganizeArray overall mem usage " << memCheck.getMemorySizeInMB() << " MB " << std::endl;
-	log << "Octree::reorganizeArray partitionOffset mem usage " << partitionOffsetMem.getMemorySizeInMB() << " MB " << std::endl;
-	log << "Octree::reorganizeArray currentPartitionCount mem usage " << currentPartitionCountMem.getMemorySizeInMB() << " MB " << std::endl;
-	log << "Octree::reorganizeArray tempVector mem usage " << tempVectorMem.getMemorySizeInMB() << " MB " << std::endl;
-	log << "Octree::reorganizeArray took " << clock.getDuration() << " s " << std::endl << std::endl;
+	// log << "\nOctree::reorganizeArray overall mem usage " << memCheck.getMemorySizeInMB() << " MB " << std::endl;
+	// log << "Octree::reorganizeArray partitionOffset mem usage " << partitionOffsetMem.getMemorySizeInMB() << " MB " << std::endl;
+	// log << "Octree::reorganizeArray currentPartitionCount mem usage " << currentPartitionCountMem.getMemorySizeInMB() << " MB " << std::endl;
+	// log << "Octree::reorganizeArray tempVector mem usage " << tempVectorMem.getMemorySizeInMB() << " MB " << std::endl;
+	// log << "Octree::reorganizeArray took " << clock.getDuration() << " s " << std::endl << std::endl;
 }
 
 
@@ -517,197 +498,6 @@ inline std::vector<uint64_t> Octree::findLeaf(T inputArrayX[], T inputArrayY[], 
 }
 
 
-inline void Octree::chopVolume(float rootExtents[6], int _numLevels, int partitions[3], std::list<PartitionExtents> & partitionList)
-{
-	Timer clock;
-	clock.start();
-
-	//
-	// Set the first partition as root 
-	int numOctreePartitions = 1;
-	PartitionExtents temp(rootExtents);				
-	partitionList.push_back(temp);
-
-	// Set leaves
-	rankLeaf.resize(1);
-	rankLeaf[0].leafId.push_back(0);
-
-	if (_numLevels == 0)
-		return;
-
-
-	//
-	// Set the second partition as rank extents in file
-
-	// Remove first partition
-	partitionList.pop_front();
-	numOctreePartitions = 0;
-
-	// Get extensts of the file
-	float xExtents = rootExtents[1]-rootExtents[0];
-	float yExtents = rootExtents[3]-rootExtents[2];
-	float zExtents = rootExtents[5]-rootExtents[4];
-
-
-	// Create partitions
-	for (int x_axis=0; x_axis<partitions[0]; x_axis++)
-		for (int y_axis=0; y_axis<partitions[1]; y_axis++)
-			for (int z_axis=0; z_axis<partitions[2]; z_axis++)
-			{
-				float currentPartition[6];
-
-				currentPartition[0] = xExtents/partitions[0] * x_axis;
-				currentPartition[1] = currentPartition[0] + xExtents/partitions[0];
-
-				currentPartition[2] = yExtents/partitions[1] * y_axis;
-				currentPartition[3] = currentPartition[2] + yExtents/partitions[1];
-
-				currentPartition[4] = zExtents/partitions[2] * z_axis;
-				currentPartition[5] = currentPartition[4] + zExtents/partitions[2];
-
-				PartitionExtents tempRank(currentPartition);
-				partitionList.push_back(tempRank);
-
-				numOctreePartitions++;
-			}
-
-
-	// Set leaves
-	rankLeaf.clear();
-	rankLeaf.resize(numOctreePartitions);
-	for (int i=0; i<numOctreePartitions; i++)
-		rankLeaf[i].leafId.push_back(i);
-
-	if (_numLevels == 1)
-		return;
-
-
-
-	//
-	// Now start diving the ranks
-	int _numRanks = numOctreePartitions;
-
-	// Copy data from current partition list to rank list
-	std::list<PartitionExtents> rankList;
-	for (int r=0; r<_numRanks; r++)
-	{
-		temp = partitionList.front();
-		rankList.push_back(temp);
-		partitionList.pop_front();
-	}
-
-
-	// Set leaves
-	rankLeaf.clear();
-	rankLeaf.resize(_numRanks);
-
-
-	// Partitions
-	numOctreePartitions = 0;
-	for (int r=0; r<_numRanks; r++)
-	{
-		// Get current root we are partitioning
-		PartitionExtents currentRoot = rankList.front();
-		rankList.pop_front();
-
-
-		// Initialize rank with current partition
-		std::list<PartitionExtents> currentPatitionList;
-		currentPatitionList.push_back(currentRoot);
-
-
-		//
-		//  Stat
-		PartitionExtents firstHalf, secondHalf;
-
-		int splittingAxis = 0;									// start with x-axis
-		int numDesiredBlocks = (int) pow(8.0f, _numLevels-1);	// Compute number of splits needed based on levels
-		int numBlocks = 1;
-
-		while (numBlocks < numDesiredBlocks)
-		{
-			int numCurrentBlocks = currentPatitionList.size();
-
-			for (int i=0; i<numCurrentBlocks; i++)
-			{
-				temp = currentPatitionList.front();
-				currentPatitionList.pop_front();
-
-				if (splittingAxis == 0)			// x-axis
-				{
-					firstHalf.extents[0] =  temp.extents[0];
-					firstHalf.extents[1] = (temp.extents[0] + temp.extents[1])/2;
-
-					secondHalf.extents[0] = (temp.extents[0] + temp.extents[1])/2;
-					secondHalf.extents[1] =  temp.extents[1];
-
-
-					firstHalf.extents[2] = secondHalf.extents[2] = temp.extents[2];
-					firstHalf.extents[3] = secondHalf.extents[3] = temp.extents[3];
-
-					firstHalf.extents[4] = secondHalf.extents[4] = temp.extents[4];
-					firstHalf.extents[5] = secondHalf.extents[5] = temp.extents[5];
-				}
-				else
-					if (splittingAxis == 1)		// y-axis
-					{
-						firstHalf.extents[0] = secondHalf.extents[0] = temp.extents[0];
-						firstHalf.extents[1] = secondHalf.extents[1] = temp.extents[1];
-
-
-						firstHalf.extents[2] =  temp.extents[2];
-						firstHalf.extents[3] = (temp.extents[2] + temp.extents[3])/2;
-
-						secondHalf.extents[2] = (temp.extents[2] + temp.extents[3])/2;
-						secondHalf.extents[3] =  temp.extents[3];
-
-
-						firstHalf.extents[4] = secondHalf.extents[4] = temp.extents[4];
-						firstHalf.extents[5] = secondHalf.extents[5] = temp.extents[5];
-					}
-					else
-						if (splittingAxis == 2)	// z-axis
-						{
-							firstHalf.extents[0] = secondHalf.extents[0] = temp.extents[0];
-							firstHalf.extents[1] = secondHalf.extents[1] = temp.extents[1];
-
-							firstHalf.extents[2] = secondHalf.extents[2] = temp.extents[2];
-							firstHalf.extents[3] = secondHalf.extents[3] = temp.extents[3];
-
-
-							firstHalf.extents[4] =  temp.extents[4];
-							firstHalf.extents[5] = (temp.extents[4] + temp.extents[5])/2;
-
-							secondHalf.extents[4] = (temp.extents[4] + temp.extents[5])/2;
-							secondHalf.extents[5] =  temp.extents[5];
-						}
-
-				currentPatitionList.push_back(firstHalf);
-				currentPatitionList.push_back(secondHalf);
-			}
-
-			// cycle axis
-			splittingAxis++;
-			if (splittingAxis == 3)
-				splittingAxis = 0;
-
-			numBlocks = currentPatitionList.size();
-		}
-
-
-		// Fill partion list with items from this rank
-		for (auto it=currentPatitionList.begin(); it!=currentPatitionList.end(); ++it)
-		{
-			rankLeaf[r].leafId.push_back( partitionList.size() );
-
-			partitionList.push_back( *it );
-			numOctreePartitions++;
-		}
-	}
-
-	clock.stop();
-	log << "Octree::chopVolume took " << clock.getDuration() << " s " << std::endl;
-}
 
 
 inline std::vector<float> Octree::getMyLeavesExtent(float myRankExtents[6], int numLevels)
@@ -824,48 +614,11 @@ inline std::vector<PartitionExtents> Octree::ComputeMyLeaves(float myRankExtents
 }
 
 
-inline void Octree::getLeafExtents( int leafId, float _extents[6])
-{
-	int count = 0;
-	for (int i=0; i<6; i++)
-		_extents[i] = octreePartitions[leafId].extents[i];
-}
-
-
-inline int Octree::getLeafIndex(float pos[3])
-{
-	float x = pos[0];
-	float y = pos[1];
-	float z = pos[2];
-	for (int i=0; i<octreePartitions.size(); i++)
-	{		
-
-		// Nothing should be at 256, but some are!!!
-		if (x >= maxSimExtents[0]) x = (float)maxSimExtents[0] - 0.00001;
-		if (y >= maxSimExtents[1]) y = (float)maxSimExtents[1] - 0.00001;
-		if (z >= maxSimExtents[2]) z = (float)maxSimExtents[2] - 0.00001;
-
-		if (x >= extents[0] && x<extents[1])
-			if (y >= extents[2] && y<extents[3])
-				if (z >= extents[4] && z<extents[5])
-					return i;	
-	}
-
-	return -1;
-}
 
 
 
-inline std::string Octree::getPartitions()
-{
-	std::stringstream ss;
-	int count = 0;
-	for (auto it=octreePartitions.begin(); it!=octreePartitions.end(); it++, count++)
-		ss << count << " : " << (*it).extents[0] << ", " << (*it).extents[1] <<  "   "
-				  			 << (*it).extents[2] << ", " << (*it).extents[3] <<  "   "
-				  			 << (*it).extents[4] << ", " << (*it).extents[5] <<  std::endl;
-	return ss.str();
-}
+
+
 
 
 
