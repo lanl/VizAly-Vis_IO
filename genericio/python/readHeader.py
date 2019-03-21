@@ -131,14 +131,12 @@ class OctreeRow:
 class Octree:
 	def __init__ (self):
 		self.preShuffled = 0
-		self.decompositionType = 0
 		self.decompositionLevel = 0
 		self.numEntries = 0
 		self.rows = []
 
 	def printMe(self):
 		print("Pre-Shuffled:", self.preShuffled)
-		print("Decomposition level:", self.decompositionType)
 		print("Decomposition level:", self.decompositionLevel)
 		print("Num Entries:", self.numEntries)
 

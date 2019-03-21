@@ -71,6 +71,8 @@ void read_gio(char* file_name, std::string var_name, T*& data, int field_count)
     delete [] rank_data;
     reader.close();
 }
+
+
 extern "C" int64_t get_elem_num(char* file_name);
 
 extern "C" void read_gio_float (char* file_name, char* var_name, float* data, int field_count);
