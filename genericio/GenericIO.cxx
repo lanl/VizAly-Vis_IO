@@ -619,12 +619,13 @@ void GenericIO::write()
     // Octree
     if (hasOctree)
     {
-        Memory ongoingMem;
-        Timer createOctreeClock;
-        ongoingMem.start();
-        createOctreeClock.start();
+        Timer initOctreeClock, findLeafExtentClock, findPartitionClock, rearrageClock, gatherClock, createOctreeHeaderClock;
 
-        #define DEBUG_ON 1
+      Memory ongoingMem;          ongoingMem.start();
+      Timer createOctreeClock;    createOctreeClock.start();
+        
+
+        #define DEBUG_ON 0
       #ifdef DEBUG_ON
         std::stringstream log;
       #endif
@@ -635,6 +636,7 @@ void GenericIO::write()
         // MPI Rank 
         int myRank = Rank;
         int numRanks = NRanks;
+
 
         //
         // Simulation and rank extents
@@ -655,74 +657,30 @@ void GenericIO::write()
         }
 
       
+            
+      initOctreeClock.start();
 
         //
         // Create octree structure
         Octree gioOctree(myRank, myRankExtents);
         gioOctree.init(numOctreeLevels, simExtents, Dims[0], Dims[1], Dims[2]); // num octree levels, sim extent, sim decompisition
 
-
-        /*
-        //
-        // Create Octree
-        gioOctree.buildOctree();
+      initOctreeClock.stop();
+      findLeafExtentClock.start();
 
         //
-        // Find partitions for myRank
-        std::vector< int > myLeaves = gioOctree.getLeaves(myRank);
-        int numleavesForMyRank = myLeaves.size();
-
-
-      #ifdef DEBUG_ON
-        log << myRank << " ~ splitRank " <<  SplitRank << ", num Ranks: " << numRanks << std::endl;
-
-        log << "\n# my rank extents: " << myRankExtents[0] << "-" << myRankExtents[1] << ", "
-                                       << myRankExtents[2] << "-" << myRankExtents[3] << ", "
-                                       << myRankExtents[4] << "-" << myRankExtents[5] << std::endl;
-
-        log << "Num Octee nodes " << gioOctree.getNumNodes() << std::endl;
-
-        log << "\n# my leaves extents: \n";
-        log << "\nnum leaves For My Rank: " << numleavesForMyRank << std::endl;
-        log << "|After find partitions: " << ongoingMem.getMemoryInUseInMB() << " MB " << std::endl;
-      #endif
-
-
-        //
-        // Get the extents of each of my leaves
-        float *leavesExtents = new float[numleavesForMyRank*6];
-        int _leafCounter = 0;
-        for (auto it=myLeaves.begin(); it!=myLeaves.end(); ++it)
-        {
-            float leafExtents[6];
-            gioOctree.getLeafExtents(*it, leafExtents);
-
-            // Gathering extents of all of my leaves
-            for (int j=0; j<6; j++)
-                leavesExtents[_leafCounter*6 + j] = leafExtents[j];
-
-              #ifdef DEBUG_ON
-                log <<myRank << " ~ leafExtents(leafCounter: " << _leafCounter << ", leaf: " << *it << " = "
-                                << leavesExtents[_leafCounter*6 + 0] << "-" << leavesExtents[_leafCounter*6 + 1] << ", "
-                                << leavesExtents[_leafCounter*6 + 2] << "-" << leavesExtents[_leafCounter*6 + 3] << ", "
-                                << leavesExtents[_leafCounter*6 + 4] << "-" << leavesExtents[_leafCounter*6 + 5] << std::endl;
-              #endif
-
-            _leafCounter++;
-        }
-        */
-
-
         // Get the extents of each of my leaves
         std::vector<float> leavesExtentsVec = gioOctree.getMyLeavesExtent(myRankExtents, numOctreeLevels);
         int numleavesForMyRank = leavesExtentsVec.size()/6;
         float *leavesExtents = &leavesExtentsVec[0];
 
+      findLeafExtentClock.stop();
+      findPartitionClock.start();
+
 
         //
         // Find the partition for each particle
-
-        // First instance of position
+        // Use fisrt instance of position for octree
         float *_xx, *_yy, *_zz;
         for (size_t i = 0; i < Vars.size(); ++i)
             if (Vars[i].IsPhysCoordX)
@@ -731,14 +689,12 @@ void GenericIO::write()
                 break;
             }
 
-
         for (size_t i = 0; i < Vars.size(); ++i)
             if (Vars[i].IsPhysCoordY)
             {
                 _yy = (float*)Vars[i].Data;
                 break;
             }
-
 
         for (size_t i = 0; i < Vars.size(); ++i)
             if (Vars[i].IsPhysCoordZ)
@@ -747,22 +703,27 @@ void GenericIO::write()
                 break;
             }
     
-
         // Find the partition
         std::vector<int> leafPosition;                    // which leaf is the particle in
         std::vector<uint64_t> numParticlesForMyLeaf;      // #particles per leaf
         numParticlesForMyLeaf = gioOctree.findLeaf(_xx,_yy,_zz, numParticles, numleavesForMyRank, leavesExtents, leafPosition);
 
 
+      findPartitionClock.stop();
+
 
       #ifdef DEBUG_ON
         log << "\nnumleavesForMyRank: " << numleavesForMyRank << std::endl;
-        log << "\nnumParticles: " << numParticles << "\n";
-        log << "\noctreeLeafshuffle: " << octreeLeafshuffle << "\n";
+        log << "numParticles: " << numParticles << "\n";
+        log << "octreeLeafshuffle: " << octreeLeafshuffle << "\n";
         
-        log << "|After findLeaf: " << ongoingMem.getMemoryInUseInMB() << " MB " << std::endl;
+        log << "\nOctree initialization took : " << initOctreeClock.getDuration() << " s\n";
+        log << "Octree Find octree leaf extents took : " << findLeafExtentClock.getDuration() << " s\n";
+        log << "Octree Find particle position took : " << findPartitionClock.getDuration() << " s\n";
+        log << "\n|After findLeaf: " << ongoingMem.getMemoryInUseInMB() << " MB " << std::endl;
       #endif
       
+      rearrageClock.start();
 
         //
         // Rearrange the array based on leaves
@@ -836,27 +797,17 @@ void GenericIO::write()
           #endif
         }
 
-        leafPosition.clear();
-        leafPosition.shrink_to_fit();
+        leafPosition.clear();   leafPosition.shrink_to_fit();
 
-      
+      rearrageClock.stop(); 
+      gatherClock.start();
+
 
         //
         // Gather num leaves each rank has
         int *numLeavesPerRank = new int[numRanks];
         MPI_Allgather( &numleavesForMyRank, 1, MPI_INT,  numLeavesPerRank, 1, MPI_INT,  MPI_COMM_WORLD);
     
-
-
-      #ifdef DEBUG_ON
-        {
-            log << "\nALL Gather Num leaves per rank: \n";
-            for (int i=0; i<numRanks; i++)
-                log << i << " leaves for rank " << numLeavesPerRank[i] << std::endl;
-
-            log << "|After reorganize array: " << ongoingMem.getMemoryInUseInMB() << " MB " << std::endl;
-        }
-      #endif
 
 
         //
@@ -878,18 +829,8 @@ void GenericIO::write()
 
         if (_offsets != NULL)
             delete []_offsets;
+        _offsets = NULL;
 
-
-      #ifdef DEBUG_ON
-        {
-            log << "\ntotal Leaves For Sim: " << totalLeavesForSim << std::endl;
-            log << "\nAll Gatherv Num particles per leaf: \n";
-            for (int i=0; i<totalLeavesForSim; i++)
-                log << i << " ~ " << numParticlesPerLeaf[i] << std::endl;
-
-            log << "|After all gather: " << ongoingMem.getMemoryInUseInMB() << " MB " << std::endl;
-        }
-      #endif
 
 
         //
@@ -909,32 +850,25 @@ void GenericIO::write()
         MPI_Allgatherv(leavesExtents, numleavesForMyRank*6, MPI_FLOAT,  allOctreeLeavesExtents, _extentsCountPerRank, _offsetsExtents, MPI_FLOAT,  MPI_COMM_WORLD); 
 
 
+        leavesExtentsVec.clear();   leavesExtentsVec.shrink_to_fit();
+        leavesExtents = NULL;
+
         if (_offsetsExtents != NULL)
             delete []_offsetsExtents;
+        _offsetsExtents = NULL;
 
         if (_extentsCountPerRank != NULL)
             delete []_extentsCountPerRank;
-        
+        _extentsCountPerRank = NULL;
 
-
-      #ifdef DEBUG_ON
-        if (myRank == 0)
-        {
-            log << "\nNum extents per leaf: \n";
-            for (int i=0; i<totalLeavesForSim; i++)
-                log << i << " ~ " << allOctreeLeavesExtents[i*6+0] << "-" << allOctreeLeavesExtents[i*6+1]
-                          << ", " << allOctreeLeavesExtents[i*6+2] << "-" << allOctreeLeavesExtents[i*6+3]
-                          << ", " << allOctreeLeavesExtents[i*6+4] << "-" << allOctreeLeavesExtents[i*6+5] << std::endl;
-        }
-      #endif
+      gatherClock.stop();
+      createOctreeHeaderClock.start();
       
 
         if (SplitRank == 0)
         {
             //
             // Create Header info
-            log << "\naddOctreeHeader \n";
-            
             addOctreeHeader( (uint64_t)((int)octreeLeafshuffle), (uint64_t)numOctreeLevels, (uint64_t)totalLeavesForSim );
 
             //
@@ -942,7 +876,6 @@ void GenericIO::write()
             int _leafCounter = 0;
             for (int r=0; r<numRanks; r++)
             {
-                log << "\n numLeavesPerRank[r]: " << numLeavesPerRank[r] << std::endl;
                 uint64_t offsetInRank = 0;
                 for (int l=0; l<numLeavesPerRank[r]; l++)
                 {
@@ -950,12 +883,6 @@ void GenericIO::write()
 
                     for (int i=0; i<6; i++)
                         _leafExtents[i] = (uint64_t) round( allOctreeLeavesExtents[_leafCounter*6 + i] );
-
-
-                    log  << _leafCounter  << " | " << _leafExtents[0] << " - " << _leafExtents[1] << ", " 
-                                                << _leafExtents[2] << " - " << _leafExtents[3] << ", " 
-                                                << _leafExtents[4] << " - " << _leafExtents[5] << ", " 
-                                        << numParticlesPerLeaf[_leafCounter] << ", " << offsetInRank << ", " << r << std::endl;
                                             
                     addOctreeRow(_leafCounter, _leafExtents, numParticlesPerLeaf[_leafCounter], offsetInRank, r);
 
@@ -965,26 +892,33 @@ void GenericIO::write()
             }
         }
 
-        if (leavesExtents != NULL)
-            delete []leavesExtents;
+        
 
         if (numLeavesPerRank != NULL)
             delete []numLeavesPerRank;
+        numLeavesPerRank = NULL;
 
         if (numParticlesPerLeaf != NULL)
             delete []numParticlesPerLeaf;
+        numParticlesPerLeaf = NULL;
 
         if (allOctreeLeavesExtents != NULL)
             delete []allOctreeLeavesExtents;
+        allOctreeLeavesExtents = NULL;
 
-        ongoingMem.stop();
-        createOctreeClock.stop();
 
+      createOctreeHeaderClock.stop();
+      ongoingMem.stop();
+      createOctreeClock.stop();
 
 
       #ifdef DEBUG_ON
-        log << "|After, mem leaked: " << ongoingMem.getMemorySizeInMB() << " MB " << std::endl;
-        log << "Octree processing took:: " << createOctreeClock.getDuration() << " s " << std::endl;
+        log << "\nOctree rearrage took : " << rearrageClock.getDuration() << " s\n";
+        log << "Octree gathers took : " << gatherClock.getDuration() << " s\n";
+        log << "Octree octree header creation took : " << createOctreeHeaderClock.getDuration() << " s\n";
+
+        log << "\n|After, mem leaked: " << ongoingMem.getMemorySizeInMB() << " MB " << std::endl;
+        log << "\n\nOctree processing took:: " << createOctreeClock.getDuration() << " s " << std::endl;
         writeLog("log_" + std::to_string(myRank) ,log.str());
       #endif
     }   // end octree
