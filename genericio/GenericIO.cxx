@@ -73,42 +73,35 @@ extern "C" {
 #ifndef MPI_UINT64_T
     #define MPI_UINT64_T (sizeof(long) == 8 ? MPI_LONG : MPI_LONG_LONG)
 #endif
-
 using namespace std;
 
-namespace gio
-{
+namespace gio {
 
 
 #ifndef GENERICIO_NO_MPI
-GenericFileIO_MPI::~GenericFileIO_MPI()
-{
+GenericFileIO_MPI::~GenericFileIO_MPI() {
     (void) MPI_File_close(&FH);
 }
 
-void GenericFileIO_MPI::open(const std::string &FN, bool ForReading)
-{
+void GenericFileIO_MPI::open(const std::string &FN, bool ForReading) {
     FileName = FN;
 
     int amode = ForReading ? MPI_MODE_RDONLY : (MPI_MODE_WRONLY | MPI_MODE_CREATE);
     if (MPI_File_open(Comm, const_cast<char *>(FileName.c_str()), amode,
                       MPI_INFO_NULL, &FH) != MPI_SUCCESS)
         throw runtime_error((!ForReading ? "Unable to create the file: " :
-                             "Unable to open the file::: ") +
+                                       "Unable to open the file: ") +
                             FileName);
 }
 
-void GenericFileIO_MPI::setSize(size_t sz)
-{
+void GenericFileIO_MPI::setSize(size_t sz) {
     if (MPI_File_set_size(FH, sz) != MPI_SUCCESS)
         throw runtime_error("Unable to set size for file: " + FileName);
 }
 
 void GenericFileIO_MPI::read(void *buf, size_t count, off_t offset,
-                             const std::string &D)
-{
-    while (count > 0)
-    {
+                             const std::string &D) {
+  while (count > 0) {
         MPI_Status status;
         if (MPI_File_read_at(FH, offset, buf, count, MPI_BYTE, &status) != MPI_SUCCESS)
             throw runtime_error("Unable to read " + D + " from file: " + FileName);
@@ -123,10 +116,8 @@ void GenericFileIO_MPI::read(void *buf, size_t count, off_t offset,
 }
 
 void GenericFileIO_MPI::write(const void *buf, size_t count, off_t offset,
-                              const std::string &D)
-{
-    while (count > 0)
-    {
+                              const std::string &D) {
+  while (count > 0) {
         MPI_Status status;
         if (MPI_File_write_at(FH, offset, (void *) buf, count, MPI_BYTE, &status) != MPI_SUCCESS)
             throw runtime_error("Unable to write " + D + " to file: " + FileName);
@@ -141,17 +132,17 @@ void GenericFileIO_MPI::write(const void *buf, size_t count, off_t offset,
 }
 
 void GenericFileIO_MPICollective::read(void *buf, size_t count, off_t offset,
-                                       const std::string &D)
-{
+                             const std::string &D) {
     int Continue = 0;
 
-    do
-    {
+  do {
         MPI_Status status;
         if (MPI_File_read_at_all(FH, offset, buf, count, MPI_BYTE, &status) != MPI_SUCCESS)
             throw runtime_error("Unable to read " + D + " from file: " + FileName);
 
-        int scount;
+    int scount = 0;
+    // On some systems, MPI_Get_count will not return zero even when count is zero.
+    if (count > 0)
         (void) MPI_Get_count(&status, MPI_BYTE, &scount);
 
         count -= scount;
@@ -160,22 +151,21 @@ void GenericFileIO_MPICollective::read(void *buf, size_t count, off_t offset,
 
         int NeedContinue = (count > 0);
         MPI_Allreduce(&NeedContinue, &Continue, 1, MPI_INT, MPI_SUM, Comm);
-    }
-    while (Continue);
+  } while (Continue);
 }
 
 void GenericFileIO_MPICollective::write(const void *buf, size_t count, off_t offset,
-                                        const std::string &D)
-{
+                              const std::string &D) {
     int Continue = 0;
 
-    do
-    {
+  do {
         MPI_Status status;
         if (MPI_File_write_at_all(FH, offset, (void *) buf, count, MPI_BYTE, &status) != MPI_SUCCESS)
             throw runtime_error("Unable to write " + D + " to file: " + FileName);
 
-        int scount;
+    int scount = 0;
+    // On some systems, MPI_Get_count will not return zero even when count is zero.
+    if (count > 0)
         (void) MPI_Get_count(&status, MPI_BYTE, &scount);
 
         count -= scount;
@@ -184,19 +174,15 @@ void GenericFileIO_MPICollective::write(const void *buf, size_t count, off_t off
 
         int NeedContinue = (count > 0);
         MPI_Allreduce(&NeedContinue, &Continue, 1, MPI_INT, MPI_SUM, Comm);
-    }
-    while (Continue);
+  } while (Continue);
 }
 #endif
 
-
-GenericFileIO_POSIX::~GenericFileIO_POSIX()
-{
+GenericFileIO_POSIX::~GenericFileIO_POSIX() {
     if (FH != -1) close(FH);
 }
 
-void GenericFileIO_POSIX::open(const std::string &FN, bool ForReading)
-{
+void GenericFileIO_POSIX::open(const std::string &FN, bool ForReading) {
     FileName = FN;
 
     int flags = ForReading ? O_RDONLY : (O_WRONLY | O_CREAT);
@@ -204,29 +190,25 @@ void GenericFileIO_POSIX::open(const std::string &FN, bool ForReading)
     errno = 0;
     if ((FH = ::open(FileName.c_str(), flags, mode)) == -1)
         throw runtime_error((!ForReading ? "Unable to create the file: " :
-                             "Unable to open the file:: ") +
+                                       "Unable to open the file: ") +
                             FileName + ": " + strerror(errno));
 }
 
-void GenericFileIO_POSIX::setSize(size_t sz)
-{
+void GenericFileIO_POSIX::setSize(size_t sz) {
     if (ftruncate(FH, sz) == -1)
         throw runtime_error("Unable to set size for file: " + FileName);
 }
 
 void GenericFileIO_POSIX::read(void *buf, size_t count, off_t offset,
-                               const std::string &D)
-{
-    while (count > 0)
-    {
+                               const std::string &D) {
+  while (count > 0) {
         ssize_t scount;
         errno = 0;
-        if ((scount = pread(FH, buf, count, offset)) == -1)
-        {
+    if ((scount = pread(FH, buf, count, offset)) == -1) {
             if (errno == EINTR)
                 continue;
 
-            throw runtime_error("UUnable to read " + D + " from file: " + FileName +
+      throw runtime_error("Unable to read " + D + " from file: " + FileName +
                                 ": " + strerror(errno));
         }
 
@@ -237,14 +219,11 @@ void GenericFileIO_POSIX::read(void *buf, size_t count, off_t offset,
 }
 
 void GenericFileIO_POSIX::write(const void *buf, size_t count, off_t offset,
-                                const std::string &D)
-{
-    while (count > 0)
-    {
+                                const std::string &D) {
+  while (count > 0) {
         ssize_t scount;
         errno = 0;
-        if ((scount = pwrite(FH, buf, count, offset)) == -1)
-        {
+    if ((scount = pwrite(FH, buf, count, offset)) == -1) {
             if (errno == EINTR)
                 continue;
 
@@ -258,14 +237,12 @@ void GenericFileIO_POSIX::write(const void *buf, size_t count, off_t offset,
     }
 }
 
-static bool isBigEndian()
-{
+static bool isBigEndian() {
     const uint32_t one = 1;
     return !(*((char *)(&one)));
 }
 
-static void bswap(void *v, size_t s)
-{
+static void bswap(void *v, size_t s) {
     char *p = (char *) v;
     for (size_t i = 0; i < s / 2; ++i)
         std::swap(p[i], p[s - (i + 1)]);
@@ -277,10 +254,8 @@ static void bswap(void *v, size_t s)
 #pragma pack(1)
 
 template <typename T, bool IsBigEndian>
-struct endian_specific_value
-{
-    operator T() const
-    {
+struct endian_specific_value {
+  operator T() const {
         T rvalue = value;
         if (IsBigEndian != isBigEndian())
             bswap(&rvalue, sizeof(T));
@@ -288,8 +263,7 @@ struct endian_specific_value
         return rvalue;
     };
 
-    endian_specific_value &operator = (T nvalue)
-    {
+  endian_specific_value &operator = (T nvalue) {
         if (IsBigEndian != isBigEndian())
             bswap(&nvalue, sizeof(T));
 
@@ -297,14 +271,12 @@ struct endian_specific_value
         return *this;
     }
 
-    endian_specific_value &operator += (T nvalue)
-    {
+  endian_specific_value &operator += (T nvalue) {
         *this = *this + nvalue;
         return *this;
     }
 
-    endian_specific_value &operator -= (T nvalue)
-    {
+  endian_specific_value &operator -= (T nvalue) {
         *this = *this - nvalue;
         return *this;
     }
@@ -320,8 +292,7 @@ static const char *MagicBE = "HACC01B";
 static const char *MagicLE = "HACC01L";
 
 template <bool IsBigEndian>
-struct GlobalHeader
-{
+struct GlobalHeader {
     char Magic[MagicSize];
     endian_specific_value<uint64_t, IsBigEndian> HeaderSize;
     endian_specific_value<uint64_t, IsBigEndian> NElems; // The global total
@@ -341,8 +312,7 @@ struct GlobalHeader
     endian_specific_value<uint64_t, IsBigEndian> OctreeStart;
 };
 
-enum
-{
+enum {
     FloatValue          = (1 << 0),
     SignedValue         = (1 << 1),
     ValueIsPhysCoordX   = (1 << 2),
@@ -353,18 +323,15 @@ enum
 
 static const size_t NameSize = 256;
 template <bool IsBigEndian>
-struct VariableHeader
-{
+struct VariableHeader {
     char Name[NameSize];
     endian_specific_value<uint64_t, IsBigEndian> Flags;
     endian_specific_value<uint64_t, IsBigEndian> Size;
     endian_specific_value<uint64_t, IsBigEndian> ElementSize;
 };
 
-
 template <bool IsBigEndian>
-struct RankHeader
-{
+struct RankHeader {
     endian_specific_value<uint64_t, IsBigEndian> Coords[3];
     endian_specific_value<uint64_t, IsBigEndian> NElems;
     endian_specific_value<uint64_t, IsBigEndian> Start;
@@ -374,16 +341,14 @@ struct RankHeader
 static const size_t FilterNameSize = 8;
 static const size_t MaxFilters = 4;
 template <bool IsBigEndian>
-struct BlockHeader
-{
+struct BlockHeader {
     char Filters[MaxFilters][FilterNameSize];
     endian_specific_value<uint64_t, IsBigEndian> Start;
     endian_specific_value<uint64_t, IsBigEndian> Size;
 };
 
 template <bool IsBigEndian>
-struct CompressHeader
-{
+struct CompressHeader {
     endian_specific_value<uint64_t, IsBigEndian> OrigCRC;
 };
 const char *CompressName = "BLOSC";
@@ -401,20 +366,17 @@ bool GenericIO::DefaultShouldCompress = false;
 static bool blosc_initialized = false;
 
 #ifndef GENERICIO_NO_MPI
-void GenericIO::write()
-{
+void GenericIO::write() {
     if (isBigEndian())
         write<true>();
     else
         write<false>();
 }
 
-
 // Note: writing errors are not currently recoverable (one rank may fail
 // while the others don't).
 template <bool IsBigEndian>
-void GenericIO::write()
-{
+void GenericIO::write() {
     const char *Magic = IsBigEndian ? MagicBE : MagicLE;
 
     uint64_t FileSize = 0;
@@ -432,17 +394,9 @@ void GenericIO::write()
     MPI_Comm_rank(SplitComm, &SplitRank);
     MPI_Comm_size(SplitComm, &SplitNRanks);
 
-
-    // std::cout << Rank << "/" << NRanks << " ~ " << "SplitRank: " << SplitRank << ", SplitNRanks: " << SplitNRanks << std::endl;
-
     string LocalFileName;
-
-    if (SplitNRanks != NRanks)
-    {
-        //std::cout << "SplitNRanks != NRanks" << std::endl;
-
-        if (Rank == 0)
-        {
+  if (SplitNRanks != NRanks) {
+    if (Rank == 0) {
             // In split mode, the specified file becomes the rank map, and the real
             // data is partitioned.
 
@@ -463,14 +417,12 @@ void GenericIO::write()
             vector<int> CX, CY, CZ;
             int TopoStatus;
             MPI_Topo_test(Comm, &TopoStatus);
-            if (TopoStatus == MPI_CART)
-            {
+      if (TopoStatus == MPI_CART) {
                 CX.resize(NRanks);
                 CY.resize(NRanks);
                 CZ.resize(NRanks);
 
-                for (int i = 0; i < NRanks; ++i)
-                {
+        for (int i = 0; i < NRanks; ++i) {
                     int C[3];
                     MPI_Cart_coords(Comm, i, 3, C);
 
@@ -485,19 +437,14 @@ void GenericIO::write()
             }
 
             GIO.write();
-        }
-        else
-        {
+    } else {
             MPI_Gather(&Partition, 1, MPI_INT, 0, 0, MPI_INT, 0, Comm);
         }
 
         stringstream ss;
         ss << FileName << "#" << Partition;
         LocalFileName = ss.str();
-    }
-    else
-    {
-        //std::cout << "SplitNRanks == NRanks" << std::endl;
+  } else {
         LocalFileName = FileName;
     }
 
@@ -506,12 +453,9 @@ void GenericIO::write()
 
     int TopoStatus;
     MPI_Topo_test(Comm, &TopoStatus);
-    if (TopoStatus == MPI_CART)
-    {
+  if (TopoStatus == MPI_CART) {
         MPI_Cart_get(Comm, 3, Dims, Periods, Coords);
-    }
-    else
-    {
+  } else {
         Dims[0] = NRanks;
         std::fill(Dims + 1, Dims + 3, 1);
         std::fill(Periods, Periods + 3, 0);
@@ -519,21 +463,6 @@ void GenericIO::write()
         std::fill(Coords + 1, Coords + 3, 0);
     }
 
-    // cout << Rank << "/" << NRanks << " ~ " << 
-    //         "# physical coordinates: (" << PhysOrigin[0] << "," << PhysOrigin[1] << "," << PhysOrigin[2] << 
-    //         ") -> (" << PhysScale[0] << "," << PhysScale[1] << "," << PhysScale[2] << ")" << endl;
-    // std::cout << Rank << "/" << NRanks << " ~ " << "Dims: " << Dims[0] << ", "  << Dims[1] << ", "  << Dims[2] << std::endl;
-    // std::cout << Rank << "/" << NRanks << " ~ " << "Coords: " << Coords[0] << ", "  << Coords[1] << ", "  << Coords[2] << std::endl;
-    // std::cout << Rank << "/" << NRanks << " ~ " << "Periods: " << Periods[0] << ", "  << Periods[1] << ", "  << Periods[2] << std::endl;
-
-    // std::cout << Rank << "/" << NRanks << " ~ " << "Vars.size(): " << Vars.size() << std::endl;
-    // std::cout << Rank << "/" << NRanks << " ~ " << "Vars[0].IsFloat: " << Vars[8].IsFloat 
-    //                                             << ", Vars[0].IsSigned: " << Vars[8].IsSigned 
-    //                                             << ", Vars[0].Size: " << Vars[8].Size << std::endl;
-    // << "Vars.IsSigned: " << Vars.IsSigned << "Vars.IsFloat: " << Vars.IsFloat << std::endl;
-
-
-    
 
     float myExtents[6];
     float physicalDims[3];
@@ -546,28 +475,21 @@ void GenericIO::write()
         myExtents[i*2 + 1] = myExtents[i*2] + physicalDims[i];
     }
 
-    // std::cout << Rank << "/" << NRanks << " ~ " << "myExtents: " << myExtents[0] << " - "  << myExtents[1] << ", "  
-    //                                                              << myExtents[2] << " - "  << myExtents[3] << ", "  
-    //                                                              << myExtents[4] << " - "  << myExtents[5] << std::endl;
     std::copy(Coords, Coords + 3, RHLocal.Coords);
     RHLocal.NElems = NElems;
     RHLocal.Start = 0;
     RHLocal.GlobalRank = Rank;
 
-    // std::cout << Rank << "/" << NRanks << " ~ " << "RHLocal.NElems: " << RHLocal.NElems << std::endl;
-
     bool ShouldCompress = DefaultShouldCompress;
     const char *EnvStr = getenv("GENERICIO_COMPRESS");
-    if (EnvStr)
-    {
+  if (EnvStr) {
         int Mod = atoi(EnvStr);
         ShouldCompress = (Mod > 0);
     }
 
     bool NeedsBlockHeaders = ShouldCompress;
     EnvStr = getenv("GENERICIO_FORCE_BLOCKS");
-    if (!NeedsBlockHeaders && EnvStr)
-    {
+  if (!NeedsBlockHeaders && EnvStr) {
         int Mod = atoi(EnvStr);
         NeedsBlockHeaders = (Mod > 0);
     }
@@ -733,7 +655,7 @@ void GenericIO::write()
             {
                 float *_temp;
                 _temp = (float*)Vars[i].Data;
-                gioOctree.reorganizeArray(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
+                gioOctree.reorganizeArrayInPlace(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
             }
             else
                 if (Vars[i].IsSigned)
@@ -742,25 +664,25 @@ void GenericIO::write()
                     {
                         int8_t *_temp;
                         _temp = (int8_t*)Vars[i].Data;
-                        gioOctree.reorganizeArray(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
+                        gioOctree.reorganizeArrayInPlace(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     else if (Vars[i].Size == 2)
                     {
                         int16_t *_temp;
                         _temp = (int16_t*)Vars[i].Data;
-                        gioOctree.reorganizeArray(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
+                        gioOctree.reorganizeArrayInPlace(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     else if (Vars[i].Size == 4)
                     {
                         int32_t *_temp;
                         _temp = (int32_t*)Vars[i].Data;
-                        gioOctree.reorganizeArray(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
+                        gioOctree.reorganizeArrayInPlace(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     else if (Vars[i].Size == 8)
                     {
                         int64_t *_temp;
                         _temp = (int64_t*)Vars[i].Data;
-                        gioOctree.reorganizeArray(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
+                        gioOctree.reorganizeArrayInPlace(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                 }
                 else
@@ -769,25 +691,25 @@ void GenericIO::write()
                     {
                         uint8_t *_temp;
                         _temp = (uint8_t*)Vars[i].Data;
-                        gioOctree.reorganizeArray(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
+                        gioOctree.reorganizeArrayInPlace(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     else if (Vars[i].Size == 2)
                     {
                         uint16_t *_temp;
                         _temp = (uint16_t*)Vars[i].Data;
-                        gioOctree.reorganizeArray(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
+                        gioOctree.reorganizeArrayInPlace(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     else if (Vars[i].Size == 4)
                     {
                         uint32_t *_temp;
                         _temp = (uint32_t*)Vars[i].Data;
-                        gioOctree.reorganizeArray(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
+                        gioOctree.reorganizeArrayInPlace(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     else if (Vars[i].Size == 8)
                     {
                         uint64_t *_temp;
                         _temp = (uint64_t*)Vars[i].Data;
-                        gioOctree.reorganizeArray(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
+                        gioOctree.reorganizeArrayInPlace(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     
                 }
@@ -929,21 +851,18 @@ void GenericIO::write()
     vector<void *> LocalData;
     vector<bool> LocalHasExtraSpace;
     vector<vector<unsigned char> > LocalCData;
-    if (NeedsBlockHeaders)
-    {
+  if (NeedsBlockHeaders) {
         LocalBlockHeaders.resize(Vars.size());
         LocalData.resize(Vars.size());
         LocalHasExtraSpace.resize(Vars.size());
         if (ShouldCompress)
             LocalCData.resize(Vars.size());
 
-        for (size_t i = 0; i < Vars.size(); ++i)
-        {
+    for (size_t i = 0; i < Vars.size(); ++i) {
             // Filters null by default, leave null starting address (needs to be
             // calculated by the header-writing rank).
             memset(&LocalBlockHeaders[i], 0, sizeof(BlockHeader<IsBigEndian>));
-            if (ShouldCompress)
-            {
+      if (ShouldCompress) {
                 LocalCData[i].resize(sizeof(CompressHeader<IsBigEndian>));
 
                 CompressHeader<IsBigEndian> *CH = (CompressHeader<IsBigEndian>*) &LocalCData[i][0];
@@ -954,8 +873,7 @@ void GenericIO::write()
                 {
                 #endif
 
-                    if (!blosc_initialized)
-                    {
+       if (!blosc_initialized) {
                         blosc_init();
                         blosc_initialized = true;
                     }
@@ -981,9 +899,7 @@ void GenericIO::write()
                 LocalCData[i].resize(LocalCData[i].size() + CRCSize);
                 LocalData[i] = &LocalCData[i][0];
                 LocalHasExtraSpace[i] = true;
-            }
-            else
-            {
+      } else {
               nocomp:
                 LocalBlockHeaders[i].Size = NElems * Vars[i].Size;
                 LocalData[i] = Vars[i].Data;
@@ -1001,6 +917,7 @@ void GenericIO::write()
         uint64_t octreeStart = 0;
         if (hasOctree)
         {
+            //std::cout << "Serializing octree" << std::endl;
             serializedOctree = octreeData.serialize(IsBigEndian);
             octreeSize  = serializedOctree.size();
         }
@@ -1047,12 +964,9 @@ void GenericIO::write()
             GH->BlocksStart = GH->RanksStart + SplitNRanks * sizeof(RankHeader<IsBigEndian>);
         }
 
-
-
         uint64_t RecordSize = 0;
         VariableHeader<IsBigEndian> *VH = (VariableHeader<IsBigEndian> *) &Header[GH->VarsStart];
-        for (size_t i = 0; i < Vars.size(); ++i, ++VH)
-        {
+    for (size_t i = 0; i < Vars.size(); ++i, ++VH) {
             string VName(Vars[i].Name);
             VName.resize(NameSize);
 
@@ -1073,9 +987,7 @@ void GenericIO::write()
                    &Header[GH->RanksStart], sizeof(RHLocal),
                    MPI_BYTE, 0, SplitComm);
 
-
-        if (NeedsBlockHeaders)
-        {
+    if (NeedsBlockHeaders) {
             MPI_Gather(&LocalBlockHeaders[0],
                        Vars.size()*sizeof(BlockHeader<IsBigEndian>), MPI_BYTE,
                        &Header[GH->BlocksStart],
@@ -1084,8 +996,7 @@ void GenericIO::write()
 
             BlockHeader<IsBigEndian> *BH = (BlockHeader<IsBigEndian> *) &Header[GH->BlocksStart];
             for (int i = 0; i < SplitNRanks; ++i)
-                for (size_t j = 0; j < Vars.size(); ++j, ++BH)
-                {
+      for (size_t j = 0; j < Vars.size(); ++j, ++BH) {
                     if (i == 0 && j == 0)
                         BH->Start = HeaderSize;
                     else
@@ -1094,8 +1005,7 @@ void GenericIO::write()
 
             RankHeader<IsBigEndian> *RH = (RankHeader<IsBigEndian> *) &Header[GH->RanksStart];
             RH->Start = HeaderSize; ++RH;
-            for (int i = 1; i < SplitNRanks; ++i, ++RH)
-            {
+      for (int i = 1; i < SplitNRanks; ++i, ++RH) {
                 RH->Start =
                     ((BlockHeader<IsBigEndian> *) &Header[GH->BlocksStart])[i * Vars.size()].Start;
                 GH->NElems += RH->NElems;
@@ -1104,13 +1014,10 @@ void GenericIO::write()
             // Compute the total file size.
             uint64_t LastData = BH[-1].Size + CRCSize;
             FileSize = BH[-1].Start + LastData;
-        }
-        else
-        {
+    } else {
             RankHeader<IsBigEndian> *RH = (RankHeader<IsBigEndian> *) &Header[GH->RanksStart];
             RH->Start = HeaderSize; ++RH;
-            for (int i = 1; i < SplitNRanks; ++i, ++RH)
-            {
+      for (int i = 1; i < SplitNRanks; ++i, ++RH) {
                 uint64_t PrevNElems = RH[-1].NElems;
                 uint64_t PrevData = PrevNElems * RecordSize + CRCSize * Vars.size();
                 RH->Start = RH[-1].Start + PrevData;
@@ -1135,7 +1042,6 @@ void GenericIO::write()
                         sizeof(BlockHeader<IsBigEndian>)*Vars.size(), MPI_BYTE,
                         0, SplitComm);
 
-
         uint64_t HeaderCRC = crc64_omp(&Header[0], HeaderSize - CRCSize);
         crc64_invert(HeaderCRC, &Header[HeaderSize - CRCSize]);
 
@@ -1151,9 +1057,7 @@ void GenericIO::write()
         FH.get()->write(&Header[0], HeaderSize, 0, "header");
 
         close();
-    }
-    else
-    {
+  } else {
         MPI_Gather(&RHLocal, sizeof(RHLocal), MPI_BYTE, 0, 0, MPI_BYTE, 0, SplitComm);
         if (NeedsBlockHeaders)
             MPI_Gather(&LocalBlockHeaders[0], Vars.size()*sizeof(BlockHeader<IsBigEndian>),
@@ -1176,8 +1080,7 @@ void GenericIO::write()
     FH.get()->open(LocalFileName);
 
     uint64_t Offset = RHLocal.Start;
-    for (size_t i = 0; i < Vars.size(); ++i)
-    {
+  for (size_t i = 0; i < Vars.size(); ++i) {
         uint64_t WriteSize = NeedsBlockHeaders ?
                              LocalBlockHeaders[i].Size : NElems * Vars[i].Size;
         void *Data = NeedsBlockHeaders ? LocalData[i] : Vars[i].Data;
@@ -1196,12 +1099,9 @@ void GenericIO::write()
 
         crc64_invert(CRC, CRCLoc);
 
-        if (HasExtraSpace)
-        {
+    if (HasExtraSpace) {
             FH.get()->write(Data, WriteSize + CRCSize, Offset, Vars[i].Name + " with CRC");
-        }
-        else
-        {
+    } else {
             FH.get()->write(Data, WriteSize, Offset, Vars[i].Name);
             FH.get()->write(CRCLoc, CRCSize, Offset + WriteSize, Vars[i].Name + " CRC");
         }
@@ -1220,14 +1120,12 @@ void GenericIO::write()
     double MaxTotalTime;
     MPI_Reduce(&TotalTime, &MaxTotalTime, 1, MPI_DOUBLE, MPI_MAX, 0, Comm);
 
-    if (SplitNRanks != NRanks)
-    {
+  if (SplitNRanks != NRanks) {
         uint64_t ContribFileSize = (SplitRank == 0) ? FileSize : 0;
         MPI_Reduce(&ContribFileSize, &FileSize, 1, MPI_UINT64_T, MPI_SUM, 0, Comm);
     }
 
-    if (Rank == 0)
-    {
+  if (Rank == 0) {
         double Rate = ((double) FileSize) / MaxTotalTime / (1024.*1024.);
         cout << "Wrote " << Vars.size() << " variables to " << FileName <<
              " (" << FileSize << " bytes) in " << MaxTotalTime << "s: " <<
@@ -1243,14 +1141,11 @@ template <bool IsBigEndian>
 void GenericIO::readHeaderLeader(void *GHPtr, MismatchBehavior MB, int NRanks,
                                  int Rank, int SplitNRanks,
                                  string &LocalFileName, uint64_t &HeaderSize,
-                                 vector<char> &Header)
-{
+                                 vector<char> &Header) {
     GlobalHeader<IsBigEndian> &GH = *(GlobalHeader<IsBigEndian> *) GHPtr;
 
-    if (MB == MismatchDisallowed)
-    {
-        if (SplitNRanks != (int) GH.NRanks)
-        {
+  if (MB == MismatchDisallowed) {
+    if (SplitNRanks != (int) GH.NRanks) {
             stringstream ss;
             ss << "Won't read " << LocalFileName << ": communicator-size mismatch: " <<
                "current: " << SplitNRanks << ", file: " << GH.NRanks;
@@ -1260,23 +1155,19 @@ void GenericIO::readHeaderLeader(void *GHPtr, MismatchBehavior MB, int NRanks,
         #ifndef GENERICIO_NO_MPI
         int TopoStatus;
         MPI_Topo_test(Comm, &TopoStatus);
-        if (TopoStatus == MPI_CART)
-        {
+    if (TopoStatus == MPI_CART) {
             int Dims[3], Periods[3], Coords[3];
             MPI_Cart_get(Comm, 3, Dims, Periods, Coords);
 
             bool DimsMatch = true;
-            for (int i = 0; i < 3; ++i)
-            {
-                if ((uint64_t) Dims[i] != GH.Dims[i])
-                {
+      for (int i = 0; i < 3; ++i) {
+        if ((uint64_t) Dims[i] != GH.Dims[i]) {
                     DimsMatch = false;
                     break;
                 }
             }
 
-            if (!DimsMatch)
-            {
+      if (!DimsMatch) {
                 stringstream ss;
                 ss << "Won't read " << LocalFileName <<
                    ": communicator-decomposition mismatch: " <<
@@ -1287,32 +1178,26 @@ void GenericIO::readHeaderLeader(void *GHPtr, MismatchBehavior MB, int NRanks,
             }
         }
         #endif
-    }
-    else if (MB == MismatchRedistribute && !Redistributing)
-    {
+  } else if (MB == MismatchRedistribute && !Redistributing) {
         Redistributing = true;
 
         int NFileRanks = RankMap.empty() ? (int) GH.NRanks : (int) RankMap.size();
         int NFileRanksPerRank = NFileRanks / NRanks;
         int NRemFileRank = NFileRanks % NRanks;
 
-        if (!NFileRanksPerRank)
-        {
+    if (!NFileRanksPerRank) {
             // We have only the remainder, so the last NRemFileRank ranks get one
             // file rank, and the others don't.
             if (NRemFileRank && NRanks - Rank <= NRemFileRank)
                 SourceRanks.push_back(NRanks - (Rank + 1));
-        }
-        else
-        {
+    } else {
             // Since NRemFileRank < NRanks, and we don't want to put any extra memory
             // load on rank 0 (because rank 0's memory load is normally higher than
             // the other ranks anyway), the last NRemFileRank will each take
             // (NFileRanksPerRank+1) file ranks.
 
             int FirstFileRank = 0, LastFileRank = NFileRanksPerRank - 1;
-            for (int i = 1; i <= Rank; ++i)
-            {
+      for (int i = 1; i <= Rank; ++i) {
                 FirstFileRank = LastFileRank + 1;
                 LastFileRank  = FirstFileRank + NFileRanksPerRank - 1;
 
@@ -1325,17 +1210,14 @@ void GenericIO::readHeaderLeader(void *GHPtr, MismatchBehavior MB, int NRanks,
         }
     }
     
-
     HeaderSize = GH.HeaderSize;
     Header.resize(HeaderSize + CRCSize, 0xFE /* poison */);
     FH.get()->read(&Header[0], HeaderSize + CRCSize, 0, "header");
 
     uint64_t CRC = crc64_omp(&Header[0], HeaderSize + CRCSize);
-    if (CRC != (uint64_t) - 1)
-    {
+  if (CRC != (uint64_t) -1) {
         throw runtime_error("Header CRC check failed: " + LocalFileName);
     }
-
 }
 
 void GenericIO::readOctreeHeader(int octreeOffset, int octreeStringSize, bool bigEndian)
@@ -1349,8 +1231,7 @@ void GenericIO::readOctreeHeader(int octreeOffset, int octreeStringSize, bool bi
 
 // Note: Errors from this function should be recoverable. This means that if
 // one rank throws an exception, then all ranks should.
-void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPartMap)
-{
+void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPartMap){
     int NRanks, Rank;
     #ifndef GENERICIO_NO_MPI
     MPI_Comm_rank(Comm, &Rank);
@@ -1363,14 +1244,11 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
     if (EffRank == -1)
         EffRank = MB == MismatchRedistribute ? 0 : Rank;
 
-    if (RankMap.empty() && CheckPartMap)
-    {
+  if (RankMap.empty() && CheckPartMap) {
         // First, check to see if the file is a rank map.
         unsigned long RanksInMap = 0;
-        if (Rank == 0)
-        {
-            try
-            {
+    if (Rank == 0) {
+      try {
                 #ifndef GENERICIO_NO_MPI
                 GenericIO GIO(MPI_COMM_SELF, FileName, FileIOType);
                 #else
@@ -1384,9 +1262,7 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
 
                 GIO.readData(0, false);
                 RankMap.resize(RanksInMap);
-            }
-            catch (...)
-            {
+      } catch (...) {
                 RankMap.clear();
                 RanksInMap = 0;
             }
@@ -1394,8 +1270,7 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
 
         #ifndef GENERICIO_NO_MPI
         MPI_Bcast(&RanksInMap, 1, MPI_UNSIGNED_LONG, 0, Comm);
-        if (RanksInMap > 0)
-        {
+    if (RanksInMap > 0) {
             RankMap.resize(RanksInMap);
             MPI_Bcast(&RankMap[0], RanksInMap, MPI_INT, 0, Comm);
         }
@@ -1408,26 +1283,19 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
     #endif
 
     string LocalFileName;
-    if (RankMap.empty())
-    {
+  if (RankMap.empty()) {
         LocalFileName = FileName;
         #ifndef GENERICIO_NO_MPI
         MPI_Comm_dup(MB == MismatchRedistribute ? MPI_COMM_SELF : Comm, &SplitComm);
         #endif
-    }
-    else
-    {
+  } else {
         stringstream ss;
         ss << FileName << "#" << RankMap[EffRank];
-
         LocalFileName = ss.str();
         #ifndef GENERICIO_NO_MPI
-        if (MB == MismatchRedistribute)
-        {
+    if (MB == MismatchRedistribute) {
             MPI_Comm_dup(MPI_COMM_SELF, &SplitComm);
-        }
-        else
-        {
+    } else {
             #ifdef __bgq__
             MPI_Barrier(Comm);
             #endif
@@ -1440,7 +1308,6 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
         return;
     FH.close();
 
-
     int SplitNRanks, SplitRank;
     #ifndef GENERICIO_NO_MPI
     MPI_Comm_rank(SplitComm, &SplitRank);
@@ -1450,12 +1317,10 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
     SplitNRanks = 1;
     #endif
 
-
     uint64_t HeaderSize;
     vector<char> Header;
 
-    if (SplitRank == 0)
-    {
+  if (SplitRank == 0) {
       #ifndef GENERICIO_NO_MPI
         if (FileIOType == FileIOMPI)
             FH.get() = new GenericFileIO_MPI(MPI_COMM_SELF);
@@ -1469,25 +1334,19 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
         char True = 1, False = 0;
       #endif
 
-        try
-        {
+    try {
             FH.get()->open(LocalFileName, true);
 
             GlobalHeader<false> GH; // endianness does not matter yet...
             FH.get()->read(&GH, sizeof(GlobalHeader<false>), 0, "global header");
 
-            if (string(GH.Magic, GH.Magic + MagicSize - 1) == MagicLE)
-            {
+      if (string(GH.Magic, GH.Magic + MagicSize - 1) == MagicLE) {
                 readHeaderLeader<false>(&GH, MB, NRanks, Rank, SplitNRanks, LocalFileName,
                                         HeaderSize, Header);
-            }
-            else if (string(GH.Magic, GH.Magic + MagicSize - 1) == MagicBE)
-            {
+      } else if (string(GH.Magic, GH.Magic + MagicSize - 1) == MagicBE) {
                 readHeaderLeader<true>(&GH, MB, NRanks, Rank, SplitNRanks, LocalFileName,
                                        HeaderSize, Header);
-            }
-            else
-            {
+      } else {
                 string Error = "invalid file-type identifier";
                 throw runtime_error("Won't read " + LocalFileName + ": " + Error);
             }
@@ -1496,18 +1355,14 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
             close();
             MPI_Bcast(&True, 1, MPI_BYTE, 0, SplitComm);
           #endif
-        }
-        catch (...)
-        {
+    } catch (...) {
           #ifndef GENERICIO_NO_MPI
             MPI_Bcast(&False, 1, MPI_BYTE, 0, SplitComm);
           #endif
             close();
             throw;
         }
-    }
-    else
-    {
+  } else {
       #ifndef GENERICIO_NO_MPI
         char Okay;
         MPI_Bcast(&Okay, 1, MPI_BYTE, 0, SplitComm);
@@ -1515,7 +1370,6 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
             throw runtime_error("Failure broadcast from rank 0");
       #endif
     }
-
 
   #ifndef GENERICIO_NO_MPI
     MPI_Bcast(&HeaderSize, 1, MPI_UINT64_T, 0, SplitComm);
@@ -1526,8 +1380,8 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
     MPI_Bcast(&Header[0], HeaderSize, MPI_BYTE, 0, SplitComm);
   #endif
 
+  FH.getHeaderCache().clear();
 
-    FH.getHeaderCache().clear();
     GlobalHeader<false> *GH = (GlobalHeader<false> *) &Header[0];
 
 
@@ -1557,48 +1411,44 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
     OpenFileName = LocalFileName;
 
     #ifndef GENERICIO_NO_MPI
-
     if (!DisableCollErrChecking)
         MPI_Barrier(Comm);
 
-    
+  if (FileIOType == FileIOMPI)
+    FH.get() = new GenericFileIO_MPI(SplitComm);
+  else if (FileIOType == FileIOMPICollective)
+    FH.get() = new GenericFileIO_MPICollective(SplitComm);
+  else
+    FH.get() = new GenericFileIO_POSIX();
 
     int OpenErr = 0, TotOpenErr;
-    try
-    {
+  try {
         FH.get()->open(LocalFileName, true);
         MPI_Allreduce(&OpenErr, &TotOpenErr, 1, MPI_INT, MPI_SUM,
                       DisableCollErrChecking ? MPI_COMM_SELF : Comm);
-    }
-    catch (...)
-    {
+  } catch (...) {
         OpenErr = 1;
         MPI_Allreduce(&OpenErr, &TotOpenErr, 1, MPI_INT, MPI_SUM,
                       DisableCollErrChecking ? MPI_COMM_SELF : Comm);
         throw;
     }
 
-
-    if (TotOpenErr > 0)
-    {
+  if (TotOpenErr > 0) {
         stringstream ss;
         ss << TotOpenErr << " ranks failed to open file: " << LocalFileName;
         throw runtime_error(ss.str());
     }
     #endif
-
 }
 
-int GenericIO::readNRanks()
-{
+int GenericIO::readNRanks() {
     if (FH.isBigEndian())
         return readNRanks<true>();
     return readNRanks<false>();
 }
 
 template <bool IsBigEndian>
-int GenericIO::readNRanks()
-{
+int GenericIO::readNRanks() {
     if (RankMap.size())
         return RankMap.size();
 
@@ -1607,8 +1457,7 @@ int GenericIO::readNRanks()
     return (int) GH->NRanks;
 }
 
-void GenericIO::readDims(int Dims[3])
-{
+void GenericIO::readDims(int Dims[3]) {
     if (FH.isBigEndian())
         readDims<true>(Dims);
     else
@@ -1616,23 +1465,20 @@ void GenericIO::readDims(int Dims[3])
 }
 
 template <bool IsBigEndian>
-void GenericIO::readDims(int Dims[3])
-{
+void GenericIO::readDims(int Dims[3]) {
     assert(FH.getHeaderCache().size() && "HeaderCache must not be empty");
     GlobalHeader<IsBigEndian> *GH = (GlobalHeader<IsBigEndian> *) &FH.getHeaderCache()[0];
     std::copy(GH->Dims, GH->Dims + 3, Dims);
 }
 
-uint64_t GenericIO::readTotalNumElems()
-{
+uint64_t GenericIO::readTotalNumElems() {
     if (FH.isBigEndian())
         return readTotalNumElems<true>();
     return readTotalNumElems<false>();
 }
 
 template <bool IsBigEndian>
-uint64_t GenericIO::readTotalNumElems()
-{
+uint64_t GenericIO::readTotalNumElems() {
     if (RankMap.size())
         return (uint64_t) - 1;
 
@@ -1641,8 +1487,7 @@ uint64_t GenericIO::readTotalNumElems()
     return GH->NElems;
 }
 
-void GenericIO::readPhysOrigin(double Origin[3])
-{
+void GenericIO::readPhysOrigin(double Origin[3]) {
     if (FH.isBigEndian())
         readPhysOrigin<true>(Origin);
     else
@@ -1654,12 +1499,10 @@ void GenericIO::readPhysOrigin(double Origin[3])
 #define offsetof_safe(S, F) (size_t(&(S)->F) - size_t(S))
 
 template <bool IsBigEndian>
-void GenericIO::readPhysOrigin(double Origin[3])
-{
+void GenericIO::readPhysOrigin(double Origin[3]) {
     assert(FH.getHeaderCache().size() && "HeaderCache must not be empty");
     GlobalHeader<IsBigEndian> *GH = (GlobalHeader<IsBigEndian> *) &FH.getHeaderCache()[0];
-    if (offsetof_safe(GH, PhysOrigin) >= GH->GlobalHeaderSize)
-    {
+  if (offsetof_safe(GH, PhysOrigin) >= GH->GlobalHeaderSize) {
         std::fill(Origin, Origin + 3, 0.0);
         return;
     }
@@ -1667,8 +1510,7 @@ void GenericIO::readPhysOrigin(double Origin[3])
     std::copy(GH->PhysOrigin, GH->PhysOrigin + 3, Origin);
 }
 
-void GenericIO::readPhysScale(double Scale[3])
-{
+void GenericIO::readPhysScale(double Scale[3]) {
     if (FH.isBigEndian())
         readPhysScale<true>(Scale);
     else
@@ -1676,12 +1518,10 @@ void GenericIO::readPhysScale(double Scale[3])
 }
 
 template <bool IsBigEndian>
-void GenericIO::readPhysScale(double Scale[3])
-{
+void GenericIO::readPhysScale(double Scale[3]) {
     assert(FH.getHeaderCache().size() && "HeaderCache must not be empty");
     GlobalHeader<IsBigEndian> *GH = (GlobalHeader<IsBigEndian> *) &FH.getHeaderCache()[0];
-    if (offsetof_safe(GH, PhysScale) >= GH->GlobalHeaderSize)
-    {
+  if (offsetof_safe(GH, PhysScale) >= GH->GlobalHeaderSize) {
         std::fill(Scale, Scale + 3, 0.0);
         return;
     }
@@ -1691,13 +1531,11 @@ void GenericIO::readPhysScale(double Scale[3])
 
 template <bool IsBigEndian>
 static size_t getRankIndex(int EffRank, GlobalHeader<IsBigEndian> *GH,
-                           vector<int> &RankMap, vector<char> &HeaderCache)
-{
+                           vector<int> &RankMap, vector<char> &HeaderCache) {
     if (RankMap.empty())
         return EffRank;
 
-    for (size_t i = 0; i < GH->NRanks; ++i)
-    {
+  for (size_t i = 0; i < GH->NRanks; ++i) {
         RankHeader<IsBigEndian> *RH = (RankHeader<IsBigEndian> *) &HeaderCache[GH->RanksStart +
                                       i * GH->RanksSize];
         if (offsetof_safe(RH, GlobalRank) >= GH->RanksSize)
@@ -1711,18 +1549,15 @@ static size_t getRankIndex(int EffRank, GlobalHeader<IsBigEndian> *GH,
     return (size_t) - 1;
 }
 
-int GenericIO::readGlobalRankNumber(int EffRank)
-{
+int GenericIO::readGlobalRankNumber(int EffRank) {
     if (FH.isBigEndian())
         return readGlobalRankNumber<true>(EffRank);
     return readGlobalRankNumber<false>(EffRank);
 }
 
 template <bool IsBigEndian>
-int GenericIO::readGlobalRankNumber(int EffRank)
-{
-    if (EffRank == -1)
-    {
+int GenericIO::readGlobalRankNumber(int EffRank) {
+  if (EffRank == -1) {
         #ifndef GENERICIO_NO_MPI
         MPI_Comm_rank(Comm, &EffRank);
         #else
@@ -1748,12 +1583,10 @@ int GenericIO::readGlobalRankNumber(int EffRank)
     return (int) RH->GlobalRank;
 }
 
-void GenericIO::getSourceRanks(vector<int> &SR)
-{
+void GenericIO::getSourceRanks(vector<int> &SR) {
     SR.clear();
 
-    if (Redistributing)
-    {
+  if (Redistributing) {
         std::copy(SourceRanks.begin(), SourceRanks.end(), std::back_inserter(SR));
         return;
     }
@@ -1768,10 +1601,8 @@ void GenericIO::getSourceRanks(vector<int> &SR)
     SR.push_back(Rank);
 }
 
-size_t GenericIO::readNumElems(int EffRank)
-{
-    if (EffRank == -1 && Redistributing)
-    {
+size_t GenericIO::readNumElems(int EffRank) {
+  if (EffRank == -1 && Redistributing) {
         DisableCollErrChecking = true;
 
         size_t TotalSize = 0;
@@ -1788,10 +1619,8 @@ size_t GenericIO::readNumElems(int EffRank)
 }
 
 template <bool IsBigEndian>
-size_t GenericIO::readNumElems(int EffRank)
-{
-    if (EffRank == -1)
-    {
+size_t GenericIO::readNumElems(int EffRank) {
+  if (EffRank == -1) {
         #ifndef GENERICIO_NO_MPI
         MPI_Comm_rank(Comm, &EffRank);
         #else
@@ -1814,10 +1643,8 @@ size_t GenericIO::readNumElems(int EffRank)
     return (size_t) RH->NElems;
 }
 
-void GenericIO::readCoords(int Coords[3], int EffRank)
-{
-    if (EffRank == -1 && Redistributing)
-    {
+void GenericIO::readCoords(int Coords[3], int EffRank) {
+  if (EffRank == -1 && Redistributing) {
         std::fill(Coords, Coords + 3, 0);
         return;
     }
@@ -1829,10 +1656,8 @@ void GenericIO::readCoords(int Coords[3], int EffRank)
 }
 
 template <bool IsBigEndian>
-void GenericIO::readCoords(int Coords[3], int EffRank)
-{
-    if (EffRank == -1)
-    {
+void GenericIO::readCoords(int Coords[3], int EffRank) {
+  if (EffRank == -1) {
         #ifndef GENERICIO_NO_MPI
         MPI_Comm_rank(Comm, &EffRank);
         #else
@@ -1945,8 +1770,7 @@ void GenericIO::setNaturalDefaultPartition()
 
 
 
-void GenericIO::readData(int EffRank, bool PrintStats, bool CollStats)
-{
+void GenericIO::readData(int EffRank, bool PrintStats, bool CollStats){
     int Rank;
   #ifndef GENERICIO_NO_MPI
     MPI_Comm_rank(Comm, &Rank);
@@ -1963,21 +1787,17 @@ void GenericIO::readData(int EffRank, bool PrintStats, bool CollStats)
 
     int NErrs[3] = { 0, 0, 0 };
 
-    if (EffRank == -1 && Redistributing)
-    {
+  if (EffRank == -1 && Redistributing) {
         DisableCollErrChecking = true;
 
         size_t RowOffset = 0;
-        for (int i = 0, ie = SourceRanks.size(); i != ie; ++i)
-        {
+    for (int i = 0, ie = SourceRanks.size(); i != ie; ++i) {
             readData(SourceRanks[i], RowOffset, Rank, TotalReadSize, NErrs);
             RowOffset += readNumElems(SourceRanks[i]);
         }
 
         DisableCollErrChecking = false;
-    }
-    else
-    {
+  } else {
         readData(EffRank, 0, Rank, TotalReadSize, NErrs);
     }
 
@@ -1988,8 +1808,7 @@ void GenericIO::readData(int EffRank, bool PrintStats, bool CollStats)
     AllNErrs[0] = NErrs[0]; AllNErrs[1] = NErrs[1]; AllNErrs[2] = NErrs[2];
   #endif
 
-    if (AllNErrs[0] > 0 || AllNErrs[1] > 0 || AllNErrs[2] > 0)
-    {
+  if (AllNErrs[0] > 0 || AllNErrs[1] > 0 || AllNErrs[2] > 0) {
         stringstream ss;
         ss << "Experienced " << AllNErrs[0] << " I/O error(s), " <<
            AllNErrs[1] << " CRC error(s) and " << AllNErrs[2] <<
@@ -2024,8 +1843,7 @@ void GenericIO::readData(int EffRank, bool PrintStats, bool CollStats)
   #endif
         AllTotalReadSize = TotalReadSize;
 
-    if (Rank == 0 && PrintStats)
-    {
+  if (Rank == 0 && PrintStats) {
         double Rate = ((double) AllTotalReadSize) / MaxTotalTime / (1024.*1024.);
         cout << "Read " << Vars.size() << " variables from " << FileName <<
              " (" << AllTotalReadSize << " bytes) in " << MaxTotalTime << "s: " <<
@@ -2034,8 +1852,7 @@ void GenericIO::readData(int EffRank, bool PrintStats, bool CollStats)
 }
 
 void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
-                         uint64_t &TotalReadSize, int NErrs[3])
-{
+                         uint64_t &TotalReadSize, int NErrs[3]) {
     if (FH.isBigEndian())
         readData<true>(EffRank, RowOffset, Rank, TotalReadSize, NErrs);
     else
@@ -2046,8 +1863,7 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
 // one rank throws an exception, then all ranks should.
 template <bool IsBigEndian>
 void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
-                         uint64_t &TotalReadSize, int NErrs[3])
-{
+                         uint64_t &TotalReadSize, int NErrs[3]) {
     openAndReadHeader(Redistributing ? MismatchRedistribute : MismatchAllowed,
                       EffRank, false);
 
@@ -2064,12 +1880,10 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
     RankHeader<IsBigEndian> *RH = (RankHeader<IsBigEndian> *) &FH.getHeaderCache()[GH->RanksStart +
                                   RankIndex * GH->RanksSize];
 
-    for (size_t i = 0; i < Vars.size(); ++i)
-    {
+  for (size_t i = 0; i < Vars.size(); ++i) {
         uint64_t Offset = RH->Start;
         bool VarFound = false;
-        for (uint64_t j = 0; j < GH->NVars; ++j)
-        {
+    for (uint64_t j = 0; j < GH->NVars; ++j) {
             VariableHeader<IsBigEndian> *VH = (VariableHeader<IsBigEndian> *) &FH.getHeaderCache()[GH->VarsStart +
                                               j * GH->VarsSize];
 
@@ -2079,8 +1893,7 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
                 VName.resize(VNameNull);
 
             uint64_t ReadSize = RH->NElems * VH->Size + CRCSize;
-            if (VName != Vars[i].Name)
-            {
+      if (VName != Vars[i].Name) {
                 Offset += ReadSize;
                 continue;
             }
@@ -2092,24 +1905,19 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
             VarFound = true;
             bool IsFloat = (bool) (VH->Flags & FloatValue),
                  IsSigned = (bool) (VH->Flags & SignedValue);
-            if (VH->Size != Vars[i].Size)
-            {
+      if (VH->Size != Vars[i].Size) {
                 stringstream ss;
                 ss << "Size mismatch for variable " << Vars[i].Name <<
                    " in: " << OpenFileName << ": current: " << Vars[i].Size <<
                    ", file: " << VH->Size;
                 throw runtime_error(ss.str());
-            }
-            else if (ElementSize != Vars[i].ElementSize)
-            {
+      } else if (ElementSize != Vars[i].ElementSize) {
                 stringstream ss;
                 ss << "Element size mismatch for variable " << Vars[i].Name <<
                    " in: " << OpenFileName << ": current: " << Vars[i].ElementSize <<
                    ", file: " << ElementSize;
                 throw runtime_error(ss.str());
-            }
-            else if (IsFloat != Vars[i].IsFloat)
-            {
+      } else if (IsFloat != Vars[i].IsFloat) {
                 string Float("float"), Int("integer");
                 stringstream ss;
                 ss << "Type mismatch for variable " << Vars[i].Name <<
@@ -2117,9 +1925,7 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
                    (Vars[i].IsFloat ? Float : Int) <<
                    ", file: " << (IsFloat ? Float : Int);
                 throw runtime_error(ss.str());
-            }
-            else if (IsSigned != Vars[i].IsSigned)
-            {
+      } else if (IsSigned != Vars[i].IsSigned) {
                 string Signed("signed"), Uns("unsigned");
                 stringstream ss;
                 ss << "Type mismatch for variable " << Vars[i].Name <<
@@ -2136,22 +1942,18 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
             void *Data = VarData;
             bool HasExtraSpace = Vars[i].HasExtraSpace;
             if (offsetof_safe(GH, BlocksStart) < GH->GlobalHeaderSize &&
-                    GH->BlocksSize > 0)
-            {
+          GH->BlocksSize > 0) {
                 BlockHeader<IsBigEndian> *BH = (BlockHeader<IsBigEndian> *)
                                                &FH.getHeaderCache()[GH->BlocksStart +
                                                        (RankIndex * GH->NVars + j) * GH->BlocksSize];
                 ReadSize = BH->Size + CRCSize;
                 Offset = BH->Start;
 
-                if (strncmp(BH->Filters[0], CompressName, FilterNameSize) == 0)
-                {
+        if (strncmp(BH->Filters[0], CompressName, FilterNameSize) == 0) {
                     LData.resize(ReadSize);
                     Data = &LData[0];
                     HasExtraSpace = true;
-                }
-                else if (BH->Filters[0][0] != '\0')
-                {
+        } else if (BH->Filters[0][0] != '\0') {
                     stringstream ss;
                     ss << "Unknown filter \"" << BH->Filters[0] << "\" on variable " << Vars[i].Name;
                     throw runtime_error(ss.str());
@@ -2177,31 +1979,23 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
                 if (EnvStr)
                     RetrySleep = atoi(EnvStr);
 
-                for (; Retry < RetryCount; ++Retry)
-                {
-                    try
-                    {
+        for (; Retry < RetryCount; ++Retry) {
+          try {
                         FH.get()->read(Data, ReadSize, Offset, Vars[i].Name);
                         break;
-                    }
-                    catch (...) { }
+          } catch (...) { }
 
                     usleep(1000 * RetrySleep);
                 }
 
-                if (Retry == RetryCount)
-                {
+        if (Retry == RetryCount) {
                     ++NErrs[0];
                     break;
-                }
-                else if (Retry > 0)
-                {
+        } else if (Retry > 0) {
                     EnvStr = getenv("GENERICIO_VERBOSE");
-                    if (EnvStr)
-                    {
+          if (EnvStr) {
                         int Mod = atoi(EnvStr);
-                        if (Mod > 0)
-                        {
+            if (Mod > 0) {
                             int Rank;
                             #ifndef GENERICIO_NO_MPI
                             MPI_Comm_rank(MPI_COMM_WORLD, &Rank);
@@ -2222,8 +2016,7 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
             TotalReadSize += ReadSize;
 
             uint64_t CRC = crc64_omp(Data, ReadSize);
-            if (CRC != (uint64_t) - 1)
-            {
+      if (CRC != (uint64_t) -1) {
                 ++NErrs[1];
 
                 int Rank;
@@ -2272,8 +2065,7 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
             if (HasExtraSpace)
                 std::copy(CRCSave, CRCSave + CRCSize, CRCLoc);
 
-            if (LData.size())
-            {
+      if (LData.size()) {
                 CompressHeader<IsBigEndian> *CH = (CompressHeader<IsBigEndian>*) &LData[0];
 
                 #ifdef _OPENMP
@@ -2281,8 +2073,7 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
                 {
                 #endif
 
-                    if (!blosc_initialized)
-                    {
+       if (!blosc_initialized) {
                         blosc_init();
                         blosc_initialized = true;
                     }
@@ -2295,8 +2086,7 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
                 blosc_decompress(&LData[0] + sizeof(CompressHeader<IsBigEndian>),
                                  VarData, Vars[i].Size * RH->NElems);
 
-                if (CH->OrigCRC != crc64_omp(VarData, Vars[i].Size * RH->NElems))
-                {
+        if (CH->OrigCRC != crc64_omp(VarData, Vars[i].Size*RH->NElems)) {
                     ++NErrs[2];
                     break;
                 }
@@ -2305,8 +2095,7 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
             // Byte swap the data if necessary.
             if (IsBigEndian != isBigEndian())
                 for (size_t j = 0;
-                        j < RH->NElems * (Vars[i].Size / Vars[i].ElementSize); ++j)
-                {
+             j < RH->NElems*(Vars[i].Size/Vars[i].ElementSize); ++j) {
                     char *Offset = ((char *) VarData) + j * Vars[i].ElementSize;
                     bswap(Offset, Vars[i].ElementSize);
                 }
@@ -2319,14 +2108,11 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
                                 " not found in: " + OpenFileName);
 
         // This is for debugging.
-        if (NErrs[0] || NErrs[1] || NErrs[2])
-        {
+    if (NErrs[0] || NErrs[1] || NErrs[2]) {
             const char *EnvStr = getenv("GENERICIO_VERBOSE");
-            if (EnvStr)
-            {
+      if (EnvStr) {
                 int Mod = atoi(EnvStr);
-                if (Mod > 0)
-                {
+        if (Mod > 0) {
                     int Rank;
                     #ifndef GENERICIO_NO_MPI
                     MPI_Comm_rank(MPI_COMM_WORLD, &Rank);
@@ -2447,7 +2233,6 @@ void GenericIO::readDataSection(size_t readOffset, size_t readNumRows, int EffRa
     else
         readDataSection<false>(readOffset, readNumRows, EffRank, RowOffset, Rank, TotalReadSize, NErrs);
 }
-
 
 template <bool IsBigEndian>
 void GenericIO::readDataSection(size_t readOffset, size_t readNumRows, int EffRank, size_t RowOffset, int Rank, uint64_t &TotalReadSize, int NErrs[3])

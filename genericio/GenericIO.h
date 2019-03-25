@@ -87,8 +87,7 @@ class GenericFileIO
 };
 
 #ifndef GENERICIO_NO_MPI
-class GenericFileIO_MPI : public GenericFileIO
-{
+class GenericFileIO_MPI : public GenericFileIO {
   public:
     GenericFileIO_MPI(const MPI_Comm &C) : FH(MPI_FILE_NULL), Comm(C) {}
     virtual ~GenericFileIO_MPI();
@@ -104,8 +103,7 @@ class GenericFileIO_MPI : public GenericFileIO
     MPI_Comm Comm;
 };
 
-class GenericFileIO_MPICollective : public GenericFileIO_MPI
-{
+class GenericFileIO_MPICollective : public GenericFileIO_MPI {
   public:
     GenericFileIO_MPICollective(const MPI_Comm &C) : GenericFileIO_MPI(C) {}
 
@@ -115,8 +113,7 @@ class GenericFileIO_MPICollective : public GenericFileIO_MPI
 };
 #endif //GENERICIO_NO_MPI
 
-class GenericFileIO_POSIX : public GenericFileIO
-{
+class GenericFileIO_POSIX : public GenericFileIO {
   public:
     GenericFileIO_POSIX() : FH(-1) {}
     ~GenericFileIO_POSIX();
@@ -131,9 +128,7 @@ class GenericFileIO_POSIX : public GenericFileIO
     int FH;
 };
 
-namespace detail
-{
-
+namespace detail {
 // A standard enable_if idiom (we include our own here for pre-C++11 support).
 template <bool B, typename T = void>
 struct enable_if {};
@@ -145,8 +140,7 @@ struct enable_if<true, T> { typedef T type; };
 // designed to work both with structs/classes and also with OpenCL-style vector
 // types.
 template <typename T>
-class has_x
-{
+class has_x {
     typedef char yes[1];
     typedef char no[2];
 
@@ -163,8 +157,7 @@ class has_x
 // A SFINAE-based trait to detect whether a type is array-like (i.e. supports
 // the [] operator).
 template <typename T>
-class is_array
-{
+class is_array {
     typedef char yes[1];
     typedef char no[2];
 
@@ -177,14 +170,11 @@ class is_array
   public:
     enum { value = sizeof(test<T>(0)) == sizeof(yes) };
 };
-
 } // namespace detail
 
-class GenericIO
-{
+class GenericIO {
   public:
-    enum VariableFlags
-    {
+  enum VariableFlags {
         VarHasExtraSpace =  (1 << 0), // Note that this flag indicates that the
         // extra space is available, but the GenericIO
         // implementation is required to
@@ -195,8 +185,7 @@ class GenericIO
         VarMaybePhysGhost = (1 << 4)
     };
 
-    struct VariableInfo
-    {
+  struct VariableInfo {
         VariableInfo(const std::string &N, std::size_t S, bool IF, bool IS,
                      bool PCX, bool PCY, bool PCZ, bool PG, std::size_t ES = 0)
             : Name(N), Size(S), IsFloat(IF), IsSigned(IS),
@@ -213,12 +202,10 @@ class GenericIO
     };
 
   public:
-    class Variable
-    {
+  class Variable {
       private:
         template <typename ET>
-        void deduceTypeInfoFromElement(ET *)
-        {
+    void deduceTypeInfoFromElement(ET *) {
             ElementSize = sizeof(ET);
             IsFloat = !std::numeric_limits<ET>::is_integer;
             IsSigned = std::numeric_limits<ET>::is_signed;
@@ -232,8 +219,7 @@ class GenericIO
         // also work.
         template <typename T>
         typename detail::enable_if<detail::is_array<T>::value, void>::type
-        deduceTypeInfo(T *D)
-        {
+    deduceTypeInfo(T *D) {
             Size = sizeof(T);
             deduceTypeInfoFromElement(&(*D)[0]);
         }
@@ -241,8 +227,7 @@ class GenericIO
         template <typename T>
         typename detail::enable_if < detail::has_x<T>::value &&
         !detail::is_array<T>::value, void >::type
-        deduceTypeInfo(T *D)
-        {
+    deduceTypeInfo(T *D) {
             Size = sizeof(T);
             deduceTypeInfoFromElement(&(*D).x);
         }
@@ -250,8 +235,7 @@ class GenericIO
         template <typename T>
         typename detail::enable_if < !detail::has_x<T>::value &&
         !detail::is_array<T>::value, void >::type
-        deduceTypeInfo(T *D)
-        {
+    deduceTypeInfo(T *D) {
             Size = sizeof(T);
             deduceTypeInfoFromElement(D);
         }
@@ -263,8 +247,7 @@ class GenericIO
               IsPhysCoordX(Flags & VarIsPhysCoordX),
               IsPhysCoordY(Flags & VarIsPhysCoordY),
               IsPhysCoordZ(Flags & VarIsPhysCoordZ),
-              MaybePhysGhost(Flags & VarMaybePhysGhost)
-        {
+        MaybePhysGhost(Flags & VarMaybePhysGhost) {
             deduceTypeInfo(D);
         }
 
@@ -275,8 +258,7 @@ class GenericIO
               IsPhysCoordX(Flags & VarIsPhysCoordX),
               IsPhysCoordY(Flags & VarIsPhysCoordY),
               IsPhysCoordZ(Flags & VarIsPhysCoordZ),
-              MaybePhysGhost(Flags & VarMaybePhysGhost)
-        {
+        MaybePhysGhost(Flags & VarMaybePhysGhost) {
             deduceTypeInfoFromElement(D);
             Size = ElementSize * NumElements;
         }
@@ -303,8 +285,7 @@ class GenericIO
     };
 
   public:
-    enum FileIO
-    {
+  enum FileIO {
         FileIOMPI,
         FileIOPOSIX,
         FileIOMPICollective
@@ -331,8 +312,7 @@ class GenericIO
     }
   #endif
 
-    ~GenericIO()
-    {
+  ~GenericIO() {
         close();
 
       #ifndef GENERICIO_NO_MPI
@@ -342,15 +322,11 @@ class GenericIO
     }
 
   public:
-    std::size_t requestedExtraSpace() const
-    {
+  std::size_t requestedExtraSpace() const {
         return 8;
     }
 
-
-
-    void setNumElems(std::size_t E)
-    {
+  void setNumElems(std::size_t E) {
         NElems = E;
 
       #ifndef GENERICIO_NO_MPI
@@ -362,16 +338,14 @@ class GenericIO
       #endif
     }
 
-    void setPhysOrigin(double O, int Dim = -1)
-    {
+  void setPhysOrigin(double O, int Dim = -1) {
         if (Dim >= 0)
             PhysOrigin[Dim] = O;
         else
             std::fill(PhysOrigin, PhysOrigin + 3, O);
     }
 
-    void setPhysScale(double S, int Dim = -1)
-    {
+  void setPhysScale(double S, int Dim = -1) {
         if (Dim >= 0)
             PhysScale[Dim] = S;
         else
@@ -417,37 +391,31 @@ class GenericIO
 
     template <typename T>
     void addVariable(const std::string &Name, T *Data,
-                     unsigned Flags = 0)
-    {
+                   unsigned Flags = 0) {
         Vars.push_back(Variable(Name, Data, Flags));
     }
 
-
     template <typename T, typename A>
     void addVariable(const std::string &Name, std::vector<T, A> &Data,
-                     unsigned Flags = 0)
-    {
+                   unsigned Flags = 0) {
         T *D = Data.empty() ? 0 : &Data[0];
         addVariable(Name, D, Flags);
     }
 
     void addVariable(const VariableInfo &VI, void *Data,
-                     unsigned Flags = 0)
-    {
+                   unsigned Flags = 0) {
         Vars.push_back(Variable(VI, Data, Flags));
     }
 
     template <typename T>
     void addScalarizedVariable(const std::string &Name, T *Data,
-                               std::size_t NumElements, unsigned Flags = 0)
-    {
+                             std::size_t NumElements, unsigned Flags = 0) {
         Vars.push_back(Variable(Name, NumElements, Data, Flags));
     }
 
     template <typename T, typename A>
     void addScalarizedVariable(const std::string &Name, std::vector<T, A> &Data,
-                               std::size_t NumElements, unsigned Flags = 0)
-    {
+                             std::size_t NumElements, unsigned Flags = 0) {
         T *D = Data.empty() ? 0 : &Data[0];
         addScalarizedVariable(Name, D, NumElements, Flags);
     }
@@ -457,8 +425,7 @@ class GenericIO
     void write();
   #endif
 
-    enum MismatchBehavior
-    {
+  enum MismatchBehavior {
         MismatchAllowed,
         MismatchDisallowed,
         MismatchRedistribute
@@ -515,31 +482,26 @@ class GenericIO
         FH.close();
     }
 
-    void setPartition(int P)
-    {
+  void setPartition(int P) {
         Partition = P;
     }
 
-    static void setDefaultFileIOType(unsigned FIOT)
-    {
+  static void setDefaultFileIOType(unsigned FIOT) {
         DefaultFileIOType = FIOT;
     }
 
-    static void setDefaultPartition(int P)
-    {
+  static void setDefaultPartition(int P) {
         DefaultPartition = P;
     }
 
     static void setNaturalDefaultPartition();
 
-    static void setDefaultShouldCompress(bool C)
-    {
+  static void setDefaultShouldCompress(bool C) {
         DefaultShouldCompress = C;
     }
 
   #ifndef GENERICIO_NO_MPI
-    static void setCollectiveMPIIOThreshold(std::size_t T)
-    {
+  static void setCollectiveMPIIOThreshold(std::size_t T) {
       #ifndef GENERICIO_NO_NEVER_USE_COLLECTIVE_IO
         CollectiveMPIIOThreshold = T;
       #endif
@@ -651,58 +613,48 @@ class GenericIO
     // This reference counting mechanism allows the the GenericIO class
     // to be used in a cursor mode. To do this, make a copy of the class
     // after reading the header but prior to adding the variables.
-    struct FHManager
-    {
-        FHManager() : CountedFH(0)
-        {
+  struct FHManager {
+    FHManager() : CountedFH(0) {
             allocate();
         }
 
-        FHManager(const FHManager& F)
-        {
+    FHManager(const FHManager& F) {
             CountedFH = F.CountedFH;
             CountedFH->Cnt += 1;
         }
 
-        ~FHManager()
-        {
+    ~FHManager() {
             close();
         }
 
-        GenericFileIO *&get()
-        {
+    GenericFileIO *&get() {
             if (!CountedFH)
                 allocate();
 
             return CountedFH->GFIO;
         }
 
-        std::vector<char> &getHeaderCache()
-        {
+    std::vector<char> &getHeaderCache() {
             if (!CountedFH)
                 allocate();
 
             return CountedFH->HeaderCache;
         }
 
-        bool isBigEndian()
-        {
+    bool isBigEndian() {
             return CountedFH ? CountedFH->IsBigEndian : false;
         }
 
-        void setIsBigEndian(bool isBE)
-        {
+    void setIsBigEndian(bool isBE) {
             CountedFH->IsBigEndian = isBE;
         }
 
-        void allocate()
-        {
+    void allocate() {
             close();
             CountedFH = new FHWCnt;
         };
 
-        void close()
-        {
+    void close() {
             if (CountedFH && CountedFH->Cnt == 1)
                 delete CountedFH;
             else if (CountedFH)
@@ -711,18 +663,15 @@ class GenericIO
             CountedFH = 0;
         }
 
-        struct FHWCnt
-        {
+    struct FHWCnt {
             FHWCnt() : GFIO(0), Cnt(1), IsBigEndian(false) {}
 
-            ~FHWCnt()
-            {
+      ~FHWCnt() {
                 close();
             }
 
           protected:
-            void close()
-            {
+      void close() {
                 delete GFIO;
                 GFIO = 0;
             }

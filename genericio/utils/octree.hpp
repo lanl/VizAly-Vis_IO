@@ -247,6 +247,9 @@ class Octree
 	float rankExtents[6];	// extents of the current rank
 
 	std::stringstream log;
+
+	template <typename T> void reorder(T arr[], size_t index[], size_t n);
+	std::vector<size_t> createIndex(int numPartitions, std::vector<int> partitionPosition, std::vector<uint64_t>partitionCount, size_t numElements);
 	
   public:
   	
@@ -261,6 +264,7 @@ class Octree
 	std::vector<PartitionExtents> ComputeMyLeaves(float myRankExtents[6], int _numLevels);
 	
 	template <typename T> void reorganizeArray(int numPartitions, std::vector<uint64_t>partitionCount, std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle);
+	template <typename T> void reorganizeArrayInPlace(int numPartitions, std::vector<uint64_t>partitionCount, std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle);
 	template <typename T> std::vector<uint64_t> findLeaf(T inputArrayX[], T inputArrayY[], T inputArrayZ[], size_t numElements, int numPartitions, float partitionExtents[], std::vector<int> &partitionPosition);
 
 	template <typename T> bool checkPosition(float extents[], T _x, T _y, T _z);
@@ -313,6 +317,107 @@ inline bool Octree::checkPositionInclusive(float extents[], T _x, T _y, T _z)
 	return false;
 }
 
+
+
+
+// From: https://www.geeksforgeeks.org/reorder-a-array-according-to-given-indexes/
+// A O(n) time and O(1) extra space C++ program to sort an array according to given indexes 
+template <typename T>
+inline void Octree::reorder(T arr[], size_t index[], size_t n) 
+{ 
+	// Create index
+
+    // Fix all elements one by one 
+    for (size_t i=0; i<n; i++) 
+    { 
+        // While index[i] and arr[i] are not fixed 
+        while (index[i] != i) 
+        { 
+            // Store values of the target (or correct)  
+            // position before placing arr[i] there 
+            size_t  oldTargetI  = index[ index[i] ]; 
+            T oldTargetE     = arr[ index[i] ]; 
+  
+            // Place arr[i] at its target (or correct) position. 
+            // Also copy corrected index for new position 
+            arr[index[i]] = arr[i]; 
+            index[index[i]] = index[i]; 
+  
+            // Copy old target values to arr[i] and index[i] 
+            index[i] = oldTargetI; 
+            arr[i]   = oldTargetE; 
+        } 
+    } 
+}
+
+
+inline std::vector<size_t> Octree::createIndex(int numPartitions, std::vector<int> partitionPosition, std::vector<uint64_t>partitionCount, size_t numElements)
+{
+	std::vector<int> currentPartitionCount;
+	std::vector<int> partitionOffset;
+	partitionOffset.push_back(0);
+	for (int i=0; i<numPartitions; i++)
+	{
+		partitionOffset.push_back( partitionOffset[i] + partitionCount[i] );
+		currentPartitionCount.push_back(0);
+	}
+
+
+
+	std::vector<size_t> index;
+	index.resize(numElements);
+	for (size_t i=0; i<numElements; i++)
+	{
+		int partition = partitionPosition[i];	// Get the partition that index is in
+		int pos = partitionOffset[partition] + currentPartitionCount[partition];	// current_new_position = offset + current
+
+		index[i] = pos;
+		currentPartitionCount[partition]++;
+	}
+
+	return index;
+}
+
+
+template <typename T>				    	
+inline void Octree::reorganizeArrayInPlace(int numPartitions, std::vector<uint64_t>partitionCount, 
+									std::vector<int> partitionPosition, T array[], size_t numElements, bool shuffle)
+{
+	Timer clock, indexClock, reorderClock, shuffleClock;
+  clock.start();
+
+
+  indexClock.start();
+	std::vector<size_t> index = createIndex(numPartitions, partitionPosition, partitionCount, numElements);
+  indexClock.stop();
+
+
+  reorderClock.start();
+	reorder(array, &index[0], numElements);
+	index.clear();	index.shrink_to_fit();
+  reorderClock.stop();
+
+	
+  shuffleClock.start();
+	if (shuffle)
+	{
+  		std::mt19937 g(0);	// to ensure reproducability
+
+  		size_t startPos = 0;
+		for (int p=0; p<numPartitions; p++)
+		{
+			std::shuffle(&array[startPos], &array[startPos+partitionCount[p]], g);
+			startPos += partitionCount[p];
+		}
+	}
+  shuffleClock.stop();
+  clock.stop();
+
+    log << "Octree::reorganizeArrayInPlace create index took " << indexClock.getDuration() << " s " << std::endl;
+    log << "Octree::reorganizeArrayInPlace reorder took " << reorderClock.getDuration() << " s " << std::endl;
+    log << "Octree::reorganizeArrayInPlace shuffle took " << shuffleClock.getDuration() << " s " << std::endl;
+  	log << "Octree::reorganizeArrayInPlace took " << clock.getDuration() << " s " << std::endl << std::endl;
+}
 
 
 
@@ -394,7 +499,7 @@ inline void Octree::reorganizeArray(int numPartitions, std::vector<uint64_t>part
 	// log << "Octree::reorganizeArray partitionOffset mem usage " << partitionOffsetMem.getMemorySizeInMB() << " MB " << std::endl;
 	// log << "Octree::reorganizeArray currentPartitionCount mem usage " << currentPartitionCountMem.getMemorySizeInMB() << " MB " << std::endl;
 	// log << "Octree::reorganizeArray tempVector mem usage " << tempVectorMem.getMemorySizeInMB() << " MB " << std::endl;
-	// log << "Octree::reorganizeArray took " << clock.getDuration() << " s " << std::endl << std::endl;
+	log << "Octree::reorganizeArray took " << clock.getDuration() << " s " << std::endl << std::endl;
 }
 
 
