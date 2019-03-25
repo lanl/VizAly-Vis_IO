@@ -146,5 +146,48 @@ extern "C" void inspect_gio(char* file_name)
         std::cout << vinfo.Name << std::endl;
     }
     std::cout << "\n(i=integer,f=floating point, number bits size)" << std::endl;
+
+    if (reader.isOctree())
+    {
+        std::cout << "---------------------------------------------" << std::endl;
+        std::cout << "Octree info:" << std::endl;
+        reader.printOctree();
+    }
 }
 
+
+extern "C" void readOctree(char* file_name)
+{
+    int64_t size = get_elem_num(file_name);
+    gio::GenericIO reader(file_name);
+    std::vector<gio::GenericIO::VariableInfo> VI;
+    reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
+    reader.getVariableInfo(VI);
+    std::cout << "Number of Elements: " << size << std::endl;
+    int num = VI.size();
+    std::cout << "[data type] Variable name" << std::endl;
+    std::cout << "---------------------------------------------" << std::endl;
+    for (int i = 0; i < num; ++i)
+    {
+        gio::GenericIO::VariableInfo vinfo = VI[i];
+
+        if (vinfo.IsFloat)
+            std::cout << "[f";
+        else
+            std::cout << "[i";
+        int NumElements = vinfo.Size / vinfo.ElementSize;
+        std::cout << " " << vinfo.ElementSize * 8;
+        if (NumElements > 1)
+            std::cout << "x" << NumElements;
+        std::cout << "] ";
+        std::cout << vinfo.Name << std::endl;
+    }
+    std::cout << "\n(i=integer,f=floating point, number bits size)" << std::endl;
+
+    if (reader.isOctree())
+    {
+        std::cout << "---------------------------------------------" << std::endl;
+        std::cout << "Octree info:" << std::endl;
+        reader.printOctree();
+    }
+}

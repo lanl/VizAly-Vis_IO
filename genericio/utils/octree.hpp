@@ -253,7 +253,6 @@ class Octree
 	
   public:
   	
-
 	Octree(){};
 	Octree(int _myRank, float _rankExtents[6]):myRank(_myRank){ for (int i=0; i<6; i++) rankExtents[i]=_rankExtents[i]; };
 	~Octree(){};
