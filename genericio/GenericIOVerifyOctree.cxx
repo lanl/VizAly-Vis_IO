@@ -117,6 +117,29 @@ int main(int argc, char *argv[])
             }
 
 
+            std::string x_var, y_var, z_var;
+            for (int i = 0; i < numVars; i++)
+                if (VI[i].IsPhysCoordX)
+                {
+                    x_var = VI[i].Name;
+                    break;
+                }
+
+            for (int i = 0; i < numVars; i++)
+                if (VI[i].IsPhysCoordY)
+                {
+                    y_var = VI[i].Name;
+                    break;
+                }
+
+            for (int i = 0; i < numVars; i++)
+                if (VI[i].IsPhysCoordZ)
+                {
+                    z_var = VI[i].Name;
+                    break;
+                }
+
+
             std::cout << "\n3D Split: " << dims[0] << ", " << dims[1] << ", " << dims[2] << std::endl;
             std::cout << "# physical coordinates: (" << physOrigin[0] << ", " << physOrigin[1] << ", " << physOrigin[2] <<
                       ") -> (" << physScale[0]  << ", " << physScale[1]  << ", " << physScale[2]  << ") " << std::endl;
@@ -160,9 +183,9 @@ int main(int argc, char *argv[])
                     yy.resize(NElem);
                     zz.resize(NElem);
 
-                    GIO.addVariable( "x", &xx[0], true);
-                    GIO.addVariable( "y", &yy[0], true);
-                    GIO.addVariable( "z", &zz[0], true);
+                    GIO.addVariable( x_var, &xx[0], true);
+                    GIO.addVariable( y_var, &yy[0], true);
+                    GIO.addVariable( z_var, &zz[0], true);
 
                     GIO.readDataSection(0, NElem, r, false); 
 
