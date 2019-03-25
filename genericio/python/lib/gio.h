@@ -43,6 +43,9 @@
 
 #include <stdint.h>
 #include <sstream>
+#include <vector>
+#include <algorithm>
+
 
 template <class T>
 void read_gio(char* file_name, std::string var_name, T*& data, int field_count)
@@ -73,6 +76,38 @@ void read_gio(char* file_name, std::string var_name, T*& data, int field_count)
 }
 
 
+void get_value(gio::GenericIO reader, std::string scalar_name, std::string scalar_value)
+{
+    
+}
+
+int variable_exists(gio::GenericIO reader, std::string var_name)
+{
+    std::vector<std::string> var_names = get_variables();
+    if ( std::find(var_names.begin(), var_names.end(), var_name) != var_names.end() )
+    {
+        int pos = std::find(var_names.begin(), var_names.end(), var_name) - var_names.begin();
+        return pos;
+    }
+    else
+        return -1;
+}
+
+
+std::vector<std::string> get_variables(gio::GenericIO reader)
+{
+    std::vector<gio::GenericIO::VariableInfo> VI;
+    reader.getVariableInfo(VI);
+
+    std::vector<std::string> scalar_names;
+    int num_scalars = VI.size();
+    for (int i=0; i<num_scalars; ++i)
+        scalar_names.push_back(VI[i].Name);
+
+    return scalar_names;
+}
+
+
 extern "C" int64_t get_elem_num(char* file_name);
 
 extern "C" void read_gio_float (char* file_name, char* var_name, float* data, int field_count);
@@ -91,3 +126,4 @@ enum var_type
 extern "C" var_type get_variable_type(char* file_name, char* var_name);
 extern "C" int get_variable_field_count(char* file_name, char* var_name);
 extern "C" void inspect_gio(char* file_name);
+
