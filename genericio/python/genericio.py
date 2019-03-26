@@ -70,15 +70,16 @@ libpygio.read_gio_double.argtypes=[ct.c_char_p,ct.c_char_p,ct.POINTER(ct.c_doubl
 libpygio.inspect_gio.restype=None
 libpygio.inspect_gio.argtypes=[ct.c_char_p]
 
+
 def gio_read(file_name,var_name):
     var_size = libpygio.get_elem_num(file_name)
     var_type = libpygio.get_variable_type(file_name,var_name)
     field_count = libpygio.get_variable_field_count(file_name,var_name)
     if(var_type==10):
-        print "Variable not found"
+        print ("Variable not found")
         return
     elif(var_type==9):
-        print "variable type not known (not int32/int64/float/double)"
+        print ("variable type not known (not int32/int64/float/double)")
     elif(var_type==0):
         #float
         result = np.ndarray((var_size,field_count),dtype=np.float32)
@@ -100,11 +101,23 @@ def gio_read(file_name,var_name):
         libpygio.read_gio_int64(file_name,var_name,result.ctypes.data_as(ct.POINTER(ct.c_int64)),field_count)
         return result        
 
+
 def gio_has_variable(file_name,var_name):
     var_size = libpygio.get_elem_num(file_name)
     var_type = libpygio.get_variable_type(file_name,var_name)
     return var_type!=10
 
+
 def gio_inspect(file_name):
     libpygio.inspect_gio(file_name)
 
+
+def gio_get_num_variables(file_name):
+    return ( libpygio.get_num_variables(file_name) )
+
+
+def gio_get_variable(file_name, i):
+    libpygio.get_variable.restype = ct.POINTER(ct.c_char)
+    temp_str = libpygio.get_variable(file_name, i)
+
+    return ct.string_at(temp_str)
