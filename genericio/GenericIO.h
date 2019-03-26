@@ -361,6 +361,7 @@ class GenericIO {
         hasOctree = true;
     }
 
+
     void addOctreeHeader(uint64_t _preShuffled, uint64_t _decompositionLevel, uint64_t _numEntries)
     {
         octreeData.preShuffled = _preShuffled; 

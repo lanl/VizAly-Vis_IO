@@ -46,6 +46,8 @@
 #include <vector>
 #include <algorithm>
 
+#include <stdio.h>
+#include <string.h>
 
 template <class T>
 void read_gio(char* file_name, std::string var_name, T*& data, int field_count)
@@ -76,35 +78,48 @@ void read_gio(char* file_name, std::string var_name, T*& data, int field_count)
 }
 
 
-void get_value(gio::GenericIO reader, std::string scalar_name, std::string scalar_value)
+template <class T>
+void read_gio_rank( gio::GenericIO reader, int rank, std::string var_name, T*& data, int field_count)
 {
-    
+    int num_ranks = reader.readNRanks();
+    uint64_t max_size = reader.readNumElems(rank);
+    if (rank >= num_ranks)
+        return;
+
+    data = new T[max_size * field_count + reader.requestedExtraSpace() / sizeof(T)];
+    reader.addScalarizedVariable(var_name, data, field_count, gio::GenericIO::VarHasExtraSpace);
+
+    reader.readDataSection(rank, false);
+    reader.close();
 }
 
-int variable_exists(gio::GenericIO reader, std::string var_name)
+
+template <class T>
+void read_gio_rankLeaf( gio::GenericIO reader, int rank, int leaf, std::string var_name, T*& data, int field_count)
 {
-    std::vector<std::string> var_names = get_variables();
-    if ( std::find(var_names.begin(), var_names.end(), var_name) != var_names.end() )
-    {
-        int pos = std::find(var_names.begin(), var_names.end(), var_name) - var_names.begin();
-        return pos;
-    }
-    else
-        return -1;
+    int num_ranks = reader.readNRanks();
+    uint64_t max_size = reader.readNumElems(rank);
+    if (rank >= num_ranks)
+        return;
+
+    GIOOctree tempOctree = reader.getOctree();
+    size_t num_particles = tempOctree.getCount(rank, leaf);
+    size_t offset = tempOctree.getOffset(rank, leaf);
+
+    data = new T[max_size * num_particles + reader.requestedExtraSpace() / sizeof(T)];
+    reader.addScalarizedVariable(var_name, data, num_particles, gio::GenericIO::VarHasExtraSpace);
+
+    reader.readDataSection(offset, num_particles, rank, false);
+    reader.close();
 }
 
 
-std::vector<std::string> get_variables(gio::GenericIO reader)
+gio::GenericIO open_file(char* file_name)
 {
-    std::vector<gio::GenericIO::VariableInfo> VI;
-    reader.getVariableInfo(VI);
+    gio::GenericIO reader(file_name);
+    reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
 
-    std::vector<std::string> scalar_names;
-    int num_scalars = VI.size();
-    for (int i=0; i<num_scalars; ++i)
-        scalar_names.push_back(VI[i].Name);
-
-    return scalar_names;
+    return reader;
 }
 
 
@@ -127,3 +142,5 @@ extern "C" var_type get_variable_type(char* file_name, char* var_name);
 extern "C" int get_variable_field_count(char* file_name, char* var_name);
 extern "C" void inspect_gio(char* file_name);
 
+extern "C" int64_t get_num_variables(char* file_name);
+extern "C" char* get_variable(char* file_name, int var);

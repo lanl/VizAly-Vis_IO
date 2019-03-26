@@ -71,6 +71,7 @@ int64_t get_elem_num(char* file_name)
     return size;
 }
 
+
 var_type get_variable_type(char* file_name, char* var_name)
 {
     gio::GenericIO reader(file_name);
@@ -97,8 +98,8 @@ var_type get_variable_type(char* file_name, char* var_name)
         }
     }
     return var_not_found;
-
 }
+
 
 int get_variable_field_count(char* file_name, char* var_name)
 {
@@ -119,44 +120,35 @@ int get_variable_field_count(char* file_name, char* var_name)
     return 0;
 }
 
-extern "C" void inspect_gio(char* file_name)
+
+int64_t get_num_variables(char* file_name)
 {
-    int64_t size = get_elem_num(file_name);
+    gio::GenericIO reader(file_name);
+    reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
+
+    std::vector<gio::GenericIO::VariableInfo> VI;
+    reader.getVariableInfo(VI);
+
+    return VI.size();
+}
+
+
+char* get_variable(char* file_name, int var)
+{
     gio::GenericIO reader(file_name);
     std::vector<gio::GenericIO::VariableInfo> VI;
     reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
     reader.getVariableInfo(VI);
-    std::cout << "Number of Elements: " << size << std::endl;
-    int num = VI.size();
-    std::cout << "[data type] Variable name" << std::endl;
-    std::cout << "---------------------------------------------" << std::endl;
-    for (int i = 0; i < num; ++i)
-    {
-        gio::GenericIO::VariableInfo vinfo = VI[i];
 
-        if (vinfo.IsFloat)
-            std::cout << "[f";
-        else
-            std::cout << "[i";
-        int NumElements = vinfo.Size / vinfo.ElementSize;
-        std::cout << " " << vinfo.ElementSize * 8;
-        if (NumElements > 1)
-            std::cout << "x" << NumElements;
-        std::cout << "] ";
-        std::cout << vinfo.Name << std::endl;
-    }
-    std::cout << "\n(i=integer,f=floating point, number bits size)" << std::endl;
+    std::string scaler_name = VI[var].Name;
+    char *temp_name = new char[scaler_name.size() + 1];
+    strcpy(temp_name, scaler_name.c_str());
 
-    if (reader.isOctree())
-    {
-        std::cout << "---------------------------------------------" << std::endl;
-        std::cout << "Octree info:" << std::endl;
-        reader.printOctree();
-    }
+    return temp_name;
 }
 
 
-extern "C" void readOctree(char* file_name)
+extern "C" void inspect_gio(char* file_name)
 {
     int64_t size = get_elem_num(file_name);
     gio::GenericIO reader(file_name);

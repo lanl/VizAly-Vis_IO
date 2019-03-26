@@ -195,6 +195,47 @@ struct GIOOctree
 	}
 
 
+	size_t getCount(int rank, int leaf)
+	{
+		int numLeavesPerRank = (int) pow(8.0f, numEntries-1);
+		return rows[rank*numLeavesPerRank + leaf].numParticles;
+	}
+
+	size_t getOffset(int rank, int leaf)
+	{
+		int numLeavesPerRank = (int) pow(8.0f, numEntries-1);
+		return rows[rank*numLeavesPerRank + leaf].offsetInFile;;
+	}
+
+
+	std::vector<float> getExtents(int rank, int leaf)
+	{
+		int numLeavesPerRank = (int) pow(8.0f, numEntries-1);
+
+		std::vector<float> extents;
+		
+		extents.push_back( rows[rank*numLeavesPerRank + leaf].minX );
+		extents.push_back( rows[rank*numLeavesPerRank + leaf].maxX );
+		extents.push_back( rows[rank*numLeavesPerRank + leaf].minY );
+		extents.push_back( rows[rank*numLeavesPerRank + leaf].maxY );
+		extents.push_back( rows[rank*numLeavesPerRank + leaf].minZ );
+		extents.push_back( rows[rank*numLeavesPerRank + leaf].maxZ );
+
+		return extents;
+	}
+
+
+	std::vector<GIOOctreeRow> getLeavesForRank(int rank)
+	{
+		std::vector<GIOOctreeRow> _rows;
+
+		int numLeavesPerRank = (int) pow(8.0f, numEntries-1);
+		for (int i=0; i<numLeavesPerRank; i++)
+			_rows.push_back( rows[rank*numLeavesPerRank + i]);
+	
+		return _rows;
+	}
+
     void print()
     {
     	std::cout << "\nPre-Shuffled (0=No, 1=Yes): " << preShuffled << std::endl;
