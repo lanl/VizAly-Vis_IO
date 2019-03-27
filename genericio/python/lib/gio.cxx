@@ -72,6 +72,43 @@ int64_t get_elem_num(char* file_name)
 }
 
 
+void inspect_gio(char* file_name)
+{
+    int64_t size = get_elem_num(file_name);
+    gio::GenericIO reader(file_name);
+    std::vector<gio::GenericIO::VariableInfo> VI;
+    reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
+    reader.getVariableInfo(VI);
+    std::cout << "Number of Elements: " << size << std::endl;
+    int num = VI.size();
+    std::cout << "[data type] Variable name" << std::endl;
+    std::cout << "---------------------------------------------" << std::endl;
+    for (int i = 0; i < num; ++i)
+    {
+        gio::GenericIO::VariableInfo vinfo = VI[i];
+
+        if (vinfo.IsFloat)
+            std::cout << "[f";
+        else
+            std::cout << "[i";
+        int NumElements = vinfo.Size / vinfo.ElementSize;
+        std::cout << " " << vinfo.ElementSize * 8;
+        if (NumElements > 1)
+            std::cout << "x" << NumElements;
+        std::cout << "] ";
+        std::cout << vinfo.Name << std::endl;
+    }
+    std::cout << "\n(i=integer,f=floating point, number bits size)" << std::endl;
+
+    if (reader.isOctree())
+    {
+        std::cout << "---------------------------------------------" << std::endl;
+        std::cout << "Octree info:" << std::endl;
+        reader.printOctree();
+    }
+}
+
+
 var_type get_variable_type(char* file_name, char* var_name)
 {
     gio::GenericIO reader(file_name);
@@ -133,11 +170,30 @@ int64_t get_num_variables(char* file_name)
 }
 
 
+char* get_octree(char* file_name)
+{
+    gio::GenericIO reader(file_name);
+    reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
+
+     std::string octreeStr;
+    if (reader.isOctree())
+        octreeStr = (reader.getOctree()).getOctreeStr();
+
+
+    char *temp_name = new char[octreeStr.size() + 1];
+    strcpy(temp_name, octreeStr.c_str());
+
+
+    return temp_name;
+}
+
+
 char* get_variable(char* file_name, int var)
 {
     gio::GenericIO reader(file_name);
-    std::vector<gio::GenericIO::VariableInfo> VI;
     reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
+
+    std::vector<gio::GenericIO::VariableInfo> VI;
     reader.getVariableInfo(VI);
 
     std::string scaler_name = VI[var].Name;
@@ -148,38 +204,33 @@ char* get_variable(char* file_name, int var)
 }
 
 
-extern "C" void inspect_gio(char* file_name)
+int get_num_octree_leaves(char* file_name, int extents[])
 {
-    int64_t size = get_elem_num(file_name);
     gio::GenericIO reader(file_name);
-    std::vector<gio::GenericIO::VariableInfo> VI;
     reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
-    reader.getVariableInfo(VI);
-    std::cout << "Number of Elements: " << size << std::endl;
-    int num = VI.size();
-    std::cout << "[data type] Variable name" << std::endl;
-    std::cout << "---------------------------------------------" << std::endl;
-    for (int i = 0; i < num; ++i)
-    {
-        gio::GenericIO::VariableInfo vinfo = VI[i];
 
-        if (vinfo.IsFloat)
-            std::cout << "[f";
-        else
-            std::cout << "[i";
-        int NumElements = vinfo.Size / vinfo.ElementSize;
-        std::cout << " " << vinfo.ElementSize * 8;
-        if (NumElements > 1)
-            std::cout << "x" << NumElements;
-        std::cout << "] ";
-        std::cout << vinfo.Name << std::endl;
-    }
-    std::cout << "\n(i=integer,f=floating point, number bits size)" << std::endl;
+    std::vector<int> intersectedLeaves;
+    GIOOctree tempOctree = reader.getOctree();
+    for (int i=0; i<tempOctree.rows.size(); i++)
+        if ( tempOctree.rows[i].intersect(extents) )
+            intersectedLeaves.push_back(i);
 
-    if (reader.isOctree())
-    {
-        std::cout << "---------------------------------------------" << std::endl;
-        std::cout << "Octree info:" << std::endl;
-        reader.printOctree();
-    }
+    return intersectedLeaves.size();
+}
+
+int* get_octree_leaves(char* file_name, int extents[])
+{
+    gio::GenericIO reader(file_name);
+    reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
+
+    std::vector<int> intersectedLeaves;
+    GIOOctree tempOctree = reader.getOctree();
+    for (int i=0; i<tempOctree.rows.size(); i++)
+        if ( tempOctree.rows[i].intersect(extents) )
+            intersectedLeaves.push_back(i);
+
+    int *x = new int[intersectedLeaves.size()];
+    std::copy(intersectedLeaves.begin(), intersectedLeaves.end(), x);
+
+    return x;
 }

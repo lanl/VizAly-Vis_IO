@@ -40,6 +40,7 @@
  */
 
 #include <GenericIO.h>
+#include <utils/octree.hpp>
 
 #include <stdint.h>
 #include <sstream>
@@ -114,14 +115,6 @@ void read_gio_rankLeaf( gio::GenericIO reader, int rank, int leaf, std::string v
 }
 
 
-gio::GenericIO open_file(char* file_name)
-{
-    gio::GenericIO reader(file_name);
-    reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
-
-    return reader;
-}
-
 
 extern "C" int64_t get_elem_num(char* file_name);
 
@@ -144,3 +137,6 @@ extern "C" void inspect_gio(char* file_name);
 
 extern "C" int64_t get_num_variables(char* file_name);
 extern "C" char* get_variable(char* file_name, int var);
+extern "C" char* get_octree(char* file_name);
+extern "C" int* get_octree_leaves(char* file_name, int extents[]);
+extern "C" int get_num_octree_leaves(char* file_name, int extents[]);

@@ -42,6 +42,18 @@ struct GIOOctreeRow
 		partitionLocation = _parLocation;
 	}
 
+
+	bool intersect(int extents[])
+	{
+		if ((extents[0] < maxX) && (extents[1] >= minX))
+			if ((extents[2] < maxY) && (extents[3] >= minY))
+				if ((extents[4] < maxZ) && (extents[5] >= minZ))
+					return true;
+
+		return false;
+	}
+
+
 	std::string serialize()
 	{
 		std::stringstream ss;
@@ -235,6 +247,16 @@ struct GIOOctree
 	
 		return _rows;
 	}
+
+	std::string getOctreeStr()
+	{
+		std::stringstream ss;
+		for (int i=0; i<numEntries; i++)
+    		ss << rows[i].serialize();
+
+    	return ss.str();
+	}
+
 
     void print()
     {

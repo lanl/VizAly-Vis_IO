@@ -36,7 +36,7 @@
 # PRIVATELY OWNED RIGHTS.
 # 
 # *****************************************************************************
-
+from numpy.ctypeslib import ndpointer
 import numpy as np
 import ctypes as ct
 import os
@@ -70,6 +70,21 @@ libpygio.read_gio_double.argtypes=[ct.c_char_p,ct.c_char_p,ct.POINTER(ct.c_doubl
 libpygio.inspect_gio.restype=None
 libpygio.inspect_gio.argtypes=[ct.c_char_p]
 
+libpygio.get_octree.restype=ct.c_char_p
+libpygio.get_octree.argtypes=[ct.c_char_p]
+
+libpygio.get_variable.restype=ct.c_char_p
+libpygio.get_variable.argtypes=[ct.c_char_p,ct.c_int]
+
+
+
+libpygio.get_num_octree_leaves.restype=ct.c_int
+libpygio.get_num_octree_leaves.argtypes=[ct.c_char_p, ct.POINTER(ct.c_int)]
+
+libpygio.get_octree_leaves.restype=ct.POINTER(ct.c_int)
+libpygio.get_octree_leaves.argtypes=[ct.c_char_p, ct.POINTER(ct.c_int)]
+
+
 
 def gio_read(file_name,var_name):
     var_size = libpygio.get_elem_num(file_name)
@@ -82,22 +97,22 @@ def gio_read(file_name,var_name):
         print ("variable type not known (not int32/int64/float/double)")
     elif(var_type==0):
         #float
-        result = np.ndarray((var_size,field_count),dtype=np.float32)
+        result = np.ndarray((var_size),dtype=np.float32)
         libpygio.read_gio_float(file_name,var_name,result.ctypes.data_as(ct.POINTER(ct.c_float)),field_count)
         return result
     elif(var_type==1):
         #double
-        result = np.ndarray((var_size,field_count),dtype=np.float64)
+        result = np.ndarray((var_size),dtype=np.float64)
         libpygio.read_gio_double(file_name,var_name,result.ctypes.data_as(ct.POINTER(ct.c_double)),field_count)
         return result
     elif(var_type==2):
         #int32
-        result = np.ndarray((var_size,field_count),dtype=np.int32)
+        result = np.ndarray((var_size),dtype=np.int32)
         libpygio.read_gio_int32(file_name,var_name,result.ctypes.data_as(ct.POINTER(ct.c_int32)),field_count)
         return result
     elif(var_type==3):
         #int64
-        result = np.ndarray((var_size,field_count),dtype=np.int64)
+        result = np.ndarray((var_size),dtype=np.int64)
         libpygio.read_gio_int64(file_name,var_name,result.ctypes.data_as(ct.POINTER(ct.c_int64)),field_count)
         return result        
 
@@ -121,3 +136,23 @@ def gio_get_variable(file_name, i):
     temp_str = libpygio.get_variable(file_name, i)
 
     return ct.string_at(temp_str)
+
+
+def gio_get_octree(file_name):
+    libpygio.get_variable.restype = ct.POINTER(ct.c_char)
+    temp_str = libpygio.get_octree(file_name)
+
+    return ct.string_at(temp_str)
+
+
+def gio_get_octree_leaves(file_name, extents):
+    exts = (ct.c_int * len(extents))(*extents)
+
+    num_leaves = libpygio.get_num_octree_leaves(file_name, exts)
+
+    result = np.ndarray((num_leaves),dtype=np.int32)
+    result.ctypes.data_as(ct.POINTER(ct.c_int32))
+    
+    result = libpygio.get_octree_leaves( file_name, exts )
+
+    return num_leaves, result
