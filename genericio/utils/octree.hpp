@@ -207,6 +207,22 @@ struct GIOOctree
 	}
 
 
+	size_t getCount(int leafId)
+	{
+		return rows[leafId].numParticles;
+	}
+
+	size_t getRank(int leafId)
+	{
+		return rows[leafId].partitionLocation;
+	}
+
+	size_t getOffset(int leafId)
+	{
+		return rows[leafId].offsetInFile;
+	}
+
+
 	size_t getCount(int rank, int leaf)
 	{
 		int numLeavesPerRank = (int) pow(8.0f, numEntries-1);

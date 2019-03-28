@@ -80,15 +80,18 @@ void read_gio(char* file_name, std::string var_name, T*& data, int field_count)
 
 
 template <class T>
-void read_gio_rank( gio::GenericIO reader, int rank, std::string var_name, T*& data, int field_count)
+void read_gio_rank(char* file_name, int rank, std::string var_name, T*& data)
 {
+    gio::GenericIO reader(file_name);
+    reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
+
     int num_ranks = reader.readNRanks();
     uint64_t max_size = reader.readNumElems(rank);
     if (rank >= num_ranks)
         return;
 
-    data = new T[max_size * field_count + reader.requestedExtraSpace() / sizeof(T)];
-    reader.addScalarizedVariable(var_name, data, field_count, gio::GenericIO::VarHasExtraSpace);
+    data = new T[max_size + reader.requestedExtraSpace() / sizeof(T)];
+    reader.addScalarizedVariable(var_name, data, max_size, gio::GenericIO::VarHasExtraSpace);
 
     reader.readDataSection(rank, false);
     reader.close();
@@ -96,21 +99,25 @@ void read_gio_rank( gio::GenericIO reader, int rank, std::string var_name, T*& d
 
 
 template <class T>
-void read_gio_rankLeaf( gio::GenericIO reader, int rank, int leaf, std::string var_name, T*& data, int field_count)
+void read_gio_rankLeaf(char* file_name, int leaf_id, std::string var_name, T*& data)
 {
-    int num_ranks = reader.readNRanks();
-    uint64_t max_size = reader.readNumElems(rank);
-    if (rank >= num_ranks)
-        return;
+    gio::GenericIO reader(file_name);
+    reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
 
     GIOOctree tempOctree = reader.getOctree();
-    size_t num_particles = tempOctree.getCount(rank, leaf);
-    size_t offset = tempOctree.getOffset(rank, leaf);
+    int rank = tempOctree.getRank(leaf_id);
+    size_t num_particles = tempOctree.getCount(leaf_id);
+    size_t offset = tempOctree.getOffset(leaf_id);
 
-    data = new T[max_size * num_particles + reader.requestedExtraSpace() / sizeof(T)];
-    reader.addScalarizedVariable(var_name, data, num_particles, gio::GenericIO::VarHasExtraSpace);
+
+    T* rank_data = new T[num_particles + reader.requestedExtraSpace()];
+    reader.addVariable(var_name, rank_data, gio::GenericIO::VarHasExtraSpace);
 
     reader.readDataSection(offset, num_particles, rank, false);
+    std::copy(rank_data, rank_data + num_particles, data);
+
+    delete [] rank_data;
+
     reader.close();
 }
 
@@ -122,6 +129,12 @@ extern "C" void read_gio_float (char* file_name, char* var_name, float* data, in
 extern "C" void read_gio_double(char* file_name, char* var_name, double* data, int field_count);
 extern "C" void read_gio_int32 (char* file_name, char* var_name, int* data, int field_count);
 extern "C" void read_gio_int64 (char* file_name, char* var_name, int64_t* data, int field_count);
+
+extern "C" void read_gio_oct_float (char* file_name, int leaf_id, char* var_name, float* data);
+extern "C" void read_gio_oct_double(char* file_name, int leaf_id, char* var_name, double* data);
+extern "C" void read_gio_oct_int32 (char* file_name, int leaf_id, char* var_name, int* data);
+extern "C" void read_gio_oct_int64 (char* file_name, int leaf_id, char* var_name, int64_t* data);
+
 enum var_type
 {
     float_type = 0,
@@ -131,12 +144,18 @@ enum var_type
     type_not_found = 9,
     var_not_found = 10
 };
+
 extern "C" var_type get_variable_type(char* file_name, char* var_name);
 extern "C" int get_variable_field_count(char* file_name, char* var_name);
 extern "C" void inspect_gio(char* file_name);
 
 extern "C" int64_t get_num_variables(char* file_name);
 extern "C" char* get_variable(char* file_name, int var);
+
 extern "C" char* get_octree(char* file_name);
 extern "C" int* get_octree_leaves(char* file_name, int extents[]);
 extern "C" int get_num_octree_leaves(char* file_name, int extents[]);
+extern "C" int64_t get_elem_num_in_leaf(char* file_name,  int leaf_id);
+
+extern "C" int get_octree_rank(char* file_name, int extents[]);
+extern "C" int get_octree_leaf_in_rank(char* file_name, int extents[]);

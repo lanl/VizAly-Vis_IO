@@ -59,16 +59,49 @@ void read_gio_int64(char* file_name, char* var_name, int64_t* data, int field_co
     read_gio<int64_t>(file_name, var_name, data, field_count);
 }
 
+
+void read_gio_oct_float(char* file_name, int leaf_id, char* var_name, float* data)
+{
+    read_gio_rankLeaf<float>(file_name, leaf_id, var_name, data);
+}
+void read_gio_oct_double(char* file_name, int leaf_id, char* var_name, double* data)
+{
+    read_gio_rankLeaf<double>(file_name, leaf_id, var_name, data);
+}
+void read_gio_oct_int32(char* file_name, int leaf_id, char* var_name, int* data)
+{
+    read_gio_rankLeaf<int>(file_name, leaf_id, var_name, data);
+}
+void read_gio_oct_int64(char* file_name, int leaf_id, char* var_name, int64_t* data)
+{
+    read_gio_rankLeaf<int64_t>(file_name, leaf_id, var_name, data);
+}
+
+
 int64_t get_elem_num(char* file_name)
 {
     gio::GenericIO reader(file_name);
     reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
+
     int num_ranks = reader.readNRanks();
     uint64_t size = 0;
-    for (int i = 0; i < num_ranks; ++i)
-        size += reader.readNumElems(i);
+    for(int i =0;i<num_ranks;++i)
+      size +=reader.readNumElems(i);
     reader.close();
     return size;
+}
+
+
+
+int64_t get_elem_num_in_leaf(char* file_name, int leaf_id)
+{
+    gio::GenericIO reader(file_name);
+    reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
+
+    GIOOctree tempOctree = reader.getOctree();
+    reader.close();
+
+    return tempOctree.getCount(leaf_id);
 }
 
 
@@ -175,7 +208,7 @@ char* get_octree(char* file_name)
     gio::GenericIO reader(file_name);
     reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
 
-     std::string octreeStr;
+    std::string octreeStr;
     if (reader.isOctree())
         octreeStr = (reader.getOctree()).getOctreeStr();
 
