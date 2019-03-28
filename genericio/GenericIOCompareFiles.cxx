@@ -24,6 +24,35 @@ int main(int argc, char *argv[])
 	std::unordered_multiset<std::string> entries;
 
 	{
+		gio::GenericIO *gioReader;
+		gioReader = new gio::GenericIO(argv[1], gio::GenericIO::FileIOPOSIX);
+		gioReader->openAndReadHeader(gio::GenericIO::MismatchAllowed);
+
+		int numDataRanks = gioReader->readNRanks();
+
+
+		gio::GenericIO *gioReader1;
+		gioReader1 = new gio::GenericIO(argv[2], gio::GenericIO::FileIOPOSIX);
+		gioReader1->openAndReadHeader(gio::GenericIO::MismatchAllowed);
+
+		size_t totalNumberOfElements1 = 0;
+		size_t totalNumberOfElements2 = 0;
+
+		std::cout << "Comparing " << argv[1] << " and " << argv[2] << std::endl;
+		for (int i=0; i<numDataRanks; ++i)
+		{
+			totalNumberOfElements1 += gioReader->readNumElems(i);
+			totalNumberOfElements2 += gioReader1->readNumElems(i);
+
+			std::cout << i << " : " << gioReader->readNumElems(i) << " - " << gioReader1->readNumElems(i) << " = " << gioReader->readNumElems(i)-gioReader1->readNumElems(i) << std::endl;
+		}
+
+		std::cout << argv[1] << " has  " <<totalNumberOfElements1 << " particles" << std::endl;
+		std::cout << argv[2] << " has  " <<totalNumberOfElements2 << " particles" << std::endl;
+		std::cout << "Difference  " <<totalNumberOfElements2-totalNumberOfElements1 << " particles" << std::endl;
+	}
+
+	{
 		std::cout << "reading file  " << argv[1] << std::endl;
 
 		gio::GenericIO *gioReader;
@@ -53,7 +82,7 @@ int main(int argc, char *argv[])
 		// Read in data
 		for (int r=0; r<numDataRanks; ++r)
 	    {
-	    	std::cout << "processing rank " << r << std::endl;
+	    	std::cout << "Processing rank " << r << std::endl;
 
 	        size_t NElem = gioReader->readNumElems(r);
 
@@ -108,14 +137,6 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	
-	// std::cout << "entries.size() " << entries.size() << "\n";
-	// for ( auto local_it = entries.begin(); local_it!= entries.end(); ++local_it )
- //  		std::cout << *local_it << "\n";
-	// std::cout << "\n";
-   
-
-
 	{
 		std::cout << "\nreading file  " << argv[2] << std::endl;
 
@@ -146,7 +167,7 @@ int main(int argc, char *argv[])
 		// Read in data
 		for (int r=0; r<numDataRanks; ++r)
 	    {
-	    	std::cout << "processing rank " << r << std::endl;
+	    	std::cout << "Comparing rank " << r << std::endl;
 
 	        size_t NElem = gioReader->readNumElems(r);
 
@@ -205,12 +226,10 @@ int main(int argc, char *argv[])
 	}
 
 
-
-
     if ( entries.size() == 0)
-    	std::cout << "Files are identical" << std::endl;
+    	std::cout << "Files " << argv[1] << " and " <<  argv[2] << " are identical :)" << std::endl;
     else
-    	std::cout << "Files are different" << std::endl;
+    	std::cout << "Files " << argv[1] << " and " <<  argv[2] << " are different !!!" << std::endl;
 
 	return 0;
 }
