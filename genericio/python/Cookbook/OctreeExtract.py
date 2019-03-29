@@ -10,6 +10,7 @@ input_file_name = "/bigData/Halos/b0168/octree-m001-499.bighaloparticles"
 octree_region = [197,198, 199,200, 175,176]
 query = "['fof_halo_tag'] == 767287898"
 display_values = ['x', 'y', 'z']
+output_filename = "halo_767287898.csv"
 
 
 
@@ -40,5 +41,5 @@ query_string = "df2"+query
 row_selection = eval(query_string)
 col_selection = display_values
 
-df2.loc[row_selection, col_selection].to_csv("halo_767287898.csv", index=False)
+df2.loc[row_selection, col_selection].to_csv(output_filename, index=False)
 

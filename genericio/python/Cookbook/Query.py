@@ -6,7 +6,7 @@ import genericio as gio
 
 
 ## Input Section
-input_file_name = "/home/pascal/data/m000-499.sodproperties"
+input_file_name = "/bigData/Halos/b0168/m001-499.sodproperties"
 query = "['fof_halo_count'] > 400000"
 display_values = ['fof_halo_tag', 'fof_halo_count', 'fof_halo_center_x', 'fof_halo_center_y', 'fof_halo_center_y']
 
