@@ -278,3 +278,5 @@ int main(int argc, char *argv[])
 
 	return 1;
 }
+
+// mpirun -np 8 ../genericio/mpi/GenericIORewriteOctree /bigData/Halos/b0168/m001-499.sodproperties m001-499.sodproperties-withOct 2
