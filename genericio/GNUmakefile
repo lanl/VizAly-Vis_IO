@@ -38,10 +38,12 @@
 # *****************************************************************************
 
 CC = gcc
-CXX = g++
+CXX = g++ -std=c++11
 
 MPICC = mpicc
-MPICXX = mpicxx
+MPICXX = mpicxx -std=c++11
+
+OS := $(shell uname)
 
 all: fe-progs mpi-progs
 sql: fe-sqlite
@@ -59,15 +61,22 @@ BLOSC_CPPFLAGS := \
 	-Ithirdparty/blosc/internal-complibs/zstd-0.7.4/dictBuilder \
 	-Ithirdparty/blosc/internal-complibs/zstd-0.7.4/decompress
 
-BASE_CPPFLAGS := $(BLOSC_CPPFLAGS) -I. -D__STDC_CONSTANT_MACROS -DDEBUG_ON -std=c++11
-#BASE_CPPFLAGS := $(BLOSC_CPPFLAGS) -I. -D__STDC_CONSTANT_MACROS
+BASE_CPPFLAGS := $(BLOSC_CPPFLAGS) -I. -D__STDC_CONSTANT_MACROS
 
 FEDIR = frontend
-FE_CFLAGS := -g -fPIC -O3 -fopenmp
+ifeq ($(OS),Darwin)
+	FE_CFLAGS := -g -fPIC -O3
+else
+	FE_CFLAGS := -g -fPIC -O3 -fopenmp
+endif
 FE_CPPFLAGS := $(BASE_CPPFLAGS) -Ithirdparty/sqlite -DGENERICIO_NO_MPI
 
 MPIDIR = mpi
-MPI_CFLAGS := -g -O3 -fopenmp
+ifeq ($(OS),Darwin)
+	MPI_CFLAGS := -g -O3
+else
+	MPI_CFLAGS := -g -O3 -fopenmp
+endif
 MPI_CPPFLAGS := $(BASE_CPPFLAGS)
 
 $(FEDIR):
@@ -210,4 +219,3 @@ fe-sqlite: frontend-sqlite
 
 clean:
 	rm -rf frontend mpi python/genericio.pyc
-
