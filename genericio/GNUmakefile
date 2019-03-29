@@ -185,6 +185,9 @@ MPI_BLOSC_O := $(addprefix $(MPIDIR)/,$(BLOSC_O))
 $(MPIDIR)/GenericIOPrint: $(MPIDIR)/GenericIOPrint.o $(MPIDIR)/GenericIO.o $(MPI_BLOSC_O)
 	$(MPICXX) $(MPI_CFLAGS) -o $@ $^ 
 
+$(MPIDIR)/GenericIORewriteOctree: $(MPIDIR)/GenericIORewriteOctree.o $(MPIDIR)/GenericIO.o $(MPI_BLOSC_O)
+	$(MPICXX) $(MPI_CFLAGS) -o $@ $^ 
+
 $(MPIDIR)/GenericIOVerify: $(MPIDIR)/GenericIOVerify.o $(MPIDIR)/GenericIO.o $(MPI_BLOSC_O)
 	$(MPICXX) $(MPI_CFLAGS) -o $@ $^ 
 
@@ -200,7 +203,7 @@ $(MPIDIR)/GenericIORewrite: $(MPIDIR)/GenericIORewrite.o $(MPIDIR)/GenericIO.o $
 frontend-progs: $(FEDIR)/GenericIOPrint $(FEDIR)/GenericIOVerify $(FEDIR)/GenericIOVerifyOctree $(FEDIR)/GenericIOCompareFiles $(FEDIR)/GenericIOFileInfo $(FEDIR)/libpygio.so
 fe-progs: frontend-progs
 
-mpi-progs: $(MPIDIR)/GenericIOPrint $(MPIDIR)/GenericIOVerify $(MPIDIR)/GenericIOBenchmarkRead $(MPIDIR)/GenericIOBenchmarkWrite $(MPIDIR)/GenericIORewrite
+mpi-progs: $(MPIDIR)/GenericIOPrint $(MPIDIR)/GenericIOVerify $(MPIDIR)/GenericIORewriteOctree $(MPIDIR)/GenericIOBenchmarkRead $(MPIDIR)/GenericIOBenchmarkWrite $(MPIDIR)/GenericIORewrite
 
 frontend-sqlite: $(FEDIR)/GenericIOSQLite.so $(FEDIR)/sqlite3
 fe-sqlite: frontend-sqlite
