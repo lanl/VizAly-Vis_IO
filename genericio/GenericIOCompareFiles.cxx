@@ -13,14 +13,12 @@
 #include <unordered_set>
 #include <set>
 #include "GenericIO.h"
-#include "gioData.h"
-
-
 
 
 int main(int argc, char *argv[])
 {
-
+  #ifndef GENERICIO_NO_MPI
+  #else
 	std::unordered_multiset<std::string> entries;
 
 	{
@@ -129,7 +127,7 @@ int main(int argc, char *argv[])
 			{
 				std::string str;
 				for (int i=0; i<numVars; i++)
-					str += readInData[i].getValue(j) + " ";
+					str += readInData[i].getValueStr(j) + " ";
 
 				entries.insert( str );
 			}
@@ -214,7 +212,7 @@ int main(int argc, char *argv[])
 			{
 				std::string str;
 				for (int i=0; i<numVars; i++)
-					str += readInData[i].getValue(j) + " ";
+					str += readInData[i].getValueStr(j) + " ";
 
 				auto it = entries.find( str );
 				if ( it == entries.end() )
@@ -230,7 +228,7 @@ int main(int argc, char *argv[])
     	std::cout << "Files " << argv[1] << " and " <<  argv[2] << " are identical :)" << std::endl;
     else
     	std::cout << "Files " << argv[1] << " and " <<  argv[2] << " are different !!!" << std::endl;
-
+  #endif
 	return 0;
 }
 

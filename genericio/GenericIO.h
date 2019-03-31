@@ -63,7 +63,7 @@
 #include "utils/timer.h"
 #include "utils/memory.h"
 
-
+#include "gioData.h"
 
 namespace gio
 {

@@ -6,9 +6,8 @@ All rights reserved.
 
 Pascal Grosset
 ================================================================================*/
-
-#ifndef _GIO_PV_GIO_DATA_H_
-#define _GIO_PV_GIO_DATA_H_
+#ifndef _GIO_DATA_H_
+#define _GIO_DATA_H_
 
 #include <string>
 
@@ -48,7 +47,7 @@ class GioData
     template <typename T>
     T getValue(size_t index);
 
-    std::string getValue(size_t index);
+    std::string getValueStr(size_t index);
 };
 
 
@@ -199,7 +198,7 @@ inline int GioData::deAllocateMem()
 
 
 
-std::string GioData::getValue(size_t index)
+inline std::string GioData::getValueStr(size_t index)
 {
     std::stringstream ss;
     if (dataType == "float")
