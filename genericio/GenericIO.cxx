@@ -75,6 +75,7 @@ extern "C" {
 #endif
 using namespace std;
 
+
 namespace gio {
 
 
@@ -394,6 +395,15 @@ void GenericIO::write() {
     MPI_Comm_rank(SplitComm, &SplitRank);
     MPI_Comm_size(SplitComm, &SplitNRanks);
 
+
+    // Making a duplicate
+    bool useDuplicateData = false;
+    std::vector<GioData> _Vars;
+    _Vars.resize(Vars.size());
+    for (int i=0; i<Vars.size(); i++)
+        _Vars[i].data = Vars[i].Data;
+
+
     string LocalFileName;
   if (SplitNRanks != NRanks) {
     if (Rank == 0) {
@@ -647,6 +657,20 @@ void GenericIO::write() {
       
       rearrageClock.start();
 
+
+        //
+        // Duplicate each of the variable
+        useDuplicateData = true;
+        for (size_t i = 0; i < Vars.size(); ++i)
+        {
+            _Vars[i].init(i, Vars[i].Name, static_cast<int>(Vars[i].Size), Vars[i].IsFloat, Vars[i].IsSigned, Vars[i].IsPhysCoordX, Vars[i].IsPhysCoordY, Vars[i].IsPhysCoordZ);
+            _Vars[i].setNumElements(numParticles);
+            _Vars[i].allocateMem(1);
+
+            std::memcpy(_Vars[i].data, Vars[i].Data, numParticles*Vars[i].Size );
+
+        }
+
         //
         // Rearrange the array based on leaves
         for (size_t i = 0; i < Vars.size(); ++i)
@@ -654,7 +678,7 @@ void GenericIO::write() {
             if (Vars[i].IsFloat)
             {
                 float *_temp;
-                _temp = (float*)Vars[i].Data;
+                _temp = (float*)_Vars[i].data;
                 gioOctree.reorganizeArrayInPlace(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
             }
             else
@@ -663,25 +687,25 @@ void GenericIO::write() {
                     if (Vars[i].Size == 1)
                     {
                         int8_t *_temp;
-                        _temp = (int8_t*)Vars[i].Data;
+                        _temp = (int8_t*)_Vars[i].data;
                         gioOctree.reorganizeArrayInPlace(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     else if (Vars[i].Size == 2)
                     {
                         int16_t *_temp;
-                        _temp = (int16_t*)Vars[i].Data;
+                        _temp = (int16_t*)_Vars[i].data;
                         gioOctree.reorganizeArrayInPlace(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     else if (Vars[i].Size == 4)
                     {
                         int32_t *_temp;
-                        _temp = (int32_t*)Vars[i].Data;
+                        _temp = (int32_t*)_Vars[i].data;
                         gioOctree.reorganizeArrayInPlace(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     else if (Vars[i].Size == 8)
                     {
                         int64_t *_temp;
-                        _temp = (int64_t*)Vars[i].Data;
+                        _temp = (int64_t*)_Vars[i].data;
                         gioOctree.reorganizeArrayInPlace(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                 }
@@ -690,25 +714,25 @@ void GenericIO::write() {
                     if (Vars[i].Size == 1)
                     {
                         uint8_t *_temp;
-                        _temp = (uint8_t*)Vars[i].Data;
+                        _temp = (uint8_t*)_Vars[i].data;
                         gioOctree.reorganizeArrayInPlace(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     else if (Vars[i].Size == 2)
                     {
                         uint16_t *_temp;
-                        _temp = (uint16_t*)Vars[i].Data;
+                        _temp = (uint16_t*)_Vars[i].data;
                         gioOctree.reorganizeArrayInPlace(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     else if (Vars[i].Size == 4)
                     {
                         uint32_t *_temp;
-                        _temp = (uint32_t*)Vars[i].Data;
+                        _temp = (uint32_t*)_Vars[i].data;
                         gioOctree.reorganizeArrayInPlace(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     else if (Vars[i].Size == 8)
                     {
                         uint64_t *_temp;
-                        _temp = (uint64_t*)Vars[i].Data;
+                        _temp = (uint64_t*)_Vars[i].data;
                         gioOctree.reorganizeArrayInPlace(numleavesForMyRank, numParticlesForMyLeaf, leafPosition, _temp, numParticles, octreeLeafshuffle);
                     }
                     
@@ -866,7 +890,8 @@ void GenericIO::write() {
                 LocalCData[i].resize(sizeof(CompressHeader<IsBigEndian>));
 
                 CompressHeader<IsBigEndian> *CH = (CompressHeader<IsBigEndian>*) &LocalCData[i][0];
-                CH->OrigCRC = crc64_omp(Vars[i].Data, Vars[i].Size * NElems);
+                //CH->OrigCRC = crc64_omp(Vars[i].Data, Vars[i].Size * NElems);
+                CH->OrigCRC = crc64_omp(_Vars[i].data, Vars[i].Size * NElems);
 
                 #ifdef _OPENMP
                 #pragma omp master
@@ -884,7 +909,10 @@ void GenericIO::write() {
                     #endif
 
                 LocalCData[i].resize(LocalCData[i].size() + NElems * Vars[i].Size);
-                if (blosc_compress(9, 1, Vars[i].Size, NElems * Vars[i].Size, Vars[i].Data,
+                // if (blosc_compress(9, 1, Vars[i].Size, NElems * Vars[i].Size, Vars[i].Data,
+                //                    &LocalCData[i][0] + sizeof(CompressHeader<IsBigEndian>),
+                //                    NElems * Vars[i].Size) <= 0)
+                if (blosc_compress(9, 1, Vars[i].Size, NElems * Vars[i].Size, _Vars[i].data,
                                    &LocalCData[i][0] + sizeof(CompressHeader<IsBigEndian>),
                                    NElems * Vars[i].Size) <= 0)
                     goto nocomp;
@@ -902,7 +930,8 @@ void GenericIO::write() {
       } else {
               nocomp:
                 LocalBlockHeaders[i].Size = NElems * Vars[i].Size;
-                LocalData[i] = Vars[i].Data;
+                //LocalData[i] = Vars[i].Data;
+                LocalData[i] = _Vars[i].data;
                 LocalHasExtraSpace[i] = Vars[i].HasExtraSpace;
             }
         }
@@ -1083,7 +1112,8 @@ void GenericIO::write() {
   for (size_t i = 0; i < Vars.size(); ++i) {
         uint64_t WriteSize = NeedsBlockHeaders ?
                              LocalBlockHeaders[i].Size : NElems * Vars[i].Size;
-        void *Data = NeedsBlockHeaders ? LocalData[i] : Vars[i].Data;
+        //void *Data = NeedsBlockHeaders ? LocalData[i] : Vars[i].Data;
+        void *Data = NeedsBlockHeaders ? LocalData[i] : _Vars[i].data;
         uint64_t CRC = crc64_omp(Data, WriteSize);
         bool HasExtraSpace = NeedsBlockHeaders ?
                              LocalHasExtraSpace[i] : Vars[i].HasExtraSpace;
@@ -1130,6 +1160,13 @@ void GenericIO::write() {
         cout << "Wrote " << Vars.size() << " variables to " << FileName <<
              " (" << FileSize << " bytes) in " << MaxTotalTime << "s: " <<
              Rate << " MB/s" << endl;
+    }
+
+
+    if (useDuplicateData)
+    {
+        for (int i=0; i<Vars.size(); i++)
+            _Vars[i].deAllocateMem();
     }
 
     MPI_Comm_free(&SplitComm);
