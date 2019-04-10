@@ -1,34 +1,34 @@
 /*
  *                    Copyright (C) 2015, UChicago Argonne, LLC
  *                               All Rights Reserved
- *
+ * 
  *                               Generic IO (ANL-15-066)
  *                     Hal Finkel, Argonne National Laboratory
  *                  Jon Woodring, Los Alamos National Laboratory
  *                 Pascal Grosset, Los Alamos National Laboratory
  *
  *                              OPEN SOURCE LICENSE
- *
+ * 
  * Under the terms of Contract No. DE-AC02-06CH11357 with UChicago Argonne,
  * LLC, the U.S. Government retains certain rights in this software.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- *
+ * 
  *   1. Redistributions of source code must retain the above copyright notice,
  *      this list of conditions and the following disclaimer.
- *
+ * 
  *   2. Redistributions in binary form must reproduce the above copyright
  *      notice, this list of conditions and the following disclaimer in the
  *      documentation and/or other materials provided with the distribution.
- *
+ * 
  *   3. Neither the names of UChicago Argonne, LLC or the Department of Energy
  *      nor the names of its contributors may be used to endorse or promote
  *      products derived from this software without specific prior written
  *      permission.
- *
+ * 
  * *****************************************************************************
- *
+ * 
  *                                  DISCLAIMER
  * THE SOFTWARE IS SUPPLIED “AS IS” WITHOUT WARRANTY OF ANY KIND.  NEITHER THE
  * UNTED STATES GOVERNMENT, NOR THE UNITED STATES DEPARTMENT OF ENERGY, NOR
@@ -37,7 +37,7 @@
  * ACCURACY, COMPLETENESS, OR USEFULNESS OF ANY INFORMATION, DATA, APPARATUS,
  * PRODUCT, OR PROCESS DISCLOSED, OR REPRESENTS THAT ITS USE WOULD NOT INFRINGE
  * PRIVATELY OWNED RIGHTS.
- *
+ * 
  * *****************************************************************************
  */
 
@@ -68,72 +68,49 @@ SQLITE_EXTENSION_INIT1
 using namespace std;
 using namespace gio;
 
-class PrinterBase
-{
-  public:
-    virtual ~PrinterBase() {}
-    virtual void print(sqlite3_context *cxt, size_t i) = 0;
+class PrinterBase {
+public:
+  virtual ~PrinterBase() {}
+  virtual void print(sqlite3_context *cxt, size_t i) = 0;
 };
 
-// conversion routine from GIO to SQLite
 template <class T>
-class Printer : public PrinterBase
-{
-  public:
-    Printer(GenericIO &G, size_t MNE, const string &N)
-        : Data(MNE + G.requestedExtraSpace() / sizeof(T))
-    {
-        // I'm not sure what this does - Jon
-        // I *think* it gets a pointer to the data per rank
-        // with equal array sizes for Data
-        G.addVariable(N, Data, true);
-    }
+class Printer : public PrinterBase {
+public:
+  Printer(GenericIO &G, size_t MNE, const string &N)
+    : Data(MNE + G.requestedExtraSpace()/sizeof(T)) {
+    G.addVariable(N, Data, true);
+  }
 
-    virtual void print(sqlite3_context *cxt, size_t i)
-    {
-        T d = Data[i];
-        if (!numeric_limits<T>::is_integer)
-        {
-            sqlite3_result_double(cxt, double(d));
-        }
-        else
-        {
-            if (sizeof(T) > 4)
-            {
-                sqlite3_result_int64(cxt, (sqlite3_int64) d);
-            }
-            else
-            {
-                sqlite3_result_int(cxt, int(d));
-            }
-        }
+  virtual void print(sqlite3_context *cxt, size_t i) {
+    T d = Data[i];
+    if (!numeric_limits<T>::is_integer) {
+      sqlite3_result_double(cxt, double(d));
+    } else {
+      if (sizeof(T) > 4) {
+        sqlite3_result_int64(cxt, (sqlite3_int64) d);
+      } else {
+        sqlite3_result_int(cxt, int(d));
+      }
     }
+  }
 
-  protected:
-    vector<T> Data;
+protected:
+  vector<T> Data;
 };
 
-// try creating a conversion routine from GIO to SQLite
 template <typename T>
 PrinterBase *addPrinter(GenericIO::VariableInfo &V,
-                        GenericIO &GIO, size_t MNE)
-{
-    if (sizeof(T) != V.Size)
-    {
-        return 0;
-    }
+                GenericIO &GIO, size_t MNE) {
+  if (sizeof(T) != V.Size)
+    return 0;
 
-    if (V.IsFloat == numeric_limits<T>::is_integer)
-    {
-        return 0;
-    }
+  if (V.IsFloat == numeric_limits<T>::is_integer)
+    return 0;
+  if (V.IsSigned != numeric_limits<T>::is_signed)
+    return 0;
 
-    if (V.IsSigned != numeric_limits<T>::is_signed)
-    {
-        return 0;
-    }
-
-    return new Printer<T>(GIO, MNE, V.Name);
+  return new Printer<T>(GIO, MNE, V.Name);
 }
 
 struct OctreeNode
@@ -158,16 +135,20 @@ typedef struct OctreeNode OctreeNode;
 // See: http://www.sqlite.org/vtab.html
 
 // the virtual table (representation of GIO as a table)
-struct gio_vtab
-{
-    gio_vtab(const string &FN) : GIO(FN), FileName(FN)
-    {
+struct gio_vtab{
+    gio_vtab(const string &FN) : GIO(FN), FileName(FN), MaxNumElems(0){
         memset(&vtab, 0, sizeof(sqlite3_vtab));
-        GIO.openAndReadHeader(GenericIO::MismatchAllowed);
+	GIO.openAndReadHeader(false);   // GIO.openAndReadHeader(GenericIO::MismatchAllowed);
+        int NR = GIO.readNRanks();
+       for (int i = 0; i < NR; ++i) {
+         size_t NElem = GIO.readNumElems(i);
+         MaxNumElems = max(MaxNumElems, NElem);
+    }
     }
 
     sqlite3_vtab          vtab;
     GenericIO             GIO;
+    size_t       MaxNumElems;
     string                FileName;
 
     bool                         HasOctree;
@@ -197,8 +178,7 @@ struct gio_cursor
         vector<GenericIO::VariableInfo> VI;
         GIO.getVariableInfo(VI);
 
-        for (size_t i = 0; i < VI.size(); ++i)
-        {
+         for (size_t i = 0; i < VI.size(); ++i) {
             PrinterBase *P = 0;
 
             // try creating conversion routines in this precedence
@@ -376,14 +356,12 @@ int gio_connect(sqlite3* db, void *, int argc, const char *const *argv,
 
 static
 int gio_create(sqlite3* db, void *pAux, int argc, const char *const *argv,
-               sqlite3_vtab **ppVTab, char **pzErr)
-{
+               sqlite3_vtab **ppVTab, char **pzErr) {
     return gio_connect(db, pAux, argc, argv, ppVTab, pzErr);
 }
 
 static
-int gio_disconnect(sqlite3_vtab *pVTab)
-{
+int gio_disconnect(sqlite3_vtab *pVTab) {
     gio_vtab *tab = (gio_vtab *) pVTab;
 
     delete tab;
@@ -391,15 +369,12 @@ int gio_disconnect(sqlite3_vtab *pVTab)
 }
 
 static
-int gio_destroy(sqlite3_vtab *pVTab)
-{
+int gio_destroy(sqlite3_vtab *pVTab) {
     return gio_disconnect(pVTab);
 }
 
-
 static
-int gio_best_index(sqlite3_vtab *pVTab, sqlite3_index_info *pInfo)
-{
+int gio_best_index(sqlite3_vtab *pVTab, sqlite3_index_info *pInfo) {
     gio_vtab *tab = (gio_vtab *) pVTab;
 
     int IndexIndex = 0;
@@ -409,12 +384,10 @@ int gio_best_index(sqlite3_vtab *pVTab, sqlite3_index_info *pInfo)
     tab->GIO.getVariableInfo(VI);
 
     // go through the constraints and see if we can do them
-    for (int i = 0; i < pInfo->nConstraint; ++i)
-    {
+    for (int i = 0; i < pInfo->nConstraint; ++i) {
         if (!pInfo->aConstraint[i].usable)
-        {
             continue;
-        }
+
 
         // indexing _rank
         char indexType = 0;
@@ -467,8 +440,7 @@ int gio_best_index(sqlite3_vtab *pVTab, sqlite3_index_info *pInfo)
 
         // create an op code for ourselves in use in xFilter
         char opcode = 0;
-        switch (pInfo->aConstraint[i].op)
-        {
+    switch (pInfo->aConstraint[i].op) {
         case SQLITE_INDEX_CONSTRAINT_EQ:
             opcode = GIO_EQUAL_CONSTRAINT;
             break;
@@ -492,9 +464,8 @@ int gio_best_index(sqlite3_vtab *pVTab, sqlite3_index_info *pInfo)
         // create the index information to pass to ourselves in xFilter
         // pass the column, type of index, and direction we are indexing by
         if (!IndexName.str().empty())
-        {
             IndexName << GIO_INDEX_SEP;
-        }
+
         IndexName << pInfo->aConstraint[i].iColumn << indexType << opcode;
 
         // mark that we are using it to SQLite
@@ -503,28 +474,20 @@ int gio_best_index(sqlite3_vtab *pVTab, sqlite3_index_info *pInfo)
 
         // omit means to have SQLite ignore double-checking your work
         if (pInfo->aConstraint[i].iColumn == tab->RankColumnIndex)
-        {
             pInfo->aConstraintUsage[i].omit = 1;
-        }
         // TODO possibly add in a checks on our side to be able to omit
         // checking on the SQLite side - though the way that the
         // indices currently work, that would be difficult.
         else
-        {
             pInfo->aConstraintUsage[i].omit = 0;
-        }
     }
 
-    // pass the index information out
-    if (!IndexName.str().empty())
-    {
-        // we only have 1 logical index, everything is in the parameterization
+  if (!IndexName.str().empty()) {
         pInfo->idxNum = 1;
         pInfo->idxStr = sqlite3_mprintf("%s", IndexName.str().c_str());
         if (!pInfo->idxStr)
-        {
             return SQLITE_NOMEM;
-        }
+
         pInfo->needToFreeIdxStr = 1;
 
         // This is a crude estimate, without the actual range information,
@@ -580,14 +543,11 @@ int gio_best_index(sqlite3_vtab *pVTab, sqlite3_index_info *pInfo)
 }
 
 static
-int gio_open(sqlite3_vtab *pVTab, sqlite3_vtab_cursor **ppCursor)
-{
+int gio_open(sqlite3_vtab *pVTab, sqlite3_vtab_cursor **ppCursor) {
     gio_cursor *cur = new gio_cursor(((gio_vtab*)pVTab)->FileName, (gio_vtab*)pVTab);
 
     if (!cur)
-    {
         return SQLITE_ERROR;
-    }
 
     cur->cursor.pVtab = pVTab;
     *ppCursor = &cur->cursor;
@@ -596,8 +556,7 @@ int gio_open(sqlite3_vtab *pVTab, sqlite3_vtab_cursor **ppCursor)
 }
 
 static
-int gio_close(sqlite3_vtab_cursor* pCursor)
-{
+int gio_close(sqlite3_vtab_cursor* pCursor) {
     gio_cursor *cur = (gio_cursor *) pCursor;
 
     delete cur;
@@ -606,9 +565,9 @@ int gio_close(sqlite3_vtab_cursor* pCursor)
 
 static
 int gio_filter(sqlite3_vtab_cursor* pCursor, int idxNum, const char *idxStr,
-               int argc, sqlite3_value **argv)
-{
+               int argc, sqlite3_value **argv) {
     gio_cursor *cur = (gio_cursor *) pCursor;
+  gio_vtab   *tab = (gio_vtab *) cur->cursor.pVtab;
 
     // initialize our cursor
     cur->RankMask.assign(cur->GIO.readNRanks(), true);
@@ -898,8 +857,7 @@ int gio_filter(sqlite3_vtab_cursor* pCursor, int idxNum, const char *idxStr,
 }
 
 static
-int gio_next(sqlite3_vtab_cursor* pCursor)
-{
+int gio_next(sqlite3_vtab_cursor* pCursor) {
     gio_cursor *cur = (gio_cursor *) pCursor;
 
     // always increment the row
@@ -1038,74 +996,58 @@ int gio_next(sqlite3_vtab_cursor* pCursor)
 }
 
 static
-int gio_eof(sqlite3_vtab_cursor* pCursor)
-{
+int gio_eof(sqlite3_vtab_cursor* pCursor) {
     gio_cursor *cur = (gio_cursor *) pCursor;
 
-    if (cur->Rank >= cur->GIO.readNRanks())
-    {
+  if (cur->Rank == cur->GIO.readNRanks())
+    return 1;
+
+  if (cur->Rank == cur->GIO.readNRanks() - 1 &&
+      cur->Pos >= (cur->GIO.readNumElems(cur->Rank) - 1))
         return 1;
-    }
 
     return 0;
 }
 
 static
-int gio_column(sqlite3_vtab_cursor* pCursor, sqlite3_context* cxt, int n)
-{
+int gio_column(sqlite3_vtab_cursor* pCursor, sqlite3_context* cxt, int n) {
     gio_cursor* cur = (gio_cursor*) pCursor;
 
     // _rank column
     if (n == cur->RankColumnIndex)
-    {
         sqlite3_result_int(cxt, cur->Rank);
-    }
     // _percent column
     else if (n == cur->PercentColumnIndex)
-    {
         if (!cur->HasOctree)
-        {
             sqlite3_result_double(cxt,
                                   ((double)cur->Index + cur->Offset) /
                                   cur->GIO.readNumElems(cur->Rank));
-        }
         else
-        {
             sqlite3_result_double(cxt,
                                   ((double)cur->Index + cur->Offset) /
                                   (*(cur->OctreeNodes))[cur->Rank][cur->Leaf].rows);
-        }
-    }
     // all other columns (actual GIO data)
     else
-    {
         if ((cur->Printers)[n])
-        {
             (cur->Printers)[n]->print(cxt, cur->Index);
-        }
         else
-        {
             sqlite3_result_null(cxt);
-        }
     }
 
     return SQLITE_OK;
 }
 
 static
-int gio_rowid(sqlite3_vtab_cursor* pCursor, sqlite3_int64* pRowid)
-{
+int gio_rowid(sqlite3_vtab_cursor* pCursor, sqlite3_int64 *pRowid) {
     gio_cursor* cur = (gio_cursor*) pCursor;
-    *pRowid = (sqlite3_int64) cur->RowId;
 
+  *pRowid = (sqlite3_int64) cur->AbsPos;
     return SQLITE_OK;
 }
 
 extern "C"
-int sq3_register_virtual_gio(sqlite3* db)
-{
-    static const struct sqlite3_module gio_module =
-    {
+int sq3_register_virtual_gio(sqlite3 * db) {
+  static const struct sqlite3_module gio_module = {
         2,                         /* iVersion */
         gio_create,
         gio_connect,
@@ -1136,8 +1078,7 @@ int sq3_register_virtual_gio(sqlite3* db)
 
 extern "C"
 int sqlite3_extension_init(sqlite3 *db, char **,
-                           const sqlite3_api_routines *pApi)
-{
+                           const sqlite3_api_routines *pApi) {
     SQLITE_EXTENSION_INIT2(pApi);
     sq3_register_virtual_gio(db);
     return SQLITE_OK;

@@ -43,8 +43,6 @@ CXX = g++ -std=c++11
 MPICC = mpicc
 MPICXX = mpicxx -std=c++11
 
-OS := $(shell uname)
-
 all: fe-progs mpi-progs
 sql: fe-sqlite
 
@@ -59,24 +57,22 @@ BLOSC_CPPFLAGS := \
 	-Ithirdparty/blosc/internal-complibs/zstd-0.7.4/compress \
 	-Ithirdparty/blosc/internal-complibs/zstd-0.7.4/common \
 	-Ithirdparty/blosc/internal-complibs/zstd-0.7.4/dictBuilder \
-	-Ithirdparty/blosc/internal-complibs/zstd-0.7.4/decompress
+	-Ithirdparty/blosc/internal-complibs/zstd-0.7.4/decompress \
+	-Ithirdparty/SZ/sz/include
 
 BASE_CPPFLAGS := $(BLOSC_CPPFLAGS) -I. -D__STDC_CONSTANT_MACROS
 
-FEDIR = frontend
-ifeq ($(OS),Darwin)
-	FE_CFLAGS := -g -fPIC -O3
-else
-	FE_CFLAGS := -g -fPIC -O3 -fopenmp
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+    OPENMPFLAG=-fopenmp
 endif
+
+FEDIR = frontend
+FE_CFLAGS := -g -fPIC -O3 $(OPENMPFLAG) -std=gnu99
 FE_CPPFLAGS := $(BASE_CPPFLAGS) -Ithirdparty/sqlite -DGENERICIO_NO_MPI
 
 MPIDIR = mpi
-ifeq ($(OS),Darwin)
-	MPI_CFLAGS := -g -O3
-else
-	MPI_CFLAGS := -g -O3 -fopenmp
-endif
+MPI_CFLAGS := -g -O3 $(OPENMPFLAG) -std=gnu99
 MPI_CPPFLAGS := $(BASE_CPPFLAGS)
 
 $(FEDIR):
@@ -135,7 +131,55 @@ BLOSC_O := \
 	thirdparty/blosc/internal-complibs/snappy-1.1.1/snappy-c.o \
 	thirdparty/blosc/internal-complibs/snappy-1.1.1/snappy.o \
 	thirdparty/blosc/internal-complibs/snappy-1.1.1/snappy-sinksource.o \
-	thirdparty/blosc/internal-complibs/snappy-1.1.1/snappy-stubs-internal.o
+	thirdparty/blosc/internal-complibs/snappy-1.1.1/snappy-stubs-internal.o \
+	thirdparty/SZ/sz/src/ByteToolkit.o \
+	thirdparty/SZ/sz/src/dataCompression.o \
+	thirdparty/SZ/sz/src/DynamicIntArray.o \
+	thirdparty/SZ/sz/src/iniparser.o \
+	thirdparty/SZ/sz/src/CompressElement.o \
+	thirdparty/SZ/sz/src/DynamicByteArray.o \
+	thirdparty/SZ/sz/src/rw.o \
+	thirdparty/SZ/sz/src/TightDataPointStorageI.o \
+	thirdparty/SZ/sz/src/TightDataPointStorageD.o \
+	thirdparty/SZ/sz/src/TightDataPointStorageF.o \
+	thirdparty/SZ/sz/src/conf.o \
+	thirdparty/SZ/sz/src/DynamicDoubleArray.o \
+	thirdparty/SZ/sz/src/TypeManager.o \
+	thirdparty/SZ/sz/src/dictionary.o \
+	thirdparty/SZ/sz/src/DynamicFloatArray.o \
+	thirdparty/SZ/sz/src/VarSet.o \
+	thirdparty/SZ/sz/src/callZlib.o \
+	thirdparty/SZ/sz/src/Huffman.o \
+	thirdparty/SZ/sz/src/sz_float.o \
+	thirdparty/SZ/sz/src/sz_double.o \
+	thirdparty/SZ/sz/src/sz_int8.o \
+	thirdparty/SZ/sz/src/sz_int16.o \
+	thirdparty/SZ/sz/src/sz_int32.o \
+	thirdparty/SZ/sz/src/sz_int64.o \
+	thirdparty/SZ/sz/src/sz_uint8.o \
+	thirdparty/SZ/sz/src/sz_uint16.o \
+	thirdparty/SZ/sz/src/sz_uint32.o \
+	thirdparty/SZ/sz/src/sz_uint64.o \
+	thirdparty/SZ/sz/src/szd_uint8.o \
+	thirdparty/SZ/sz/src/szd_uint16.o \
+	thirdparty/SZ/sz/src/szd_uint32.o \
+	thirdparty/SZ/sz/src/szd_uint64.o \
+	thirdparty/SZ/sz/src/szd_float.o \
+	thirdparty/SZ/sz/src/szd_double.o \
+	thirdparty/SZ/sz/src/szd_int8.o \
+	thirdparty/SZ/sz/src/szd_int16.o \
+	thirdparty/SZ/sz/src/szd_int32.o \
+	thirdparty/SZ/sz/src/szd_int64.o \
+	thirdparty/SZ/sz/src/utility.o \
+	thirdparty/SZ/sz/src/sz.o \
+	thirdparty/SZ/sz/src/sz_float_pwr.o \
+	thirdparty/SZ/sz/src/sz_double_pwr.o \
+	thirdparty/SZ/sz/src/szd_float_pwr.o \
+	thirdparty/SZ/sz/src/szd_double_pwr.o \
+	thirdparty/SZ/sz/src/sz_double_ts.o \
+	thirdparty/SZ/sz/src/sz_float_ts.o \
+	thirdparty/SZ/sz/src/szd_double_ts.o \
+	thirdparty/SZ/sz/src/szd_float_ts.o
 
 FE_BLOSC_O := $(addprefix $(FEDIR)/,$(BLOSC_O))
 
@@ -219,3 +263,4 @@ fe-sqlite: frontend-sqlite
 
 clean:
 	rm -rf frontend mpi python/genericio.pyc
+

@@ -6,7 +6,11 @@ import genericio as gio
 
 
 ## Input Section
-input_file_name = "/bigData/Halos/b0168/octree-m001-499.bighaloparticles"
+if len(sys.argv) > 1:
+	input_file_name = sys.argv[1]
+else:
+	input_file_name = "/bigData/b0168/octree-m001-499.bighaloparticles"
+
 octree_region = [197,198, 199,200, 175,176]
 query = "['fof_halo_tag'] == 767287898"
 display_values = ['x', 'y', 'z']
