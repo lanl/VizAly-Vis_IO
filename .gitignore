@@ -9,7 +9,6 @@ cmake_install.cmake
 build
 builds
 *_build
-*.txt
 
 *.sublime-workspace
 *.sublime-project
