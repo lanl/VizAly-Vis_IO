@@ -68,6 +68,7 @@ int main(int argc, char *argv[])
 		gioReader->openAndReadHeader(gio::GenericIO::MismatchRedistribute);
 		int numDataRanks = gioReader->readNRanks();
 
+		std::cout << "Num data ranks: " << numDataRanks << std::endl;
 
 		gioReader->readPhysOrigin(physOrigin);
 	    gioReader->readPhysScale(physScale);
@@ -94,6 +95,7 @@ int main(int argc, char *argv[])
 		for (int i = 0; i < numVars; i++)
 			readInData[i].init(i, VI[i].Name, static_cast<int>(VI[i].Size), VI[i].IsFloat, VI[i].IsSigned, VI[i].IsPhysCoordX, VI[i].IsPhysCoordY, VI[i].IsPhysCoordZ);
 
+		std::cout << "numVars: " << numVars << std::endl;
 
 
 		//
@@ -107,7 +109,7 @@ int main(int argc, char *argv[])
 
 		int splitDims[3];
 		gioReader->readDims(splitDims);
-		log << "splitDims: " << splitDims[0] << "," << splitDims[1] << "," << splitDims[2] << std::endl;
+		std::cout << "splitDims: " << splitDims[0] << "," << splitDims[1] << "," << splitDims[2] << std::endl;
 
 
 
@@ -122,7 +124,7 @@ int main(int argc, char *argv[])
 			readInData[i].allocateMem(1);
 		}
 
-		log << "totalNumberOfElements to read in: " << totalNumberOfElements << std::endl;
+		std::cout  << "totalNumberOfElements to read in: " << totalNumberOfElements << std::endl;
 		if (myRank == 0)
 			std::cout << "totalNumberOfElements to read in: " << totalNumberOfElements << std::endl;
 
@@ -133,6 +135,7 @@ int main(int argc, char *argv[])
 		size_t offset = 0;
 		for (int i = loadRange[0]; i < loadRange[1]; i++) // for each rank
 		{
+			std::cout << "i: " << i << std::endl;
 			size_t Np = gioReader->readNumElems(i);
 
 			int coords[3];
@@ -193,6 +196,8 @@ int main(int argc, char *argv[])
 		gioReader->close();
 	}
 	
+	std::cout << "Writing the data out! " << std::endl;
+	// Write the data out
 	{
 		int rangeX = minmaxX[1]-minmaxX[0];
 		int rangeY = minmaxY[1]-minmaxY[0];
@@ -219,6 +224,7 @@ int main(int argc, char *argv[])
 		gioWriter->setNumElems(totalNumberOfElements);
 
 
+		std::cout << "||totalNumberOfElements " << totalNumberOfElements  << std::endl;
 		// Init physical parameters
 		for (int d = 0; d < 3; ++d)
 		{
@@ -267,22 +273,18 @@ int main(int argc, char *argv[])
 		gioWriter->write();
 		log << "HACCDataLoader::writeData " << _filename << std::endl;
 
-		//MPI_Barrier(comm_cart);
-		//gioWriter->close();
-
 		if (myRank == 0)
 			std::cout  << "HACCDataLoader::writeData done!"  << std::endl;
 	}
 
 	clock.stop();
-	log << "Writing data took " << clock.getDuration() << " s" << std::endl;
+	std::cout << "Writing data took " << clock.getDuration() << " s" << std::endl;
 
 	std::ofstream outputFile( (_filename  + "_" + std::to_string(myRank) + ".log").c_str(), std::ios::out);
 	outputFile << log.str();
 	outputFile.close();
 
 	MPI_Barrier(comm);
-	//MPI_Barrier(comm_cart);
 	MPI_Comm_free(&comm_cart);
     comm_cart = MPI_COMM_NULL;
 

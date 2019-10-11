@@ -104,6 +104,7 @@ void GenericFileIO_MPI::read(void *buf, size_t count, off_t offset,
                              const std::string &D) {
   while (count > 0) {
     MPI_Status status;
+    std::cout << "aaa" << std::endl;
     if (MPI_File_read_at(FH, offset, buf, count, MPI_BYTE, &status) != MPI_SUCCESS)
       throw runtime_error("Unable to read " + D + " from file: " + FileName);
 
@@ -139,6 +140,7 @@ void GenericFileIO_MPICollective::read(void *buf, size_t count, off_t offset,
   int Continue = 0;
 
   do {
+    std::cout << "bbb" << std::endl;
     MPI_Status status;
     if (MPI_File_read_at_all(FH, offset, buf, count, MPI_BYTE, &status) != MPI_SUCCESS)
       throw runtime_error("Unable to read " + D + " from file: " + FileName);
@@ -205,6 +207,7 @@ void GenericFileIO_POSIX::read(void *buf, size_t count, off_t offset,
   while (count > 0) {
     ssize_t scount;
     errno = 0;
+    //std::cout << "ccc: " << FileName << std::endl;
     if ((scount = pread(FH, buf, count, offset)) == -1) {
       if (errno == EINTR)
         continue;
@@ -404,6 +407,8 @@ void GenericIO::write() {
 
 // Note: writing errors are not currently recoverable (one rank may fail
 // while the others don't).
+
+/*
 template <bool IsBigEndian>
 void GenericIO::write() {
   const char *Magic = IsBigEndian ? MagicBE : MagicLE;
@@ -446,9 +451,9 @@ void GenericIO::write() {
 
       GenericIO GIO(MPI_COMM_SELF, FileName, FileIOType);
       GIO.setNumElems(NRanks);
-      GIO.addVariable("$rank", MapRank); /* this is for use by humans; the reading
-                                            code assumes that the partitions are in
-                                            rank order */
+      GIO.addVariable("$rank", MapRank); // this is for use by humans; the reading
+                                         // code assumes that the partitions are in
+                                         // rank order 
       GIO.addVariable("$partition", MapPartition);
 
       vector<int> CX, CY, CZ;
@@ -672,7 +677,6 @@ nocomp:
 
     uint64_t HeaderSize = sizeof(GlobalHeader<IsBigEndian>) + Vars.size()*sizeof(VariableHeader<IsBigEndian>) +
                           SplitNRanks*sizeof(RankHeader<IsBigEndian>) + CRCSize + octreeSize;
-
     if (NeedsBlockHeaders)
       HeaderSize += SplitNRanks*Vars.size()*sizeof(BlockHeader<IsBigEndian>) + octreeSize;
 
@@ -881,6 +885,534 @@ nocomp:
         for (int i=0; i<Vars.size(); i++)
             _Vars[i].deAllocateMem();
     }
+
+  MPI_Comm_free(&SplitComm);
+  SplitComm = MPI_COMM_NULL;
+}
+*/
+
+template <bool IsBigEndian>
+void GenericIO::write()
+{
+  const char *Magic = IsBigEndian ? MagicBE : MagicLE;
+
+  uint64_t FileSize = 0;
+
+  int NRanks, Rank;
+  MPI_Comm_rank(Comm, &Rank);
+  MPI_Comm_size(Comm, &NRanks);
+
+  #ifdef __bgq__
+  MPI_Barrier(Comm);
+  #endif
+  MPI_Comm_split(Comm, Partition, Rank, &SplitComm);
+
+  int SplitNRanks, SplitRank;
+  MPI_Comm_rank(SplitComm, &SplitRank);
+  MPI_Comm_size(SplitComm, &SplitNRanks);
+
+  // Making a duplicate
+  //bool useDuplicateData = false;
+  bool useDuplicateData = true;
+  std::vector<GioData> _Vars;
+  _Vars.resize(Vars.size());
+  for (int i = 0; i < Vars.size(); i++)
+    _Vars[i].data = Vars[i].Data;
+
+  std::cout << "Use duplicate data " << useDuplicateData << std::endl;
+
+  string LocalFileName;
+  if (SplitNRanks != NRanks)
+  {
+    if (Rank == 0)
+    {
+      // In split mode, the specified file becomes the rank map, and the real
+      // data is partitioned.
+
+      vector<int> MapRank, MapPartition;
+      MapRank.resize(NRanks);
+      for (int i = 0; i < NRanks; ++i) MapRank[i] = i;
+
+      MapPartition.resize(NRanks);
+      MPI_Gather(&Partition, 1, MPI_INT, &MapPartition[0], 1, MPI_INT, 0, Comm);
+
+      GenericIO GIO(MPI_COMM_SELF, FileName, FileIOType);
+      GIO.setNumElems(NRanks);
+      GIO.addVariable("$rank", MapRank); /* this is for use by humans; the reading
+                      code assumes that the partitions are in
+                      rank order */
+      GIO.addVariable("$partition", MapPartition);
+
+      vector<int> CX, CY, CZ;
+      int TopoStatus;
+      MPI_Topo_test(Comm, &TopoStatus);
+      if (TopoStatus == MPI_CART)
+      {
+        CX.resize(NRanks);
+        CY.resize(NRanks);
+        CZ.resize(NRanks);
+
+        for (int i = 0; i < NRanks; ++i)
+        {
+          int C[3];
+          MPI_Cart_coords(Comm, i, 3, C);
+
+          CX[i] = C[0];
+          CY[i] = C[1];
+          CZ[i] = C[2];
+        }
+
+        GIO.addVariable("$x", CX);
+        GIO.addVariable("$y", CY);
+        GIO.addVariable("$z", CZ);
+      }
+
+      GIO.write();
+    }
+    else
+    {
+      MPI_Gather(&Partition, 1, MPI_INT, 0, 0, MPI_INT, 0, Comm);
+    }
+
+    stringstream ss;
+    ss << FileName << "#" << Partition;
+    LocalFileName = ss.str();
+  }
+  else
+  {
+    LocalFileName = FileName;
+  }
+
+  RankHeader<IsBigEndian> RHLocal;
+  int Dims[3], Periods[3], Coords[3];
+
+  int TopoStatus;
+  MPI_Topo_test(Comm, &TopoStatus);
+  if (TopoStatus == MPI_CART)
+  {
+    MPI_Cart_get(Comm, 3, Dims, Periods, Coords);
+  }
+  else
+  {
+    Dims[0] = NRanks;
+    std::fill(Dims + 1, Dims + 3, 1);
+    std::fill(Periods, Periods + 3, 0);
+    Coords[0] = Rank;
+    std::fill(Coords + 1, Coords + 3, 0);
+  }
+
+  std::copy(Coords, Coords + 3, RHLocal.Coords);
+  RHLocal.NElems = NElems;
+  RHLocal.Start = 0;
+  RHLocal.GlobalRank = Rank;
+
+  bool ShouldCompress = DefaultShouldCompress;
+  const char *EnvStr = getenv("GENERICIO_COMPRESS");
+  if (EnvStr)
+  {
+    int Mod = atoi(EnvStr);
+    ShouldCompress = (Mod > 0);
+  }
+
+  bool NeedsBlockHeaders = ShouldCompress;
+  EnvStr = getenv("GENERICIO_FORCE_BLOCKS");
+  if (!NeedsBlockHeaders && EnvStr)
+  {
+    int Mod = atoi(EnvStr);
+    NeedsBlockHeaders = (Mod > 0);
+  }
+
+  vector<BlockHeader<IsBigEndian> > LocalBlockHeaders;
+  vector<void *> LocalData;
+  vector<bool> LocalHasExtraSpace;
+  vector<vector<unsigned char> > LocalCData;
+  if (NeedsBlockHeaders)
+  {
+    LocalBlockHeaders.resize(Vars.size());
+    LocalData.resize(Vars.size());
+    LocalHasExtraSpace.resize(Vars.size());
+    if (ShouldCompress)
+      LocalCData.resize(Vars.size());
+
+    for (size_t i = 0; i < Vars.size(); ++i)
+    {
+      // Filters null by default, leave null starting address (needs to be
+      // calculated by the header-writing rank).
+      memset(&LocalBlockHeaders[i], 0, sizeof(BlockHeader<IsBigEndian>));
+      if (ShouldCompress)
+      {
+        void *OrigData = Vars[i].Data;
+        if (useDuplicateData)
+          OrigData = _Vars[i].data;
+        bool FreeOrigData = false;
+        size_t OrigUnitSize = Vars[i].Size;
+        size_t OrigDataSize = NElems * Vars[i].Size;
+
+        int FilterIdx = 0;
+        if (Vars[i].LCI.Mode != LossyCompressionInfo::LCModeNone)
+        {
+          #ifdef _OPENMP
+          #pragma omp master
+          {
+          #endif
+            if (!sz_initialized)
+            {
+              SZ_Init(NULL);
+              confparams_cpr->szMode = 0; // Best-speed mode.
+              sz_initialized = true;
+            }
+
+            #ifdef _OPENMP
+          }
+            #endif
+          int SZDT = GetSZDT(Vars[i]);
+          if (SZDT == -1)
+            goto nosz;
+
+          int EBM;
+          switch (Vars[i].LCI.Mode)
+          {
+          case LossyCompressionInfo::LCModeAbs:
+            EBM = ABS;
+            break;
+          case LossyCompressionInfo::LCModeRel:
+            EBM = REL;
+            break;
+          case LossyCompressionInfo::LCModeAbsAndRel:
+            EBM = ABS_AND_REL;
+            break;
+          case LossyCompressionInfo::LCModeAbsOrRel:
+            EBM = ABS_OR_REL;
+            break;
+          case LossyCompressionInfo::LCModePSNR:
+            EBM = PSNR;
+            break;
+          }
+
+          size_t LOutSize;
+          //         unsigned char *LCompressedData = SZ_compress_args(SZDT, Vars[i].Data, &LOutSize, EBM,
+          //                                                          Vars[i].LCI.AbsErrThreshold, Vars[i].LCI.RelErrThreshold,
+          //                                                          Vars[i].LCI.PSNRThreshold, 0, 0, 0, 0, NElems);
+          unsigned char *LCompressedData = SZ_compress_args(SZDT, _Vars[i].data, &LOutSize, EBM,
+                                           Vars[i].LCI.AbsErrThreshold, Vars[i].LCI.RelErrThreshold,
+                                           Vars[i].LCI.PSNRThreshold, 0, 0, 0, 0, NElems);
+          if (!LCompressedData)
+            goto nosz;
+          if (LOutSize >= NElems * Vars[i].Size)
+          {
+            free(LCompressedData);
+            goto nosz;
+          }
+
+          OrigData = LCompressedData;
+          FreeOrigData = true;
+          OrigUnitSize = 1;
+          OrigDataSize = LOutSize;
+
+          strncpy(LocalBlockHeaders[i].Filters[FilterIdx++], LossyCompressName, FilterNameSize);
+        }
+        nosz:
+
+        LocalCData[i].resize(sizeof(CompressHeader<IsBigEndian>));
+
+        CompressHeader<IsBigEndian> *CH = (CompressHeader<IsBigEndian>*) &LocalCData[i][0];
+        CH->OrigCRC = crc64_omp(OrigData, OrigDataSize);
+
+        #ifdef _OPENMP
+        #pragma omp master
+        {
+        #endif
+
+          if (!blosc_initialized)
+          {
+            blosc_init();
+            blosc_initialized = true;
+          }
+
+          #ifdef _OPENMP
+          blosc_set_nthreads(omp_get_max_threads());
+        }
+          #endif
+
+        size_t RealOrigDataSize = NElems * Vars[i].Size;
+        LocalCData[i].resize(LocalCData[i].size() + RealOrigDataSize);
+        if (blosc_compress(9, 1, OrigUnitSize, OrigDataSize, OrigData,
+                           &LocalCData[i][0] + sizeof(CompressHeader<IsBigEndian>),
+                           RealOrigDataSize) <= 0)
+        {
+          if (FreeOrigData)
+            free(OrigData);
+
+          goto nocomp;
+        }
+
+        if (FreeOrigData)
+          free(OrigData);
+
+        strncpy(LocalBlockHeaders[i].Filters[FilterIdx++], CompressName, FilterNameSize);
+        size_t CNBytes, CCBytes, CBlockSize;
+        blosc_cbuffer_sizes(&LocalCData[i][0] + sizeof(CompressHeader<IsBigEndian>),
+                            &CNBytes, &CCBytes, &CBlockSize);
+        LocalCData[i].resize(CCBytes + sizeof(CompressHeader<IsBigEndian>));
+
+        LocalBlockHeaders[i].Size = LocalCData[i].size();
+        LocalCData[i].resize(LocalCData[i].size() + CRCSize);
+        LocalData[i] = &LocalCData[i][0];
+        LocalHasExtraSpace[i] = true;
+      }
+      else
+      {
+        nocomp:
+        LocalBlockHeaders[i].Size = NElems * Vars[i].Size;
+        //LocalData[i] = Vars[i].Data;
+        LocalData[i] = _Vars[i].data;
+        LocalHasExtraSpace[i] = Vars[i].HasExtraSpace;
+      }
+    }
+  }
+
+  double StartTime = MPI_Wtime();
+
+  if (SplitRank == 0)
+  {
+    std::string serializedOctree;
+    uint64_t octreeSize = 0;
+    uint64_t octreeStart = 0;
+    if (hasOctree)
+    {
+      //std::cout << "Serializing octree" << std::endl;
+      serializedOctree = octreeData.serialize(IsBigEndian);
+      octreeSize  = serializedOctree.size();
+    }
+
+    uint64_t HeaderSize = sizeof(GlobalHeader<IsBigEndian>) + Vars.size() * sizeof(VariableHeader<IsBigEndian>) +
+                          SplitNRanks * sizeof(RankHeader<IsBigEndian>) + CRCSize + octreeSize;
+    if (NeedsBlockHeaders)
+      HeaderSize += SplitNRanks * Vars.size() * sizeof(BlockHeader<IsBigEndian>) + octreeSize;
+
+    vector<char> Header(HeaderSize, 0);
+    GlobalHeader<IsBigEndian> *GH = (GlobalHeader<IsBigEndian> *) &Header[0];
+    std::copy(Magic, Magic + MagicSize, GH->Magic);
+    GH->HeaderSize = HeaderSize - CRCSize;
+    GH->NElems = NElems; // This will be updated later
+    std::copy(Dims, Dims + 3, GH->Dims);
+    GH->NVars = Vars.size();
+    GH->VarsSize = sizeof(VariableHeader<IsBigEndian>);
+    GH->VarsStart = sizeof(GlobalHeader<IsBigEndian>) + octreeSize;
+    GH->NRanks = SplitNRanks;
+    GH->RanksSize = sizeof(RankHeader<IsBigEndian>);
+    GH->RanksStart = GH->VarsStart + Vars.size() * sizeof(VariableHeader<IsBigEndian>);
+    GH->GlobalHeaderSize = sizeof(GlobalHeader<IsBigEndian>);
+    std::copy(PhysOrigin, PhysOrigin + 3, GH->PhysOrigin);
+    std::copy(PhysScale,  PhysScale  + 3, GH->PhysScale);
+
+    if (hasOctree)
+    {
+      octreeStart = sizeof(GlobalHeader<IsBigEndian>);
+      std::copy( serializedOctree.begin(), serializedOctree.end(), &Header[GH->GlobalHeaderSize] );
+    }
+    GH->OctreeSize = octreeSize;
+    GH->OctreeStart = octreeStart;
+
+    if (!NeedsBlockHeaders)
+    {
+      GH->BlocksSize = GH->BlocksStart = 0;
+    }
+    else
+    {
+      GH->BlocksSize = sizeof(BlockHeader<IsBigEndian>);
+      GH->BlocksStart = GH->RanksStart + SplitNRanks * sizeof(RankHeader<IsBigEndian>);
+    }
+
+    uint64_t RecordSize = 0;
+    VariableHeader<IsBigEndian> *VH = (VariableHeader<IsBigEndian> *) &Header[GH->VarsStart];
+    for (size_t i = 0; i < Vars.size(); ++i, ++VH)
+    {
+      string VName(Vars[i].Name);
+      VName.resize(NameSize);
+
+      std::copy(VName.begin(), VName.end(), VH->Name);
+      uint64_t VFlags = 0;
+      if (Vars[i].IsFloat)  VFlags |= FloatValue;
+      if (Vars[i].IsSigned) VFlags |= SignedValue;
+      if (Vars[i].IsPhysCoordX) VFlags |= ValueIsPhysCoordX;
+      if (Vars[i].IsPhysCoordY) VFlags |= ValueIsPhysCoordY;
+      if (Vars[i].IsPhysCoordZ) VFlags |= ValueIsPhysCoordZ;
+      if (Vars[i].MaybePhysGhost) VFlags |= ValueMaybePhysGhost;
+      VH->Flags = VFlags;
+      RecordSize += VH->Size = Vars[i].Size;
+      VH->ElementSize = Vars[i].ElementSize;
+    }
+
+    MPI_Gather(&RHLocal, sizeof(RHLocal), MPI_BYTE,
+               &Header[GH->RanksStart], sizeof(RHLocal),
+               MPI_BYTE, 0, SplitComm);
+
+    if (NeedsBlockHeaders)
+    {
+      MPI_Gather(&LocalBlockHeaders[0],
+                 Vars.size()*sizeof(BlockHeader<IsBigEndian>), MPI_BYTE,
+                 &Header[GH->BlocksStart],
+                 Vars.size()*sizeof(BlockHeader<IsBigEndian>), MPI_BYTE,
+                 0, SplitComm);
+
+      BlockHeader<IsBigEndian> *BH = (BlockHeader<IsBigEndian> *) &Header[GH->BlocksStart];
+      for (int i = 0; i < SplitNRanks; ++i)
+        for (size_t j = 0; j < Vars.size(); ++j, ++BH)
+        {
+          if (i == 0 && j == 0)
+            BH->Start = HeaderSize;
+          else
+            BH->Start = BH[-1].Start + BH[-1].Size + CRCSize;
+        }
+
+      RankHeader<IsBigEndian> *RH = (RankHeader<IsBigEndian> *) &Header[GH->RanksStart];
+      RH->Start = HeaderSize; ++RH;
+      for (int i = 1; i < SplitNRanks; ++i, ++RH)
+      {
+        RH->Start =
+            ((BlockHeader<IsBigEndian> *) &Header[GH->BlocksStart])[i * Vars.size()].Start;
+        GH->NElems += RH->NElems;
+      }
+
+      // Compute the total file size.
+      uint64_t LastData = BH[-1].Size + CRCSize;
+      FileSize = BH[-1].Start + LastData;
+    }
+    else
+    {
+      RankHeader<IsBigEndian> *RH = (RankHeader<IsBigEndian> *) &Header[GH->RanksStart];
+      RH->Start = HeaderSize; ++RH;
+      for (int i = 1; i < SplitNRanks; ++i, ++RH)
+      {
+        uint64_t PrevNElems = RH[-1].NElems;
+        uint64_t PrevData = PrevNElems * RecordSize + CRCSize * Vars.size();
+        RH->Start = RH[-1].Start + PrevData;
+        GH->NElems += RH->NElems;
+      }
+
+      // Compute the total file size.
+      uint64_t LastNElems = RH[-1].NElems;
+      uint64_t LastData = LastNElems * RecordSize + CRCSize * Vars.size();
+      FileSize = RH[-1].Start + LastData;
+    }
+
+    // Now that the starting offset has been computed, send it back to each rank.
+    MPI_Scatter(&Header[GH->RanksStart], sizeof(RHLocal),
+                MPI_BYTE, &RHLocal, sizeof(RHLocal),
+                MPI_BYTE, 0, SplitComm);
+
+    if (NeedsBlockHeaders)
+      MPI_Scatter(&Header[GH->BlocksStart],
+                  sizeof(BlockHeader<IsBigEndian>)*Vars.size(), MPI_BYTE,
+                  &LocalBlockHeaders[0],
+                  sizeof(BlockHeader<IsBigEndian>)*Vars.size(), MPI_BYTE,
+                  0, SplitComm);
+
+    uint64_t HeaderCRC = crc64_omp(&Header[0], HeaderSize - CRCSize);
+    crc64_invert(HeaderCRC, &Header[HeaderSize - CRCSize]);
+
+    if (FileIOType == FileIOMPI)
+      FH.get() = new GenericFileIO_MPI(MPI_COMM_SELF);
+    else if (FileIOType == FileIOMPICollective)
+      FH.get() = new GenericFileIO_MPICollective(MPI_COMM_SELF);
+    else
+      FH.get() = new GenericFileIO_POSIX();
+
+    FH.get()->open(LocalFileName);
+    FH.get()->setSize(FileSize);
+    FH.get()->write(&Header[0], HeaderSize, 0, "header");
+
+    close();
+  }
+  else
+  {
+    MPI_Gather(&RHLocal, sizeof(RHLocal), MPI_BYTE, 0, 0, MPI_BYTE, 0, SplitComm);
+    if (NeedsBlockHeaders)
+      MPI_Gather(&LocalBlockHeaders[0], Vars.size()*sizeof(BlockHeader<IsBigEndian>),
+                 MPI_BYTE, 0, 0, MPI_BYTE, 0, SplitComm);
+    MPI_Scatter(0, 0, MPI_BYTE, &RHLocal, sizeof(RHLocal), MPI_BYTE, 0, SplitComm);
+    if (NeedsBlockHeaders)
+      MPI_Scatter(0, 0, MPI_BYTE, &LocalBlockHeaders[0], sizeof(BlockHeader<IsBigEndian>)*Vars.size(),
+                  MPI_BYTE, 0, SplitComm);
+  }
+
+  MPI_Barrier(SplitComm);
+
+  if (FileIOType == FileIOMPI)
+    FH.get() = new GenericFileIO_MPI(SplitComm);
+  else if (FileIOType == FileIOMPICollective)
+    FH.get() = new GenericFileIO_MPICollective(SplitComm);
+  else
+    FH.get() = new GenericFileIO_POSIX();
+
+  FH.get()->open(LocalFileName);
+
+  uint64_t Offset = RHLocal.Start;
+  for (size_t i = 0; i < Vars.size(); ++i)
+  {
+    uint64_t WriteSize = NeedsBlockHeaders ?
+                         LocalBlockHeaders[i].Size : NElems * Vars[i].Size;
+    //void *Data = NeedsBlockHeaders ? LocalData[i] : Vars[i].Data;
+    void *Data = NeedsBlockHeaders ? LocalData[i] : _Vars[i].data;
+    uint64_t CRC = crc64_omp(Data, WriteSize);
+    bool HasExtraSpace = NeedsBlockHeaders ?
+                         LocalHasExtraSpace[i] : Vars[i].HasExtraSpace;
+    char *CRCLoc = HasExtraSpace ?  ((char *) Data) + WriteSize : (char *) &CRC;
+
+    if (NeedsBlockHeaders)
+      Offset = LocalBlockHeaders[i].Start;
+
+    // When using extra space for the CRC write, preserve the original contents.
+    char CRCSave[CRCSize];
+    if (HasExtraSpace)
+      std::copy(CRCLoc, CRCLoc + CRCSize, CRCSave);
+
+    crc64_invert(CRC, CRCLoc);
+
+    if (HasExtraSpace)
+    {
+      FH.get()->write(Data, WriteSize + CRCSize, Offset, Vars[i].Name + " with CRC");
+    }
+    else
+    {
+      FH.get()->write(Data, WriteSize, Offset, Vars[i].Name);
+      FH.get()->write(CRCLoc, CRCSize, Offset + WriteSize, Vars[i].Name + " CRC");
+    }
+
+    if (HasExtraSpace)
+      std::copy(CRCSave, CRCSave + CRCSize, CRCLoc);
+
+    Offset += WriteSize + CRCSize;
+  }
+
+  close();
+  MPI_Barrier(Comm);
+
+  double EndTime = MPI_Wtime();
+  double TotalTime = EndTime - StartTime;
+  double MaxTotalTime;
+  MPI_Reduce(&TotalTime, &MaxTotalTime, 1, MPI_DOUBLE, MPI_MAX, 0, Comm);
+
+  if (SplitNRanks != NRanks)
+  {
+    uint64_t ContribFileSize = (SplitRank == 0) ? FileSize : 0;
+    MPI_Reduce(&ContribFileSize, &FileSize, 1, MPI_UINT64_T, MPI_SUM, 0, Comm);
+  }
+
+  if (Rank == 0)
+  {
+    double Rate = ((double) FileSize) / MaxTotalTime / (1024.*1024.);
+    std::cout << "Wrote " << Vars.size() << " variables to " << FileName <<
+              " (" << FileSize << " bytes) in " << MaxTotalTime << "s: " <<
+              Rate << " MB/s" << std::endl;
+  }
+
+  if (useDuplicateData)
+  {
+    for (int i = 0; i < Vars.size(); i++)
+      _Vars[i].deAllocateMem();
+  }
 
   MPI_Comm_free(&SplitComm);
   SplitComm = MPI_COMM_NULL;

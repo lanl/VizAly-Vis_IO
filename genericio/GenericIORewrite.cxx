@@ -20,6 +20,12 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
+
+  int numOctreeLevels = 0;
+  if (argc == 4)
+    numOctreeLevels = atoi(argv[3]);
+  
+
   GenericIO::setNaturalDefaultPartition();
   GenericIO::setDefaultShouldCompress(true);
 
@@ -87,6 +93,13 @@ int main(int argc, char *argv[]) {
       }
 
       NewGIO.addVariable(VI[i], &Vars[i][0], GenericIO::VarHasExtraSpace);
+    }
+
+    // Add octree
+    if (numOctreeLevels > 0)
+    {
+      NewGIO.useOctree(numOctreeLevels);
+      std::cout << "numOctreeLevels: " << numOctreeLevels << std::endl;
     }
 
     NewGIO.write();
