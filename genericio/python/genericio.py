@@ -44,16 +44,13 @@ import ctypes as ct
 import os
 import sys
 
-#Define where the library is and load it
+# Define where the library is and load it
 _path = os.path.dirname(__file__)
 libpygio = ct.CDLL(_path + '/../frontend/libpygio.so')
-#we need to define the return type ("restype") and
-#the argument types
+
+
 libpygio.get_elem_num.restype=ct.c_int64
 libpygio.get_elem_num.argtypes=[ct.c_char_p]
-
-libpygio.get_elem_num_in_leaf.restype=ct.c_int64
-libpygio.get_elem_num_in_leaf.argtypes=[ct.c_char_p, ct.c_int]
 
 libpygio.get_variable_type.restype=ct.c_int
 libpygio.get_variable_type.argtypes=[ct.c_char_p,ct.c_char_p]
@@ -61,20 +58,41 @@ libpygio.get_variable_type.argtypes=[ct.c_char_p,ct.c_char_p]
 libpygio.get_variable_field_count.restype=ct.c_int
 libpygio.get_variable_field_count.argtypes=[ct.c_char_p,ct.c_char_p]
 
+
+libpygio.inspect_gio.restype=None
+libpygio.inspect_gio.argtypes=[ct.c_char_p]
+
+libpygio.get_variable.restype=ct.c_char_p
+libpygio.get_variable.argtypes=[ct.c_char_p, ct.c_int]
+
+libpygio.get_num_ranks_in.restype=ct.c_int
+libpygio.get_num_ranks_in.argtypes=[ct.c_char_p, ct.POINTER(ct.c_int)]
+
+libpygio.get_ranks.restype=ct.POINTER(ct.c_int)
+libpygio.get_ranks.argtypes=[ct.c_char_p]
+
+
+# Data Read
 libpygio.read_gio_uint16.restype=None
-libpygio.read_gio_uint16.argtypes=[ct.c_char_p,ct.c_char_p,ct.POINTER(ct.c_uint16),ct.c_int]
+libpygio.read_gio_uint16.argtypes=[ct.c_char_p,ct.c_char_p,ct.POINTER(ct.c_uint16),ct.c_int,ct.c_int]
 
 libpygio.read_gio_int32.restype=None
-libpygio.read_gio_int32.argtypes=[ct.c_char_p,ct.c_char_p,ct.POINTER(ct.c_int),ct.c_int]
+libpygio.read_gio_int32.argtypes=[ct.c_char_p,ct.c_char_p,ct.POINTER(ct.c_int),ct.c_int,ct.c_int]
 
 libpygio.read_gio_int64.restype=None
-libpygio.read_gio_int64.argtypes=[ct.c_char_p,ct.c_char_p,ct.POINTER(ct.c_int64),ct.c_int]
+libpygio.read_gio_int64.argtypes=[ct.c_char_p,ct.c_char_p,ct.POINTER(ct.c_int64),ct.c_int,ct.c_int]
 
 libpygio.read_gio_float.restype=None
-libpygio.read_gio_float.argtypes=[ct.c_char_p,ct.c_char_p,ct.POINTER(ct.c_float),ct.c_int]
+libpygio.read_gio_float.argtypes=[ct.c_char_p,ct.c_char_p,ct.POINTER(ct.c_float),ct.c_int,ct.c_int]
 
 libpygio.read_gio_double.restype=None
-libpygio.read_gio_double.argtypes=[ct.c_char_p,ct.c_char_p,ct.POINTER(ct.c_double),ct.c_int]
+libpygio.read_gio_double.argtypes=[ct.c_char_p,ct.c_char_p,ct.POINTER(ct.c_double),ct.c_int,ct.c_int]
+
+
+#
+# Octree stuff
+libpygio.get_elem_num_in_leaf.restype=ct.c_int64
+libpygio.get_elem_num_in_leaf.argtypes=[ct.c_char_p, ct.c_int]
 
 libpygio.read_gio_oct_int16.restype=None
 libpygio.read_gio_oct_int16.argtypes=[ct.c_char_p, ct.c_int, ct.c_char_p, ct.POINTER(ct.c_int)]
@@ -91,14 +109,9 @@ libpygio.read_gio_oct_float.argtypes=[ct.c_char_p, ct.c_int, ct.c_char_p, ct.POI
 libpygio.read_gio_oct_double.restype=None
 libpygio.read_gio_oct_double.argtypes=[ct.c_char_p, ct.c_int, ct.c_char_p, ct.POINTER(ct.c_double)]
 
-libpygio.inspect_gio.restype=None
-libpygio.inspect_gio.argtypes=[ct.c_char_p]
 
 libpygio.get_octree.restype=ct.c_char_p
 libpygio.get_octree.argtypes=[ct.c_char_p]
-
-libpygio.get_variable.restype=ct.c_char_p
-libpygio.get_variable.argtypes=[ct.c_char_p, ct.c_int]
 
 libpygio.get_num_octree_leaves.restype=ct.c_int
 libpygio.get_num_octree_leaves.argtypes=[ct.c_char_p, ct.POINTER(ct.c_int)]
@@ -108,7 +121,141 @@ libpygio.get_octree_leaves.argtypes=[ct.c_char_p, ct.POINTER(ct.c_int)]
 
 
 
-def gio_read_oct(file_name, var_name, leaf_id):
+def read(file_name, var_names, rank_id=-1):
+    # Generic read function, read scalars from a file; one rank or full file
+    ret = []
+    if not isinstance(var_names,list):
+        var_names = [ var_names ]
+
+    ret.append( gio_read_(file_name, var_name, rank_id) )
+
+    return np.array( ret )
+    
+
+
+def read_(file_name, var_name, rank):
+    # Read a scalar from a file at a specific rank or full file
+    if sys.version_info[0] == 3:
+        file_name = file_name.encode('ascii')
+        var_name = var_name.encode('ascii')
+
+    var_size = libpygio.get_elem_num(file_name)
+    var_type = libpygio.get_variable_type(file_name,var_name)
+    field_count = libpygio.get_variable_field_count(file_name,var_name)
+
+
+    if (var_type==10):
+        print("Variable not found")
+        return
+    elif (var_type==9):
+        print("variable type not known (not uint16/int32/int64/float/double)")
+    elif (var_type==0):
+        #float
+        result = np.ndarray((var_size),dtype=np.float32)
+        libpygio.read_gio_float(file_name,var_name,result.ctypes.data_as(ct.POINTER(ct.c_float)),field_count,rank)
+        return result
+    elif (var_type==1):
+        #double
+        result = np.ndarray((var_size),dtype=np.float64)
+        libpygio.read_gio_double(file_name,var_name,result.ctypes.data_as(ct.POINTER(ct.c_double)),field_count,rank)
+        return result
+    elif (var_type==2):
+        #int32
+        result = np.ndarray((var_size),dtype=np.int32)
+        libpygio.read_gio_int32(file_name,var_name,result.ctypes.data_as(ct.POINTER(ct.c_int32)),field_count,rank)
+        return result
+    elif (var_type==3):
+        #int64
+        result = np.ndarray((var_size),dtype=np.int64)
+        libpygio.read_gio_int64(file_name,var_name,result.ctypes.data_as(ct.POINTER(ct.c_int64)),field_count,rank)
+        return result        
+    elif (var_type==4):
+        #uint16
+        result = np.ndarray((var_size,field_count),dtype=np.uint16)
+        libpygio.read_gio_uint16(file_name,var_name,result.ctypes.data_as(ct.POINTER(ct.c_uint16)),field_count,rank)
+        return result
+
+
+# Variable
+def gio_has_variable(file_name, var_name):
+    # Check if a scalar var_name exists in the file file_name
+    if sys.version_info[0] == 3:
+        file_name=bytes(file_name,'ascii')
+        var_name=bytes(var_name,'ascii')
+
+    var_size = libpygio.get_elem_num(file_name)
+    var_type = libpygio.get_variable_type(file_name,var_name)
+    return var_type!=10
+
+
+
+def get_num_scalars(file_name):
+    # Get the number of scalars 
+    return ( libpygio.get_num_variables( file_name.encode('ascii') ) )
+
+
+
+def gio_get_scalar_name(file_name, i):
+    # Get the name of the scalar at index i
+    libpygio.get_variable.restype = ct.POINTER(ct.c_char)
+    temp_str = libpygio.get_variable(file_name.encode('ascii'), i)
+
+    return ( (ct.string_at(temp_str)).decode('ascii') )
+
+
+
+def get_num_ranks(file_name):
+    # Get the number of ranks in a file
+    return ( libpygio.get_num_ranks( file_name.encode('ascii') ) )
+
+
+
+def get_num_ranks_in(file_name, extents):
+    # Get the number of ranks in a 3D extents[minX, maxX, minY, maxY, minZ, maxZ]
+    exts = (ct.c_int * len(extents))(*extents)
+    return ( libpygio.get_num_ranks_in( file_name.encode('ascii'), exts ) )
+
+
+
+
+def inspect(file_name):
+    print("~gio_inspect file_name", file_name)
+    if sys.version_info[0] == 3:
+        file_name=bytes(file_name,'ascii')
+
+    print("gio_inspect file_name", file_name)
+    libpygio.inspect_gio(file_name)
+
+
+
+#
+# Octree
+def get_octree(file_name):
+    libpygio.get_variable.restype = ct.POINTER(ct.c_char)
+    temp_str = libpygio.get_octree(file_name)
+
+    return ct.string_at(temp_str)
+
+
+def read_octree(file_name, var_names, leaf_id=-1):
+    # Generic read function, works for octree or full file
+    ret = []
+    if not isinstance(var_names,list):
+        var_names = [ var_names ]
+
+    print("leaf_id:", leaf_id)
+
+    if leaf_id == -1:
+        for var_name in var_names:
+            ret.append( gio_read_(file_name, var_name, -1) )
+    else:
+        for var_name in var_names:
+            ret.append( gio_read_oct(file_name, var_name, leaf_id) )
+
+    return np.array( ret )
+
+
+def read_oct(file_name, var_name, leaf_id):
     var_size = libpygio.get_elem_num_in_leaf(file_name, leaf_id)
     var_type = libpygio.get_variable_type(file_name,var_name)
     if(var_type==10):
@@ -139,103 +286,9 @@ def gio_read_oct(file_name, var_name, leaf_id):
 
 
 
-def gio_read_(file_name, var_name):
-    if sys.version_info[0] == 3:
-        file_name = file_name.encode('ascii')
-        var_name = var_name.encode('ascii')
-    var_size = libpygio.get_elem_num(file_name)
-    var_type = libpygio.get_variable_type(file_name,var_name)
-    field_count = libpygio.get_variable_field_count(file_name,var_name)
-    if(var_type==10):
-        print("Variable not found")
-        return
-    elif(var_type==9):
-        print("variable type not known (not uint16/int32/int64/float/double)")
-    elif(var_type==0):
-        #float
-        result = np.ndarray((var_size),dtype=np.float32)
-        libpygio.read_gio_float(file_name,var_name,result.ctypes.data_as(ct.POINTER(ct.c_float)),field_count)
-        return result
-    elif(var_type==1):
-        #double
-        result = np.ndarray((var_size),dtype=np.float64)
-        libpygio.read_gio_double(file_name,var_name,result.ctypes.data_as(ct.POINTER(ct.c_double)),field_count)
-        return result
-    elif(var_type==2):
-        #int32
-        result = np.ndarray((var_size),dtype=np.int32)
-        libpygio.read_gio_int32(file_name,var_name,result.ctypes.data_as(ct.POINTER(ct.c_int32)),field_count)
-        return result
-    elif(var_type==3):
-        #int64
-        result = np.ndarray((var_size),dtype=np.int64)
-        libpygio.read_gio_int64(file_name,var_name,result.ctypes.data_as(ct.POINTER(ct.c_int64)),field_count)
-        return result        
-    elif(var_type==4):
-        #uint16
-        result = np.ndarray((var_size,field_count),dtype=np.uint16)
-        libpygio.read_gio_uint16(file_name,var_name,result.ctypes.data_as(ct.POINTER(ct.c_uint16)),field_count)
-        return result
 
 
-
-def gio_read(file_name, var_names, leaf_id=-1):
-    ret = []
-    if not isinstance(var_names,list):
-        var_names = [ var_names ]
-
-    if leaf_id == -1:
-        for var_name in var_names:
-            ret.append( gio_read_(file_name,var_name) )
-    else:
-        for var_name in var_names:
-            ret.append( gio_read_oct(file_name, var_name, leaf_id) )
-
-    return np.array( ret )
-    #return ret
-
-
-
-def gio_has_variable(file_name,var_name):
-    if sys.version_info[0] == 3:
-        file_name=bytes(file_name,'ascii')
-        var_name=bytes(var_name,'ascii')
-    var_size = libpygio.get_elem_num(file_name)
-    var_type = libpygio.get_variable_type(file_name,var_name)
-    return var_type!=10
-
-
-
-def gio_inspect(file_name):
-    if sys.version_info[0] == 3:
-        file_name=bytes(file_name,'ascii')
-    libpygio.inspect_gio(file_name)
-
-
-
-def gio_get_num_variables(file_name):
-    return ( libpygio.get_num_variables( file_name.encode('ascii') ) )
-
-
-
-def gio_get_variable(file_name, i):
-    libpygio.get_variable.restype = ct.POINTER(ct.c_char)
-    temp_str = libpygio.get_variable(file_name.encode('ascii'), i)
-
-    return ( (ct.string_at(temp_str)).decode('ascii') )
-
-
-
-
-def gio_get_octree(file_name):
-    libpygio.get_variable.restype = ct.POINTER(ct.c_char)
-    temp_str = libpygio.get_octree(file_name)
-
-    return ct.string_at(temp_str)
-
-
-
-def gio_get_octree_leaves(file_name, extents):
+def get_octree_leaves(file_name, extents):
     exts = (ct.c_int * len(extents))(*extents)
 
     num_leaves = libpygio.get_num_octree_leaves(file_name, exts)
@@ -243,11 +296,11 @@ def gio_get_octree_leaves(file_name, extents):
     result = np.ndarray((num_leaves),dtype=np.int32)
     result.ctypes.data_as(ct.POINTER(ct.c_int32))
     
-    result = libpygio.get_octree_leaves( file_name, exts )
+    result = libpygio.get_octree_leaves( file_name.encode('ascii'), exts )
 
     return num_leaves, result
 
 
 read = gio_read
 has_variable = gio_has_variable
-inspect = gio_inspect
+#inspect = gio_inspect

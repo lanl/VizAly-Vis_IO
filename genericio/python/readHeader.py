@@ -38,7 +38,8 @@
 # *****************************************************************************
 
 
-import struct, sys
+import struct
+import sys
 import string
 
 class GenericIOHeader:

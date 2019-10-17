@@ -42,21 +42,33 @@
 #include "gio.h"
 #include <iostream>
 
-  void read_gio_float(char* file_name, char* var_name, float* data, int field_count){
-    read_gio<float>(file_name,var_name,data,field_count);
-  }
-  void read_gio_double(char* file_name, char* var_name, double* data, int field_count){
-    read_gio<double>(file_name,var_name,data,field_count);
-  }
-  void read_gio_uint16(char* file_name, char* var_name, uint16_t* data, int field_count){
-    read_gio<uint16_t>(file_name,var_name,data,field_count);
-  }
-  void read_gio_int32(char* file_name, char* var_name, int* data, int field_count){
-    read_gio<int>(file_name,var_name,data,field_count);
-  }
-  void read_gio_int64(char* file_name, char* var_name, int64_t* data, int field_count){
-    read_gio<int64_t>(file_name,var_name,data,field_count);
-  }
+void read_gio_float(char* file_name, char* var_name, float* data, int field_count, int rank)
+{
+  read_gio<float>(file_name,var_name,data,field_count,rank);
+}
+
+void read_gio_double(char* file_name, char* var_name, double* data, int field_count, int rank)
+{
+  read_gio<double>(file_name,var_name,data,field_count,rank);
+}
+
+void read_gio_uint16(char* file_name, char* var_name, uint16_t* data, int field_count, int rank)
+{
+  read_gio<uint16_t>(file_name,var_name,data,field_count,rank);
+}
+
+void read_gio_int32(char* file_name, char* var_name, int* data, int field_count, int rank)
+{
+  read_gio<int>(file_name,var_name,data,field_count,rank);
+}
+
+void read_gio_int64(char* file_name, char* var_name, int64_t* data, int field_count, int rank)
+{
+  read_gio<int64_t>(file_name,var_name,data,field_count,rank);
+}
+
+
+
 
 void read_gio_oct_float(char* file_name, int leaf_id, char* var_name, float* data)
 {
@@ -81,62 +93,74 @@ void read_gio_oct_int64(char* file_name, int leaf_id, char* var_name, int64_t* d
     read_gio_rankLeaf<int64_t>(file_name, leaf_id, var_name, data);
 }
 
-  int64_t get_elem_num(char* file_name){
-    gio::GenericIO reader(file_name);
-    reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
-    int num_ranks = reader.readNRanks();
-    uint64_t size = 0;
-    for(int i =0;i<num_ranks;++i)
-      size +=reader.readNumElems(i);
-    reader.close();
-    return size;
-  }
 
-  var_type get_variable_type(char* file_name,char* var_name){
-   gio::GenericIO reader(file_name);
-   std::vector<gio::GenericIO::VariableInfo> VI;
-   reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
-   reader.getVariableInfo(VI);
 
-   int num =VI.size();
-    for(int i =0;i<num;++i){
-      gio::GenericIO::VariableInfo vinfo = VI[i];
-      if(vinfo.Name == var_name){
-	if(vinfo.IsFloat && vinfo.ElementSize == 4)
-	  return float_type;
-	else if(vinfo.IsFloat && vinfo.ElementSize == 8)
-	  return double_type;
-        else if(!vinfo.IsFloat && vinfo.ElementSize == 2)
-          return uint16_type;
-	else if(!vinfo.IsFloat && vinfo.ElementSize == 4)
-	  return int32_type;
-	else if(!vinfo.IsFloat && vinfo.ElementSize == 8)
-	  return int64_type;
-	else
-	  return type_not_found;
-      }
+int64_t get_elem_num(char* file_name)
+{
+  gio::GenericIO reader(file_name);
+  reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
+  int num_ranks = reader.readNRanks();
+
+  uint64_t size = 0;
+  for(int i =0;i<num_ranks;++i)
+    size +=reader.readNumElems(i);
+
+  reader.close();
+  return size;
+}
+
+
+var_type get_variable_type(char* file_name,char* var_name)
+{
+  gio::GenericIO reader(file_name);
+  std::vector<gio::GenericIO::VariableInfo> VI;
+  reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
+  reader.getVariableInfo(VI);
+
+  int num =VI.size();
+  for(int i =0;i<num;++i)
+  {
+    gio::GenericIO::VariableInfo vinfo = VI[i];
+    if (vinfo.Name == var_name)
+    {
+      if (vinfo.IsFloat && vinfo.ElementSize == 4)
+        return float_type;
+      else if(vinfo.IsFloat && vinfo.ElementSize == 8)
+        return double_type;
+      else if(!vinfo.IsFloat && vinfo.ElementSize == 2)
+        return uint16_type;
+      else if(!vinfo.IsFloat && vinfo.ElementSize == 4)
+        return int32_type;
+      else if(!vinfo.IsFloat && vinfo.ElementSize == 8)
+        return int64_type;
+      else
+        return type_not_found;
     }
-    return var_not_found;
-      
   }
+  return var_not_found;  
+}
 
-  int get_variable_field_count(char* file_name,char* var_name){
-   gio::GenericIO reader(file_name);
-   std::vector<gio::GenericIO::VariableInfo> VI;
-   reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
-   reader.getVariableInfo(VI);
 
-   int num =VI.size();
-    for(int i =0;i<num;++i){
-      gio::GenericIO::VariableInfo vinfo = VI[i];
-      if(vinfo.Name == var_name) {
-        return vinfo.Size/vinfo.ElementSize;
-      }
+int get_variable_field_count(char* file_name,char* var_name)
+{
+ gio::GenericIO reader(file_name);
+ std::vector<gio::GenericIO::VariableInfo> VI;
+ reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
+ reader.getVariableInfo(VI);
+
+ int num =VI.size();
+  for(int i =0;i<num;++i){
+    gio::GenericIO::VariableInfo vinfo = VI[i];
+    if(vinfo.Name == var_name) {
+      return vinfo.Size/vinfo.ElementSize;
     }
-    return 0;
   }
+  return 0;
+}
 
-extern "C" void inspect_gio(char* file_name){
+
+extern "C" void inspect_gio(char* file_name)
+{
   int64_t size = get_elem_num(file_name);
   gio::GenericIO reader(file_name);
   std::vector<gio::GenericIO::VariableInfo> VI;
@@ -146,7 +170,8 @@ extern "C" void inspect_gio(char* file_name){
   int num =VI.size();
   std::cout<<"[data type] Variable name"<<std::endl;
   std::cout<<"---------------------------------------------"<<std::endl;
-  for(int i =0;i<num;++i){
+  for(int i =0;i<num;++i)
+  {
     gio::GenericIO::VariableInfo vinfo = VI[i];
 
     if(vinfo.IsFloat)
@@ -171,22 +196,7 @@ extern "C" void inspect_gio(char* file_name){
 }
 
 
-char* get_octree(char* file_name)
-{
-    gio::GenericIO reader(file_name);
-    reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
 
-    std::string octreeStr;
-    if (reader.isOctree())
-        octreeStr = (reader.getOctree()).getOctreeStr();
-
-
-    char *temp_name = new char[octreeStr.size() + 1];
-    strcpy(temp_name, octreeStr.c_str());
-
-
-    return temp_name;
-}
 
 
 char* get_variable(char* file_name, int var)
@@ -214,6 +224,127 @@ int64_t get_num_variables(char* file_name)
     reader.getVariableInfo(VI);
 
     return VI.size();
+}
+
+
+int get_num_ranks(char* file_name)
+{
+    int num_ranks = 0;
+    {
+        gio::GenericIO reader(file_name);
+        reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
+        num_ranks = reader.readNRanks();
+    }
+
+    return num_ranks;
+}
+
+
+int get_num_ranks_in(char* file_name, int extents[])
+{
+    gio::GenericIO reader(file_name);
+    reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
+
+    int dims[3];
+    reader.readDims(dims);
+
+    double physOrigin[3], physScale[3];
+    reader.readPhysOrigin(physOrigin);
+    reader.readPhysScale(physScale);
+    
+    std::vector<int> intersectedRanks;
+
+    for (int r=0; r<reader.readNRanks(); ++r) 
+    {
+      int coords[3];
+      reader.readCoords(coords, r);
+
+
+      int currentExtents[6];
+
+      // x
+      currentExtents[0] = physOrigin[0] + coords[0] * (physScale[0]/dims[0]);
+      currentExtents[1] = currentExtents[0] + (physScale[0]/dims[0]);
+
+      // y
+      currentExtents[2] = physOrigin[1] + coords[1] * (physScale[1]/dims[1]);
+      currentExtents[3] = currentExtents[2] + (physScale[1]/dims[1]);
+
+      // z
+      currentExtents[4] = physOrigin[2] + coords[2] * (physScale[2]/dims[2]);
+      currentExtents[5] = currentExtents[4] + (physScale[2]/dims[2]);
+
+      if (intersect(extents, currentExtents))
+        intersectedRanks.push_back(r);
+    }
+
+    return intersectedRanks.size();
+}
+
+
+int* get_ranks(char* file_name, int extents[])
+{
+    gio::GenericIO reader(file_name);
+    reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
+
+    int dims[3];
+    reader.readDims(dims);
+
+    double physOrigin[3], physScale[3];
+    reader.readPhysOrigin(physOrigin);
+    reader.readPhysScale(physScale);
+    
+    std::vector<int> intersectedRanks;
+
+    for (int r=0; r<reader.readNRanks(); ++r) 
+    {
+      int coords[3];
+      reader.readCoords(coords, r);
+
+
+      int currentExtents[6];
+
+      // x
+      currentExtents[0] = physOrigin[0] + coords[0] * (physScale[0]/dims[0]);
+      currentExtents[1] = currentExtents[0] + (physScale[0]/dims[0]);
+
+      // y
+      currentExtents[2] = physOrigin[1] + coords[1] * (physScale[1]/dims[1]);
+      currentExtents[3] = currentExtents[2] + (physScale[1]/dims[1]);
+
+      // z
+      currentExtents[4] = physOrigin[2] + coords[2] * (physScale[2]/dims[2]);
+      currentExtents[5] = currentExtents[4] + (physScale[2]/dims[2]);
+
+      if (intersect(extents, currentExtents))
+        intersectedRanks.push_back(r);
+    }
+
+    int *x = new int[intersectedRanks.size()];
+    std::copy(intersectedRanks.begin(), intersectedRanks.end(), x);
+
+    return x;
+}
+
+
+
+
+
+char* get_octree(char* file_name)
+{
+    gio::GenericIO reader(file_name);
+    reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
+
+    std::string octreeStr;
+    if (reader.isOctree())
+        octreeStr = (reader.getOctree()).getOctreeStr();
+
+
+    char *temp_name = new char[octreeStr.size() + 1];
+    strcpy(temp_name, octreeStr.c_str());
+
+
+    return temp_name;
 }
 
 

@@ -495,7 +495,7 @@ public:
   void readCoords(int Coords[3], int EffRank = -1);
   int readGlobalRankNumber(int EffRank = -1);
 
-  void readData(int EffRank = -1, bool PrintStats = true, bool CollStats = true);
+    void readData(int EffRank = -1, bool PrintStats = true, bool CollStats = true);
 
     void readDataSection(size_t readOffset, size_t readNumRows, int EffRank = -1, bool PrintStats = true, bool CollStats = true);
 
