@@ -51,6 +51,51 @@
 #include <string.h>
 
 
+enum var_type
+{
+	float_type = 0,
+	double_type = 1,
+	int32_type = 2,
+	int64_type = 3,
+	uint16_type = 4,
+	type_not_found = 9,
+	var_not_found = 10
+};
+
+
+inline bool intersect(int extents1[], int extents2[])
+{
+	if ((extents1[0] < extents2[1]) && (extents1[1] >= extents2[0]))
+		if ((extents1[2] < extents2[3]) && (extents1[3] >= extents2[2]))
+			if ((extents1[4] < extents2[5]) && (extents1[5] >= extents2[4]))
+				return true;
+
+	return false;
+}
+
+
+
+extern "C" void read_gio_float (char* file_name, char* var_name, float* data, int field_count, int rank);
+extern "C" void read_gio_double(char* file_name, char* var_name, double* data, int field_count, int rank);
+extern "C" void read_gio_uint16 (char* file_name, char* var_name, uint16_t* data, int field_count, int rank);
+extern "C" void read_gio_int32 (char* file_name, char* var_name, int* data, int field_count, int rank);
+extern "C" void read_gio_int64 (char* file_name, char* var_name, int64_t* data, int field_count, int rank);
+
+
+extern "C" int64_t get_num_scalars(char* file_name);
+extern "C" char* get_scalar_name(char* file_name, int var);
+extern "C" var_type get_scalar_type(char* file_name, char* var_name);
+extern "C" int get_scalar_field_count(char* file_name, char* var_name);		// Don't remember what this is
+
+extern "C" int64_t get_elem_num(char* file_name, int rank=-1);
+
+extern "C" int get_num_ranks(char* file_name);
+extern "C" int get_num_ranks_in(char* file_name, int extents[]);
+extern "C" int* get_ranks_in(char* file_name, int extents[]);
+
+extern "C" void inspect_gio(char* file_name);
+
+
 template <class T>
 void read_gio(char* file_name, std::string var_name, T*& data, int field_count, int rank)
 {
@@ -94,25 +139,25 @@ void read_gio(char* file_name, std::string var_name, T*& data, int field_count, 
 }
 
 
-/*
-template <class T>
-void read_gio_rank(char* file_name, int rank, std::string var_name, T*& data)
-{
-	gio::GenericIO reader(file_name);
-	reader.openAndReadHeader(gio::GenericIO::MismatchAllowed);
 
-	int num_ranks = reader.readNRanks();
-	uint64_t max_size = reader.readNumElems(rank);
-	if (rank >= num_ranks)
-		return;
 
-	data = new T[max_size + reader.requestedExtraSpace() / sizeof(T)];
-	reader.addScalarizedVariable(var_name, data, max_size, gio::GenericIO::VarHasExtraSpace);
+//
+// Octree Section
+//
+extern "C" void read_gio_oct_float (char* file_name, int leaf_id, char* var_name, float* data);
+extern "C" void read_gio_oct_double(char* file_name, int leaf_id, char* var_name, double* data);
+extern "C" void read_gio_oct_int16 (char* file_name, int leaf_id, char* var_name, uint16_t* data);
+extern "C" void read_gio_oct_int32 (char* file_name, int leaf_id, char* var_name, int* data);
+extern "C" void read_gio_oct_int64 (char* file_name, int leaf_id, char* var_name, int64_t* data);
 
-	reader.readData(rank, false);
-	reader.close();
-}
-*/
+extern "C" char* get_octree(char* file_name);
+extern "C" int* get_octree_leaves(char* file_name, int extents[]);
+extern "C" int get_num_octree_leaves(char* file_name, int extents[]);
+
+extern "C" int64_t get_elem_num_in_leaf(char* file_name,  int leaf_id);
+
+//extern "C" int get_octree_rank(char* file_name, int extents[]);
+//extern "C" int get_octree_leaf_in_rank(char* file_name, int extents[]);
 
 
 template <class T>
@@ -137,58 +182,3 @@ void read_gio_rankLeaf(char* file_name, int leaf_id, std::string var_name, T*& d
 
 	reader.close();
 }
-
-
-inline bool intersect(int extents1[], int extents2[])
-{
-	if ((extents1[0] < extents2[1]) && (extents1[1] >= extents2[0]))
-		if ((extents1[2] < extents2[3]) && (extents1[3] >= extents2[2]))
-			if ((extents1[4] < extents2[5]) && (extents1[5] >= extents2[4]))
-				return true;
-
-	return false;
-}
-
-
-extern "C" int64_t get_elem_num(char* file_name);
-
-extern "C" void read_gio_float (char* file_name, char* var_name, float* data, int field_count, int rank);
-extern "C" void read_gio_double(char* file_name, char* var_name, double* data, int field_count, int rank);
-extern "C" void read_gio_uint16 (char* file_name, char* var_name, uint16_t* data, int field_count, int rank);
-extern "C" void read_gio_int32 (char* file_name, char* var_name, int* data, int field_count, int rank);
-extern "C" void read_gio_int64 (char* file_name, char* var_name, int64_t* data, int field_count, int rank);
-
-extern "C" void read_gio_oct_float (char* file_name, int leaf_id, char* var_name, float* data);
-extern "C" void read_gio_oct_double(char* file_name, int leaf_id, char* var_name, double* data);
-extern "C" void read_gio_oct_int16 (char* file_name, int leaf_id, char* var_name, uint16_t* data);
-extern "C" void read_gio_oct_int32 (char* file_name, int leaf_id, char* var_name, int* data);
-extern "C" void read_gio_oct_int64 (char* file_name, int leaf_id, char* var_name, int64_t* data);
-
-enum var_type
-{
-	float_type = 0,
-	double_type = 1,
-	int32_type = 2,
-	int64_type = 3,
-	uint16_type = 4,
-	type_not_found = 9,
-	var_not_found = 10
-};
-
-extern "C" var_type get_variable_type(char* file_name, char* var_name);
-extern "C" int get_variable_field_count(char* file_name, char* var_name);
-extern "C" void inspect_gio(char* file_name);
-
-extern "C" int64_t get_num_variables(char* file_name);
-extern "C" char* get_variable(char* file_name, int var);
-extern "C" int get_num_ranks(char* file_name);
-extern "C" int get_num_ranks_in(char* file_name, int extents[]);
-extern "C" int* get_ranks(char* file_name, int extents[]);
-
-extern "C" char* get_octree(char* file_name);
-extern "C" int* get_octree_leaves(char* file_name, int extents[]);
-extern "C" int get_num_octree_leaves(char* file_name, int extents[]);
-extern "C" int64_t get_elem_num_in_leaf(char* file_name,  int leaf_id);
-
-extern "C" int get_octree_rank(char* file_name, int extents[]);
-extern "C" int get_octree_leaf_in_rank(char* file_name, int extents[]);
