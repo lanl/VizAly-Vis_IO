@@ -162,13 +162,13 @@ def read(file_name, var_names, rank_id=-1):
 
 
 def read_scalar(file_name, var_name, rank):
+    var_size = get_num_elements(file_name, rank)
+
     # Read a scalar from a file at a specific rank or full file
     if sys.version_info[0] == 3:
         file_name = file_name.encode('ascii')
         var_name = var_name.encode('ascii')
 
-    #var_size = libpygio.get_elem_num(file_name)
-    var_size = get_num_elements(file_name, rank)
     var_type = libpygio.get_scalar_type(file_name,var_name)
     field_count = libpygio.get_scalar_field_count(file_name,var_name)
 
@@ -218,13 +218,15 @@ def get_scalars(file_name):
 
 
 
-def create_dataframe(file_name, var_names, rank):
+def create_dataframe(file_name, var_names, rank=-1):
     # create a dataframe from some scalars and a file
     df = pd.DataFrame()
 
+    index = 0
     for scalar in var_names:
-        data = gio.read(particle_file, scalar, rank)
-        df.insert(0, "id", data[0])
+        data = read(file_name, scalar, rank)
+        df.insert(index, scalar, data[0])
+        index = index + 1
 
     return df
 
