@@ -54,7 +54,6 @@ libpygio = ct.CDLL(_path + '/../frontend/libpygio.so')
 
 #
 # Interface using ctypes
-#
 
 #
 # Non octree
@@ -205,8 +204,15 @@ def read_scalar(file_name, var_name, rank):
         return result
 
 
+
+
+
+
+
+#
+# scalars
 def get_scalars(file_name):
-    # Ger the number of scalar and their names
+    # Get the number of scalar and their names
     num_scalars = get_num_scalars(file_name)
 
     scalars = []
@@ -217,30 +223,16 @@ def get_scalars(file_name):
     return num_scalars, scalars
 
 
-
-def create_dataframe(file_name, var_names, rank=-1):
-    # create a dataframe from some scalars and a file
-    df = pd.DataFrame()
-
-    index = 0
-    for scalar in var_names:
-        data = read(file_name, scalar, rank)
-        df.insert(index, scalar, data[0])
-        index = index + 1
-
-    return df
-
-
-
-
-# scalar
 def has_scalar(file_name, var_name):
+    # Verify if that scalar exists in the file
+    #var_size = libpygio.get_elem_num(file_name)
+    var_size = get_num_elements(file_name)
+
     # Check if a scalar var_name exists in the file file_name
     if sys.version_info[0] == 3:
         file_name=bytes(file_name,'ascii')
         var_name=bytes(var_name,'ascii')
-
-    var_size = libpygio.get_elem_num(file_name)
+    
     var_type = libpygio.get_scalar_type(file_name,var_name)
     return var_type!=10
 
@@ -248,10 +240,6 @@ def has_scalar(file_name, var_name):
 def get_num_scalars(file_name):
     # Get the number of scalars 
     return ( libpygio.get_num_scalars( file_name.encode('ascii') ) )
-
-
-def get_num_elements(file_name, rank_id=-1):
-    return ( libpygio.get_elem_num( file_name.encode('ascii'), rank_id ) )
 
 
 def get_scalar_name(file_name, i):
@@ -263,6 +251,7 @@ def get_scalar_name(file_name, i):
 
 
 
+# Ranks
 def get_num_ranks(file_name):
     # Get the number of ranks in a file
     return ( libpygio.get_num_ranks( file_name.encode('ascii') ) )
@@ -280,15 +269,23 @@ def get_ranks_in(file_name, extents):
     exts = (ct.c_int * len(extents))(*extents)
     num_ranks = libpygio.get_num_ranks_in( file_name.encode('ascii'), exts )
 
-
     result = np.ndarray((num_ranks),dtype=np.int32)
     result.ctypes.data_as(ct.POINTER(ct.c_int32))
     
     result = libpygio.get_ranks_in( file_name.encode('ascii'), exts )
 
-    return result, num_ranks
+    halo_ranks = []
+    for r in range(num_ranks):
+        halo_ranks.append(result[r])
+
+    return num_ranks, halo_ranks
 
 
+
+# Others
+def get_num_elements(file_name, rank_id=-1):
+    # Get the number of elements in that file
+    return ( libpygio.get_elem_num( file_name.encode('ascii'), rank_id ) )
 
 
 def inspect_gio(file_name):
@@ -300,6 +297,29 @@ def inspect_gio(file_name):
     libpygio.inspect_gio(file_name)
 
 
+
+def create_dataframe(file_name, var_names, ranks=[]):
+    # create a dataframe from some scalars and a file
+    df = pd.DataFrame()
+
+    index = 0
+    for scalar in var_names:
+        if ranks == []:
+            data = read(file_name, scalar, -1)
+            df.insert(index, scalar, data[0])
+            index = index + 1
+        else:
+            for r in ranks:
+                data = read(file_name, scalar, r)
+                df.insert(index, scalar, data[0])
+                index = index + 1
+
+    return df
+
+
+def dataframe_to_csv(df, file_name):
+    # Converts a dataframe to CSV
+    df.to_csv(file_name, sep=',', index=False)
 
 
 

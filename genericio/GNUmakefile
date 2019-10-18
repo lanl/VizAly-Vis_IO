@@ -62,17 +62,23 @@ BLOSC_CPPFLAGS := \
 
 BASE_CPPFLAGS := $(BLOSC_CPPFLAGS) -I. -D__STDC_CONSTANT_MACROS
 
+ifeq ($(OS),Darwin)
+	FE_CFLAGS := -g -fPIC -O3
+else
+	FE_CFLAGS := -g -fPIC -O3 -fopenmp #coz apple clang does not like fopenmp
+endif 
+
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
     OPENMPFLAG=-fopenmp
 endif
 
 FEDIR = frontend
-FE_CFLAGS := -g -fPIC -O3 $(OPENMPFLAG) -std=gnu99
+FE_CFLAGS := -g -fPIC -O3 $(OPENMPFLAG) #-std=gnu99
 FE_CPPFLAGS := $(BASE_CPPFLAGS) -Ithirdparty/sqlite -DGENERICIO_NO_MPI
 
 MPIDIR = mpi
-MPI_CFLAGS := -g -O3 $(OPENMPFLAG) -std=gnu99
+MPI_CFLAGS := -g -O3 $(OPENMPFLAG) #-std=gnu99
 MPI_CPPFLAGS := $(BASE_CPPFLAGS)
 
 $(FEDIR):

@@ -42,14 +42,14 @@ import numpy as np
 import genericio as gio
 
 name = sys.argv[1]
-gio.gio_inspect(name)
+gio.inspect_gio(name)
 
-if gio.gio_has_variable(name, "x"):
-  x = gio.gio_read(name, "x")
-  y = gio.gio_read(name, "y")
-  z = gio.gio_read(name, "z")
-  print np.column_stack((x, y, z))
+if gio.has_scalar(name, "x"):
+  x = gio.read(name, "x")
+  y = gio.read(name, "y")
+  z = gio.read(name, "z")
+  print(np.column_stack((x, y, z)))
 else:
-  pos = gio.gio_read(name, "pos")
-  print pos
+  pos = gio.read(name, "pos")
+  print(pos)
 
