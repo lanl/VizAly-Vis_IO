@@ -126,7 +126,6 @@ void read_gio(char* file_name, std::string var_name, T*& data, int field_count, 
 	}
 	else
 	{
-		//std::cout << "read_gio ~ rank: " << rank << std::endl;
 		if (rank >= num_ranks)
 			return;
 
