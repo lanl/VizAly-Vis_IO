@@ -4,12 +4,12 @@ import matplotlib
 import numpy as np 
 import pandas as pd 
 import dask.dataframe as dd
-#sys.path.append("/Users/pascalgrosset/projects/VizAly-Vis_IO/genericio/python") 
-sys.path.append("/home/pascal/projects/VizAly-Vis_IO/genericio/python")
+sys.path.append("/Users/pascalgrosset/projects/VizAly-Vis_IO/genericio/python") 
+#sys.path.append("/home/pascal/projects/VizAly-Vis_IO/genericio/python")
 import genericio as gio
 
-#particle_file_name = "/Users/pascalgrosset/data/Argonne/STEP499/m000.full.mpicosmo.499"
-particle_file_name = "/datastore/Cosmology/STEP499/m000.full.mpicosmo.499"
+particle_file_name = "/Users/pascalgrosset/data/Argonne/STEP499/m000.full.mpicosmo.499"
+#particle_file_name = "/datastore/Cosmology/STEP499/m000.full.mpicosmo.499"
 
 
 extents = [ 197,198, 198,199, 163,164]
@@ -19,8 +19,8 @@ selected_rank_particle_df = gio.create_dataframe(particle_file_name, ['id','x','
 print(selected_rank_particle_df)
 
 
-#halo_partilce_tags = "/Users/pascalgrosset/data/Argonne/Halos/STEP499/m000-499.haloparticletags"
-halo_partilce_tags = "/datastore/Cosmology/Halos/b0168/STEP499/m000-499.haloparticletags"
+halo_partilce_tags = "/Users/pascalgrosset/data/Argonne/Halos/STEP499/m000-499.haloparticletags"
+#halo_partilce_tags = "/datastore/Cosmology/Halos/b0168/STEP499/m000-499.haloparticletags"
 num_hpt_scalars, hpt_scalars = gio.get_scalars(halo_partilce_tags)
 print(hpt_scalars)
 

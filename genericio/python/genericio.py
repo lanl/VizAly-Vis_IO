@@ -45,6 +45,8 @@ import os
 import sys
 import pandas as pd
 import dask.dataframe as dd
+import time
+
 
 # Define where the library is and load it
 _path = os.path.dirname(__file__)
@@ -150,13 +152,14 @@ libpygio.get_elem_num_in_leaf.argtypes=[ct.c_char_p, ct.c_int]
 def read(file_name, var_names, rank_id=-1):
     """ Generic read function, read scalars from a file; one rank or full file """
     ret = []
+
     if not isinstance(var_names,list):
         var_names = [ var_names ]
 
     for var_name in var_names:
         ret.append( read_scalar(file_name, var_name, rank_id) )
 
-    return np.array( ret )
+    return ret
 
 
 def read_scalar(file_name, var_name, rank):

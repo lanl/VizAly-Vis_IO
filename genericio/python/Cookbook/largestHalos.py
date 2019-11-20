@@ -4,12 +4,12 @@ import matplotlib
 import numpy as np 
 import pandas as pd 
 import dask.dataframe as dd
-#sys.path.append("/Users/pascalgrosset/projects/VizAly-Vis_IO/genericio/python") 
-sys.path.append("/home/pascal/projects/VizAly-Vis_IO/genericio/python")
+sys.path.append("/Users/pascalgrosset/projects/VizAly-Vis_IO/genericio/python") 
+#sys.path.append("/home/pascal/projects/VizAly-Vis_IO/genericio/python")
 import genericio as gio
 
-#halo_file_name = "/Users/pascalgrosset/data/Argonne/Halos/STEP499/m000-499.fofproperties"
-halo_file_name = "/datastore/Cosmology/Halos/b0168/STEP499/m000-499.fofproperties"
+halo_file_name = "/Users/pascalgrosset/data/Argonne/Halos/STEP499/m000-499.fofproperties"
+#halo_file_name = "/datastore/Cosmology/Halos/b0168/STEP499/m000-499.fofproperties"
 num_halo_scalars, halo_scalars = gio.get_scalars(halo_file_name)
 print(halo_scalars)
 
