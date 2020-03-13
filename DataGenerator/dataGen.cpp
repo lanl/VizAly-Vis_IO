@@ -9,9 +9,10 @@
 
 #include <mpi.h>
 
-#include "GenericIO.h"
+#include "HACC_IO/io_layer.hpp"
 
-using namespace gio;
+//#include "GenericIO.h"
+//using namespace gio;
 
 int main(int argc, char* argv[])
 {
@@ -49,8 +50,10 @@ int main(int argc, char* argv[])
 		//unsigned method = GenericIO::FileIOPOSIX;
 
 		filename.append("Oct");
-		GenericIO newGIO(Comm, filename);//, method);
-		newGIO.setNumElems(numParticles);
+		//GenericIO newGIO(Comm, filename);//, method);
+		//newGIO.setNumElems(numParticles);
+
+		IO_Layer::IO newGIO(Comm, filename);
 
         for (int d = 0; d < 3; ++d)
         {
@@ -66,15 +69,25 @@ int main(int argc, char* argv[])
 		std::vector<uint16_t> mask;
 		std::vector<int64_t> id;
 
-		xx.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
-		yy.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
-		zz.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
-		vx.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
-		vy.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
-		vz.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
-		phi.resize(numParticles  + newGIO.requestedExtraSpace() / sizeof(float));
-		id.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(int64_t));
-		mask.resize(numParticles + newGIO.requestedExtraSpace() / sizeof(uint16_t));
+		// xx.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
+		// yy.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
+		// zz.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
+		// vx.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
+		// vy.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
+		// vz.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
+		// phi.resize(numParticles  + newGIO.requestedExtraSpace() / sizeof(float));
+		// id.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(int64_t));
+		// mask.resize(numParticles + newGIO.requestedExtraSpace() / sizeof(uint16_t));
+
+		xx.resize(numParticles);
+		yy.resize(numParticles);
+		zz.resize(numParticles);
+		vx.resize(numParticles);
+		vy.resize(numParticles);
+		vz.resize(numParticles);
+		phi.resize(numParticles);
+		id.resize(numParticles);
+		mask.resize(numParticles);
 		
 
 		int offsetX, offsetY, offsetZ;
@@ -149,15 +162,26 @@ int main(int argc, char* argv[])
         unsigned CoordFlagsY = GenericIO::VarIsPhysCoordY;
         unsigned CoordFlagsZ = GenericIO::VarIsPhysCoordZ;
 
-		newGIO.addVariable("x", xx, CoordFlagsX | GenericIO::VarHasExtraSpace);
-        newGIO.addVariable("y", yy, CoordFlagsY | GenericIO::VarHasExtraSpace);
-		newGIO.addVariable("z", zz, CoordFlagsZ | GenericIO::VarHasExtraSpace);
-		newGIO.addVariable("vx", vx, GenericIO::VarHasExtraSpace);
-        newGIO.addVariable("vy", vy, GenericIO::VarHasExtraSpace);
-        newGIO.addVariable("vz", vz, GenericIO::VarHasExtraSpace);
-        newGIO.addVariable("phi", phi, GenericIO::VarHasExtraSpace);
-		newGIO.addVariable("id", id, GenericIO::VarHasExtraSpace);
-		newGIO.addVariable("mask", mask, GenericIO::VarHasExtraSpace);
+		// newGIO.addVariable("x", xx, CoordFlagsX | GenericIO::VarHasExtraSpace);
+  //       newGIO.addVariable("y", yy, CoordFlagsY | GenericIO::VarHasExtraSpace);
+		// newGIO.addVariable("z", zz, CoordFlagsZ | GenericIO::VarHasExtraSpace);
+		// newGIO.addVariable("vx", vx, GenericIO::VarHasExtraSpace);
+  //       newGIO.addVariable("vy", vy, GenericIO::VarHasExtraSpace);
+  //       newGIO.addVariable("vz", vz, GenericIO::VarHasExtraSpace);
+  //       newGIO.addVariable("phi", phi, GenericIO::VarHasExtraSpace);
+		// newGIO.addVariable("id", id, GenericIO::VarHasExtraSpace);
+		// newGIO.addVariable("mask", mask, GenericIO::VarHasExtraSpace);
+
+		newGIO.addVariable("x", xx);
+        newGIO.addVariable("y", yy);
+		newGIO.addVariable("z", zz);
+		newGIO.addVariable("vx", vx);
+        newGIO.addVariable("vy", vy);
+        newGIO.addVariable("vz", vz);
+        newGIO.addVariable("phi", phi);
+		newGIO.addVariable("id", id);
+		newGIO.addVariable("mask", mask);
+
 
 		std::stringstream ss;
 		for (int i=0; i<numParticles; i++)
@@ -197,6 +221,7 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
+
 
 // ./compile.sh
 // mpirun -np 8 ./dataGen outputFile 10000

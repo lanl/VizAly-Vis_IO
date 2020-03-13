@@ -1,0 +1,25 @@
+{
+	"description" : "describes what is the purpose of having this file",
+	"octee" : "3 options -  Never:octree should never be on, Off: octree is off by default, On: octree is on by default with 4 levels",
+	"max-compression-level" : "3 options - None:no compression should be applied, Lossless: No or lossless supported, Lossy: No, lossless or lossy",
+
+	"scalars-description" : "lists the scalars that this file will contain, along with their default option. Some examples below",
+	"scalar-param-one" : "The first parameter has to be the Name of scalar field",
+	"scalar-coordinate params" : "CoordX, CoordY, CoordZ or leave it blank for non coordinate type",
+	"scalar-extra-space params" : "extra-space or leave it blank for non extra space",
+	"scalar-compression params" : "max-compression-level:None, max-compression-level:Lossless, max-compression-level:Lossy, or leave it blank for no restriction",
+	"scalars" :
+	[
+		["Scalar-Name1", "CoordX", "extra-space", "max-compression-level:Lossy"],
+		["Scalar-Name2", "CoordY", "extra-space", "max-compression-level:Lossless"],
+		["Scalar-Name3", "CoordZ", "extra-space", "max-compression-level:None"],
+		["x", "CoordX", "extra-space"],
+		["y", "CoordX", "extra-space"],
+		["z", "CoordZ", "extra-space"],
+		["vx", "extra-space"],
+		["vy", "extra-space"],
+		["zz", "extra-space"],
+		["id", "extra-space"],
+		["phi", "extra-space"]
+	]
+}

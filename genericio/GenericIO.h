@@ -428,6 +428,13 @@ public:
   template <typename T>
   void addVariable(const std::string &Name, T *Data,
                    unsigned Flags = 0,
+                   std::srting compression="None") {
+    Vars.push_back(Variable(Name, Data, Flags));
+  }
+
+  template <typename T>
+  void addVariable(const std::string &Name, T *Data,
+                   unsigned Flags = 0,
                    const LossyCompressionInfo &LCI = LossyCompressionInfo()) {
     Vars.push_back(Variable(Name, Data, Flags, LCI));
   }
