@@ -3,14 +3,14 @@
 	"octee" : "No",
 	"scalars" :
 	[
-		["x", "CoordX", "extra-space", "max-compression-level:Lossy"],
-		["y", "CoordY", "extra-space", "max-compression-level:Lossy"],
-		["z", "CoordZ", "extra-space", "max-compression-level:Lossy"],
-		["vx", "extra-space", "max-compression-level:Lossy"],
-		["vy", "extra-space", "max-compression-level:Lossy"],
-		["vz", "extra-space", "max-compression-level:Lossy"],
-		["id", "extra-space", "max-compression-level:Lossless"],
-		["phi", "extra-space", "max-compression-level:Lossy"],
-		["mask", "extra-space", "max-compression-level:Lossless"]
+		["x", "CoordX", "extra-space", "default-compression-level:Lossy~abs~0.003", "max-compression-level:Lossy"],
+		["y", "CoordY", "extra-space", "default-compression-level:Lossy~abs~0.003", "max-compression-level:Lossy"],
+		["z", "CoordZ", "extra-space", "default-compression-level:Lossy~abs~0.003", "max-compression-level:Lossy"],
+		["vx", "extra-space", "default-compression-level:Lossy~pw_rel~0.01", "max-compression-level:Lossy"],
+		["vy", "extra-space", "default-compression-level:Lossy~abs~0.01", "max-compression-level:Lossy"],
+		["vz", "extra-space", "default-compression-level:Lossy~abs~0.01", "max-compression-level:Lossy"],
+		["id", "extra-space", "default-compression-level:None", "max-compression-level:Lossless"],
+		["phi", "extra-space", "default-compression-level:Lossy~abs~0.003", "max-compression-level:Lossy"],
+		["mask", "extra-space", "default-compression-level:Lossless", "max-compression-level:Lossless"]
 	]
 }

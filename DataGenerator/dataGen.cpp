@@ -172,15 +172,19 @@ int main(int argc, char* argv[])
 		// newGIO.addVariable("id", id, GenericIO::VarHasExtraSpace);
 		// newGIO.addVariable("mask", mask, GenericIO::VarHasExtraSpace);
 
-		newGIO.addVariable("x", xx);
-        newGIO.addVariable("y", yy);
-		newGIO.addVariable("z", zz);
-		newGIO.addVariable("vx", vx);
-        newGIO.addVariable("vy", vy);
-        newGIO.addVariable("vz", vz);
-        newGIO.addVariable("phi", phi);
-		newGIO.addVariable("id", id);
-		newGIO.addVariable("mask", mask);
+
+
+
+
+		newGIO.addVariable("x", xx, "compress:SZ~abs_0.003");
+        newGIO.addVariable("y", yy, "compress:SZ~abs_0.003");
+		newGIO.addVariable("z", zz, "compress:SZ~abs_0.003");
+		newGIO.addVariable("vx", vx, "compress:SZ~pw_rel_0.01");
+        newGIO.addVariable("vy", vy, "compress:SZ~pw_rel_0.01");
+        newGIO.addVariable("vz", vz, "compress:SZ~pw_rel_0.01");
+        newGIO.addVariable("phi", phi, "compress:SZ~abs_0.1");
+		newGIO.addVariable("id", id, "compress:BLOSC");
+		newGIO.addVariable("mask", mask, "compress:BLOSC");
 
 
 		std::stringstream ss;
