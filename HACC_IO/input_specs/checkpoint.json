@@ -3,16 +3,16 @@
 	"octee" : "Never",
 	"max-compression-level" : "None",
 	
-	"scalars" :
+	"variables" :
 	[
 		["x", "CoordX", "extra-space"],
 		["y", "CoordX", "extra-space"],
 		["z", "CoordZ", "extra-space"],
-		["vx", "extra-space"],
-		["vy", "extra-space"],
-		["zz", "extra-space"],
-		["id", "extra-space"],
-		["mask", "extra-space"],
-		["phi", "extra-space"]
+		["vx",          "extra-space"],
+		["vy",          "extra-space"],
+		["zz",          "extra-space"],
+		["id",          "extra-space"],
+		["mask",        "extra-space"],
+		["phi",         "extra-space"]
 	]
 }

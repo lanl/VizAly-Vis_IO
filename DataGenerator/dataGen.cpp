@@ -175,16 +175,29 @@ int main(int argc, char* argv[])
 
 
 
+		IO_Layer::IO newGIO("standard-output", filename, MPI_Comm);
+		newGIO.setOctreeLevels(3);
+		newGIO.setNumElems(numParticles);
 
-		newGIO.addVariable("x", xx, "compress:SZ~abs_0.003");
-        newGIO.addVariable("y", yy, "compress:SZ~abs_0.003");
-		newGIO.addVariable("z", zz, "compress:SZ~abs_0.003");
-		newGIO.addVariable("vx", vx, "compress:SZ~pw_rel_0.01");
-        newGIO.addVariable("vy", vy, "compress:SZ~pw_rel_0.01");
-        newGIO.addVariable("vz", vz, "compress:SZ~pw_rel_0.01");
-        newGIO.addVariable("phi", phi, "compress:SZ~abs_0.1");
-		newGIO.addVariable("id", id, "compress:BLOSC");
-		newGIO.addVariable("mask", mask, "compress:BLOSC");
+		for (int d=0; d<3; ++d)
+        {
+            newGIO.setPhysOrigin(physOrigin[d], d);
+            newGIO.setPhysScale(physScale[d], d);
+        }
+
+		newGIO.addVariable("x", xx);
+        newGIO.addVariable("y", yy);
+		newGIO.addVariable("z", zz);
+		newGIO.addVariable("vx", vx, "compress:SZ~[mode:pw_rel-0.1]");
+        newGIO.addVariable("vy", vy, "compress:SZ~[mode:pw_rel-0.1]");
+        newGIO.addVariable("vz", vz, "ccompress:SZ~[mode:pw_rel-0.1]");
+        newGIO.addVariable("phi", phi, "compress:SZ~[mode:pw_rel-0.003]");
+		newGIO.addVariable("id", id);
+		newGIO.addVariable("mask", mask);
+
+		newGIO.write();
+
+
 
 
 		std::stringstream ss;
