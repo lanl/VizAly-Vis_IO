@@ -9,6 +9,8 @@
 #include "../genericio/GenericIO.h"
 
 #include "utils/json.hpp"
+#include "input_specs/filetypes.h"
+
 
 namespace IO_Layer {
 
@@ -17,37 +19,41 @@ class IO
 {
 	nlohmann::json fileInfo;
 
-	std:string fileType;
+	std::string filetype;
 	int octreeLevels;
 	std::string maxFileCompression;
 	bool prototypeIO;
 	
-	nlohmann::json parseJsonFile(std::string filename);
 	int setFileType(std::string filetype); 
-	std::string splitString(std::string theString, char delim);
+	std::vector<std::string> splitString(std::string theString, char delim);
 
-	gio::GenericIO writer;
+	gio::GenericIO *writer;
 
   public:
-	IO(std::string _filetype, std::string filename, MPI_COMM comm);
+
+	IO(std::string _filetype, std::string filename, MPI_Comm comm);
 	~IO(){};
 	
 	int setOctreeLevels(int levels);
-	void setNumElements(size_t numElements) { writer.setNumElems(numElements) };
-	void setPhysOrigin(double origin, int dim=-1){ writer.setPhysOrigin(origin, dim); }
-	void setPhysScale(double origin, int dim=-1){ writer.setPhysScale(origin, dim); 
+	void setNumElements(size_t numElements) { writer->setNumElems(numElements); };
+	void setPhysOrigin(double origin, int dim=-1){ writer->setPhysOrigin(origin, dim); }
+	void setPhysScale(double origin, int dim=-1){ writer->setPhysScale(origin, dim); }
 
 	template <typename T>
 	int addVariable(std::string name, T *data, std::string compression="None", std::string otherParams="");
+	template <typename T, typename A>
+  	void addVariable(std::string name, std::vector<T, A> &Data, std::string compression="None", std::string otherParams="");
+
 	int write();
 };
 
 
-inline IO::IO(std::string _filetype, std::string filename, MPI_COMM comm)
+inline IO::IO(std::string _filetype, std::string filename, MPI_Comm comm)
 {
+	octreeLevels = -1; 
 	prototypeIO = false;
-	writer = new GenericIO(comm, filename);
-	setFileType(filetype);
+	writer = new gio::GenericIO(comm, filename);
+	setFileType(_filetype);
 }
 
 
@@ -63,7 +69,7 @@ inline int IO::setFileType(std::string _filetype)
 
 
 	// Read in the different types of file formats that exist
-	nlohmann::json jsonInput = parseJsonFile("input_specs/file-types.json");
+	nlohmann::json jsonInput = nlohmann::json::parse(fileTypes);
 	nlohmann::json data = jsonInput["hacc-file-types"];
 	std::vector<std::string> filetypes;
 	for (auto it=data.begin(); it!=data.end(); ++it)
@@ -75,11 +81,18 @@ inline int IO::setFileType(std::string _filetype)
 	if (found != filetypes.end())
 	{
 		// pull in the definition of the file
-		fileInfo = parseJsonFile("input_specs/" + filetype + ".json");
+		if (*found == "standard-output")
+			fileInfo = nlohmann::json::parse(standard_output);
+		else if (*found == "checkpoint")
+			fileInfo = nlohmann::json::parse(checkpoint);
+		else
+		{
+			std::cout << "Cannot process that file type" << std::endl;
+			return -1;
+		}
 
 		
 		// Check Octree
-		octreeON = false;
 		if (fileInfo.contains("octee"))
 		{
 			if (fileInfo["octee"] == "Never")
@@ -89,7 +102,6 @@ inline int IO::setFileType(std::string _filetype)
 			else if (fileInfo["octee"].is_number())
 			{
 				octreeLevels = fileInfo["octee"];
-				octreeON = true;
 			}
 		}
 
@@ -131,31 +143,39 @@ inline int IO::setOctreeLevels(int levels)
 
 inline int IO::write()
 {
-	if (octreeLevels > 0)
-		writer.useOctree(octreeLevels);
+	//if (octreeLevels > 0)
+	//	writer->useOctree(octreeLevels);
 
-	writer.write();
+	writer->write();
+
+	return 1;
 }
 
 
-inline std::string IO::splitString(std::string theString, char delim)
+inline std::vector<std::string> IO::splitString(std::string theString, char delim)
 {
 	std::vector<std::string> splits;
 
 	int prev = 0;
-	for (int i=0; i<theString.length(); i++)
-	{
-		if (theString[i] == delim)
-		{
-			splits.push_back( userCompressorSpecs.substr(prev, i-prev) );
-			prev = i;
-		}
-	}
+	// for (int i=0; i<theString.length(); i++)
+	// {
+	// 	if (theString[i] == delim)
+	// 	{
+	// 		splits.push_back( userCompressorSpecs.substr(prev, i-prev) );
+	// 		prev = i;
+	// 	}
+	// }
 
 	return splits;
 }
 
 
+template <typename T, typename A>
+void IO::addVariable(std::string name, std::vector<T, A> &Data, std::string compression, std::string otherParams)
+{
+   	T *D = Data.empty() ? 0 : &Data[0];
+    addVariable(name, D, compression, otherParams);
+}
 
 
 template <typename T>
@@ -163,7 +183,7 @@ inline int IO::addVariable(std::string name, T *data, std::string compression, s
 {
 	if (prototypeIO)
 	{
-		writer.addVariable(name, data, flags, compressParams);
+		//writer->addVariable(name, data, flags, compressParams);
 		return 1;
 	}
 
@@ -176,7 +196,7 @@ inline int IO::addVariable(std::string name, T *data, std::string compression, s
 	// Check if filetype is valid
 	if ( !fileInfo.contains("variables") )
 	{
-		std::cout << "The specified filetype " << fileType << " does not contain any variables. This could be a bug!" << std::endl;
+		std::cout << "The specified filetype " << filetype << " does not contain any variables. This could be a bug!" << std::endl;
 		return -1;
 	}
 
@@ -203,7 +223,7 @@ inline int IO::addVariable(std::string name, T *data, std::string compression, s
 	// Foiling attempt to add non existing scalar
 	if (!scalarFound)
 	{
-		std::cout << "Varaible " << name << " does not exist for filetype " << fileType << std::endl;
+		std::cout << "Varaible " << name << " does not exist for filetype " << filetype << std::endl;
 		return -1;
 	}
 	
@@ -214,14 +234,14 @@ inline int IO::addVariable(std::string name, T *data, std::string compression, s
 	// Flags
 	unsigned flags = 0;
 	if ( fileInfo["variables"][scalarIndex].contains("CoordX") )
-		flags = flags | GenericIO::VarIsPhysCoordX;
+		flags = flags | gio::GenericIO::VarIsPhysCoordX;
 	else if ( fileInfo["variables"][scalarIndex].contains("CoordY") )
-		flags = flags | GenericIO::VarIsPhysCoordY;
+		flags = flags | gio::GenericIO::VarIsPhysCoordY;
 	else if ( fileInfo["variables"][scalarIndex].contains("CoordZ") )
-		flags = flags | GenericIO::VarIsPhysCoordZ;
+		flags = flags | gio::GenericIO::VarIsPhysCoordZ;
 		
 	if ( fileInfo["variables"][scalarIndex].contains("extra-space") )
-		flags = flags | GenericIO::VarHasExtraSpace;
+		flags = flags | gio::GenericIO::VarHasExtraSpace;
 
 
 	/*
@@ -252,7 +272,7 @@ inline int IO::addVariable(std::string name, T *data, std::string compression, s
 	// No Compression
 	if ( (maxFileCompression == "None") || (compression == "None"))
 	{
-		writer.addVariable(name, data, flags);
+		writer->addVariable(name, data, flags);
 		return 1;
 	}
 
@@ -285,7 +305,7 @@ inline int IO::addVariable(std::string name, T *data, std::string compression, s
 	// User specifies nothing, use default compressor specs
 	if ( compression == "" )
 	{
-		writer.addVariable(name, data, flags, dafaultCompressorSpecs);
+		//writer->addVariable(name, data, flags, dafaultCompressorSpecs);
 		return 1;
 	}
 
@@ -297,17 +317,17 @@ inline int IO::addVariable(std::string name, T *data, std::string compression, s
 
 
 	if (userCompressParams[0] == "None")
-		writer.addVariable(name, data, flags);
-	else
-		if (userCompressParams[0] == "SZ" && maxCompressorSpecsLevel == 2)	// User wants lossy and specs ok with that
-			writer.addVariable(name, data, flags, userCompressorSpecs);
-		else
-			if (userCompressParams[0] == "BLOSC" && maxCompressorSpecsLevel >= 1)	// User wants lossy and specs ok with that
-				writer.addVariable(name, data, flags, userCompressorSpecs);
-			else
-				writer.addVariable(name, data, flags, dafaultCompressorSpecs);
+	 	writer->addVariable(name, data, flags);
+	// else
+	// 	if (userCompressParams[0] == "SZ" && maxCompressorSpecsLevel == 2)	// User wants lossy and specs ok with that
+	// 		writer->addVariable(name, data, flags, userCompressorSpecs);
+	// 	else
+	// 		if (userCompressParams[0] == "BLOSC" && maxCompressorSpecsLevel >= 1)	// User wants lossy and specs ok with that
+	// 			writer->addVariable(name, data, flags, userCompressorSpecs);
+	// 		else
+	// 			writer->addVariable(name, data, flags, dafaultCompressorSpecs);
 
-	return 1
+	return 1;
 	
 }
 
