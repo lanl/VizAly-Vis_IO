@@ -1,0 +1,21 @@
+<ServerManagerConfiguration>
+  <ProxyGroup name="filters">
+    <SourceProxy name="PointDensityFilter" class="vtkPointDensityFilter" label="Point Density">
+      <Documentation
+          long_help="vtkPointDensityFilter is a filter that generates a density field on a volume from a point cloud. Basically the density is computed as number of points in a local neighborhood per unit volume; or optionally, the number of points in a local neighborhood surrounding each voxel. The local neighborhood is specified as a radius around each sample position (i.e., each voxel) which can be of fixed value; or the radius can be relative to the voxel size. The density computation may be further weighted by a scalar value which is simply multiplied by each point's presumed density of 1.0."
+          short_help="produce density field from input point cloud">
+      </Documentation>
+      <InputProperty
+          name="Input"
+          command="SetInputConnection">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources"/>
+          <Group name="filters"/>
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkDataSet"/>
+        </DataTypeDomain>
+      </InputProperty>
+    </SourceProxy>
+  </ProxyGroup>
+</ServerManagerConfiguration>
