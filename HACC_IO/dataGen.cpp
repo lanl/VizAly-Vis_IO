@@ -11,8 +11,6 @@
 
 #include "io_layer/io_layer.hpp"
 
-//#include "GenericIO.h"
-//using namespace gio;
 
 int main(int argc, char* argv[])
 {
@@ -33,7 +31,7 @@ int main(int argc, char* argv[])
 	
 	{
 		// float simExtents[6]={0,256, 0,256, 0,256};
-		int dims[3]= {2, 2, 2};
+		int dims[3]= {2, 2, 1};
 		int periods[3] = { 0, 0, 0 };
 		int physOrigin[3] = {0, 0, 0};
 		int physScale[3] = {256, 256, 256};
@@ -52,8 +50,6 @@ int main(int argc, char* argv[])
 		filename.append("Oct");
 		//GenericIO newGIO(Comm, filename);//, method);
 		//newGIO.setNumElems(numParticles);
-
-		
 
 
 		
@@ -206,4 +202,4 @@ int main(int argc, char* argv[])
 
 
 // ./compile.sh
-// mpirun -np 8 ./dataGen outputFile 10000
+// mpirun -np 4 ./dataGen outputFile 10000

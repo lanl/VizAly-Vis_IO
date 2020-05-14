@@ -14,44 +14,59 @@
 
 namespace IO_Layer {
 
-
 class IO
 {
-	nlohmann::json fileInfo;
+	MPI_Comm myComm;
+	std::string filetype;				// filetype: checkpoint, fof, ...
+	int octreeLevels;					// number of octree levels: 0 = no octree
+	nlohmann::json fileInfo;			// information about the file being written
+	std::string maxFileCompression;		// compression level allowed for file
+	bool prototypeIO;					// whether it's a custom file
+	gio::GenericIO *writer;				// handle to GenericIO
 
-	std::string filetype;
-	int octreeLevels;
-	std::string maxFileCompression;
-	bool prototypeIO;
-	
+	std::stringstream log;				// log
+
 	int setFileType(std::string filetype); 
-	std::vector<std::string> splitString(std::string theString, char delim);
-
-	gio::GenericIO *writer;
+	std::vector<std::string> splitString(std::string const &str, const char* delim);
+	void writeLogToDisk(std::string logFilename, std::string logContents);
 
   public:
 
 	IO(std::string _filetype, std::string filename, MPI_Comm comm);
 	~IO(){};
 	
-	int setOctreeLevels(int levels);
 	void setNumElements(size_t numElements) { writer->setNumElems(numElements); };
 	void setPhysOrigin(double origin, int dim=-1){ writer->setPhysOrigin(origin, dim); }
 	void setPhysScale(double origin, int dim=-1){ writer->setPhysScale(origin, dim); }
+	int setOctreeLevels(int levels);
 
 	template <typename T>
-	int addVariable(std::string name, T *data, std::string compression="None", std::string otherParams="");
+	int addVariable(std::string name, T *data, std::string usrCompression="", std::string otherParams="");
 	template <typename T, typename A>
-  	void addVariable(std::string name, std::vector<T, A> &Data, std::string compression="None", std::string otherParams="");
+  	void addVariable(std::string name, std::vector<T, A> &Data, std::string usrCompression="", std::string otherParams="");
 
 	int write();
 };
 
+inline void IO::writeLogToDisk(std::string logFilename, std::string logContents)
+{
+	int myRank;
+	MPI_Comm_rank(myComm, &myRank);
+
+	std::ofstream myfile;
+  	myfile.open( (logFilename + std::to_string(myRank)).c_str());
+  	myfile << logContents;
+  	myfile.close();
+}
+
 
 inline IO::IO(std::string _filetype, std::string filename, MPI_Comm comm)
 {
-	octreeLevels = -1; 
+	octreeLevels = 0; 
+	filetype = "";
 	prototypeIO = false;
+	myComm = comm;
+
 	writer = new gio::GenericIO(comm, filename);
 	setFileType(_filetype);
 }
@@ -105,6 +120,9 @@ inline int IO::setFileType(std::string _filetype)
 			}
 		}
 
+		log << "Octree level: " << octreeLevels << std::endl;
+
+
 
 		// Check Compression
 		if (fileInfo.contains("max-compression-level"))
@@ -117,6 +135,9 @@ inline int IO::setFileType(std::string _filetype)
 			else if (fileInfo["max-compression-level"] == "Lossy")
 				maxFileCompression = "Lossy";
 		}
+
+		log << "max file compression: " << maxFileCompression << std::endl;
+
 
 		return 1;
 	}
@@ -152,34 +173,32 @@ inline int IO::write()
 }
 
 
-inline std::vector<std::string> IO::splitString(std::string theString, char delim)
+inline std::vector<std::string> IO::splitString(std::string const &str, const char* delim)
 {
-	std::vector<std::string> splits;
+	std::vector<std::string> out;
+	char *token = strtok(const_cast<char*>(str.c_str()), delim);
+	while (token != nullptr)
+	{
+		out.push_back(std::string(token));
+		token = strtok(nullptr, delim);
+	}
 
-	int prev = 0;
-	// for (int i=0; i<theString.length(); i++)
-	// {
-	// 	if (theString[i] == delim)
-	// 	{
-	// 		splits.push_back( userCompressorSpecs.substr(prev, i-prev) );
-	// 		prev = i;
-	// 	}
-	// }
-
-	return splits;
+	return out;
 }
 
 
+
+
 template <typename T, typename A>
-void IO::addVariable(std::string name, std::vector<T, A> &Data, std::string compression, std::string otherParams)
+void IO::addVariable(std::string name, std::vector<T, A> &Data, std::string usrCompression, std::string otherParams)
 {
    	T *D = Data.empty() ? 0 : &Data[0];
-    addVariable(name, D, compression, otherParams);
+    addVariable(name, D, usrCompression, otherParams);
 }
 
 
 template <typename T>
-inline int IO::addVariable(std::string name, T *data, std::string compression, std::string otherParams)
+inline int IO::addVariable(std::string name, T *data, std::string usrCompression, std::string otherParams)
 {
 	if (prototypeIO)
 	{
@@ -187,6 +206,7 @@ inline int IO::addVariable(std::string name, T *data, std::string compression, s
 		return 1;
 	}
 
+	log << "\n\nAdding variable " << name << std::endl;
 
 	bool scalarFound;
 	int scalarIndex;
@@ -210,9 +230,14 @@ inline int IO::addVariable(std::string name, T *data, std::string compression, s
 			scalarFound = true;
 			scalarIndex = i;
 
+			log << "JSON Params: " << std::endl;
 			// Gather the other specs for that variable
 			for (int j=1; j<fileInfo["variables"][i].size(); j++)
+			{
 				params.push_back(fileInfo["variables"][i][j]);
+				log << " - " << fileInfo["variables"][i][j] << std::endl; 
+			}
+
 
 			// done
 			break;
@@ -243,89 +268,133 @@ inline int IO::addVariable(std::string name, T *data, std::string compression, s
 	if ( fileInfo["variables"][scalarIndex].contains("extra-space") )
 		flags = flags | gio::GenericIO::VarHasExtraSpace;
 
-
-	/*
-		IO_Layer::IO newGIO("standard-output", filename, MPI_Comm);
-		newGIO.setOctreeLevels(3);
-		newGIO.setNumElems(numParticles);
-
-		for (int d=0; d<3; ++d)
-        {
-            newGIO.setPhysOrigin(physOrigin[d], d);
-            newGIO.setPhysScale(physScale[d], d);
-        }
-
-		newGIO.addVariable("x", xx);
-        newGIO.addVariable("y", yy);
-		newGIO.addVariable("z", zz);
-		newGIO.addVariable("vx", vx, "compress:SZ~mode:pw_rel 0.1");
-        newGIO.addVariable("vy", vy, "compress:SZ~mode:pw_rel 0.1");
-        newGIO.addVariable("vz", vz, "ccompress:SZ~mode:pw_rel 0.1");
-        newGIO.addVariable("phi", phi, "compress:SZ~mode:pw_rel 0.003");
-		newGIO.addVariable("id", id);
-		newGIO.addVariable("mask", mask);
-
-		newGIO.write();
-	*/
+	log << "flags: " << flags << std::endl;
 
 
-	// No Compression
-	if ( (maxFileCompression == "None") || (compression == "None"))
+	
+
+
+	// No Compression for file
+	if ( (maxFileCompression == "None") )
 	{
 		writer->addVariable(name, data, flags);
+
+		log << "\nNo compression" << std::endl;
+		writeLogToDisk("log_",log.str());
+
 		return 1;
 	}
 
 	
-
-	// Find Compression spefified in JSON spec file
-	std::string dafaultCompressorSpecs = "";
-	std::string maxCompressorSpecs = "";
-	
-	for (int i=0; i<fileInfo["variables"][scalarIndex].size(); i++)
+	// User did not specify anythging - find Compression spefified in JSON spec file
+	int maxCompressorSpecsLevel = 0;	
+	if ( usrCompression == "" )
 	{
-		std::string tempStr = fileInfo["variables"][scalarIndex][i];
+		log << "\nNo user speficied compression" << std::endl;
 
-		if (tempStr.compare(0, 16, "default-compressor:") == 0)
-			dafaultCompressorSpecs = tempStr.substr(19, tempStr.length()-19);
+		std::string specsCompressor = "";
+		std::string maxCompressor = "";
+		
+		for (int i=0; i<fileInfo["variables"][scalarIndex].size(); i++)
+		{
+			std::string tempStr = fileInfo["variables"][scalarIndex][i];
 
-		if (tempStr.compare(0, 16, "max-compression:") == 0)
-			maxCompressorSpecs = tempStr.substr(16, tempStr.length()-16);
-	}
+			std::string defCompStr = "default-compressor:";
+			if (tempStr.compare(0, defCompStr.length(), defCompStr) == 0)
+				specsCompressor = tempStr.substr(defCompStr.length(), tempStr.length()-defCompStr.length());
+
+			std::string maxCompStr = "max-compression-level:";
+			if (tempStr.compare(0, maxCompStr.length(), maxCompStr) == 0)
+				maxCompressor = tempStr.substr(maxCompStr.length(), tempStr.length()-maxCompStr.length());
+		}
+		log << "specsCompressor: " << specsCompressor << std::endl;
+		log << "maxCompressorSpecs: " << maxCompressor << std::endl;
+
+		
+		
+		if (maxCompressor == "Lossy" || maxCompressor == "")
+			maxCompressorSpecsLevel = 2;
+		else if (maxCompressor == "Lossless")
+			maxCompressorSpecsLevel = 1;
+		else // None
+			maxCompressorSpecsLevel = 0;
+
+		log << "maxCompressorSpecsLevel: " << maxCompressorSpecsLevel << std::endl;
+
 	
-	int maxCompressorSpecsLevel = 0;
-	if (maxCompressorSpecs == "lossy" || maxCompressorSpecs == "")
-		maxCompressorSpecsLevel = 2;
-	else if (maxCompressorSpecs == "lossless")
-		maxCompressorSpecsLevel = 1;
-	else // None
-		maxCompressorSpecsLevel = 0;
+
+		// Find the compressor to use
+		std::string compressorName = "";
+		std::size_t found_pos = specsCompressor.find("~");
+  		if (found_pos != std::string::npos)
+  			compressorName = specsCompressor.substr(0,found_pos);
+  		else
+    		compressorName = specsCompressor.substr(0,specsCompressor.length());
+
+    	log << "\nCompressor name: " << compressorName << std::endl;
+    	
 
 
-	// User specifies nothing, use default compressor specs
-	if ( compression == "" )
-	{
-		//writer->addVariable(name, data, flags, dafaultCompressorSpecs);
-		return 1;
+		// Find the parameters to use for the compressor
+    	std::string compParams = "";
+    	found_pos = specsCompressor.find(":");
+  		if (found_pos != std::string::npos)
+  			compParams = specsCompressor.substr(found_pos+1,specsCompressor.length());
+
+  		const char* delim = " ";
+		std::vector<std::string> userCompressParams = splitString(compParams,delim);
+		for (int i=0; i<userCompressParams.size(); i++)
+			log << " - jsonCompressParams " << i << ": " << userCompressParams[i] << std::endl;
+
 	}
 
 
-	// Get user specified compression
-	std::string userCompressorSpecs = "";
-	userCompressorSpecs = compression.substr(9, userCompressorSpecs.length()-9);
-	std::vector<std::string> userCompressParams = splitString(userCompressorSpecs,'~');
+	if ( usrCompression != "" ) //Get user specified compression
+	{
+		log << "\nUser speficied compression" << std::endl;
+
+		std::string usrCompStr = "compress:";
+		std::string usrComp = usrCompression.substr(usrCompStr.length(), usrCompression.length()-usrCompStr.length());
 
 
-	if (userCompressParams[0] == "None")
-	 	writer->addVariable(name, data, flags);
-	// else
-	// 	if (userCompressParams[0] == "SZ" && maxCompressorSpecsLevel == 2)	// User wants lossy and specs ok with that
-	// 		writer->addVariable(name, data, flags, userCompressorSpecs);
-	// 	else
-	// 		if (userCompressParams[0] == "BLOSC" && maxCompressorSpecsLevel >= 1)	// User wants lossy and specs ok with that
-	// 			writer->addVariable(name, data, flags, userCompressorSpecs);
-	// 		else
-	// 			writer->addVariable(name, data, flags, dafaultCompressorSpecs);
+		// Find the compressor to use
+		std::string compressorName = "";
+		std::size_t found_pos = usrComp.find("~");
+  		if (found_pos != std::string::npos)
+  			compressorName = usrComp.substr(0, found_pos);
+  		else
+    		compressorName = usrComp.substr(0, usrComp.length());
+    	
+    	log << "Compressor name: " << compressorName << std::endl;
+
+
+
+		// Find the parameters to use for the compressor
+    	std::string compParams = "";
+    	found_pos = usrComp.find(":");
+  		if (found_pos != std::string::npos)
+  			compParams = usrComp.substr(found_pos+1,usrComp.length());
+
+    	const char* delim = " ";
+		std::vector<std::string> userCompressParams = splitString(compParams,delim);
+		for (int i=0; i<userCompressParams.size(); i++)
+			log << " - userCompressParams " << i << ": " << userCompressParams[i] << std::endl;
+
+
+
+		// if (userCompressParams[0] == "None")
+		//  	writer->addVariable(name, data, flags);
+		// else
+		// 	if (userCompressParams[0] == "SZ" && maxCompressorSpecsLevel == 2)	// User wants lossy and specs ok with that
+		// 		writer->addVariable(name, data, flags, userCompressorSpecs);
+		// 	else
+		// 		if (userCompressParams[0] == "BLOSC" && maxCompressorSpecsLevel >= 1)	// User wants lossy and specs ok with that
+		// 			writer->addVariable(name, data, flags, userCompressorSpecs);
+		// 		else
+		// 			writer->addVariable(name, data, flags, dafaultCompressorSpecs);
+	}
+
+	writeLogToDisk("log_",log.str());
 
 	return 1;
 	

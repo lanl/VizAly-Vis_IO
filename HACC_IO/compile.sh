@@ -3,6 +3,7 @@ PROJECT_HOME=$(pwd)
 
 
 OPENMPFLAG="-fopenmp"
+OPENMPFLAG="" # On OSX
 
 BLOSC_O="genericio/mpi/thirdparty/blosc/blosc.o \
 	genericio/mpi/thirdparty/blosc/blosclz.o \
@@ -100,6 +101,6 @@ SZ_O="genericio/mpi/thirdparty/SZ/sz/src/ByteToolkit.o \
 	genericio/mpi/thirdparty/SZ/sz/src/szd_float_ts.o"
 
 
-mpicxx dataGen.cpp $(OPENMPFLAG) -std=c++11 -Igenericio \
+mpicxx dataGen.cpp $OPENMPFLAG -std=c++11 -Igenericio \
 	$PROJECT_HOME/genericio/mpi/GenericIO.o $BLOSC_O $SZ_O \
 	-o dataGen
