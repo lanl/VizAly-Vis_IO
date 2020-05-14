@@ -346,6 +346,11 @@ inline int IO::addVariable(std::string name, T *data, std::string usrCompression
 		for (int i=0; i<userCompressParams.size(); i++)
 			log << " - jsonCompressParams " << i << ": " << userCompressParams[i] << std::endl;
 
+
+
+		// Specify compression for GenericIO
+		//writer->addVariable(name, data, flags);
+
 	}
 
 
@@ -381,17 +386,25 @@ inline int IO::addVariable(std::string name, T *data, std::string usrCompression
 			log << " - userCompressParams " << i << ": " << userCompressParams[i] << std::endl;
 
 
-
-		// if (userCompressParams[0] == "None")
-		//  	writer->addVariable(name, data, flags);
-		// else
-		// 	if (userCompressParams[0] == "SZ" && maxCompressorSpecsLevel == 2)	// User wants lossy and specs ok with that
-		// 		writer->addVariable(name, data, flags, userCompressorSpecs);
-		// 	else
-		// 		if (userCompressParams[0] == "BLOSC" && maxCompressorSpecsLevel >= 1)	// User wants lossy and specs ok with that
-		// 			writer->addVariable(name, data, flags, userCompressorSpecs);
-		// 		else
-		// 			writer->addVariable(name, data, flags, dafaultCompressorSpecs);
+		// Specify compression for GenericIO
+		if (userCompressParams[0] == "None")
+		{
+		  	//writer->addVariable(name, data, flags);
+		}
+		else
+			if (userCompressParams[0] == "SZ" && maxCompressorSpecsLevel == 2)	// User wants lossy and specs ok with that
+			{
+		 		//writer->addVariable(name, data, flags, userCompressorSpecs);
+			}
+			else
+		 		if (userCompressParams[0] == "BLOSC" && maxCompressorSpecsLevel >= 1)	// User wants lossless and specs ok with that
+		 		{
+		 			//writer->addVariable(name, data, flags, userCompressorSpecs);
+		 		}
+		 		else // disagreement, do not compress
+		 		{ 
+		 			//writer->addVariable(name, data, flags);
+		 		}
 	}
 
 	writeLogToDisk("log_",log.str());
