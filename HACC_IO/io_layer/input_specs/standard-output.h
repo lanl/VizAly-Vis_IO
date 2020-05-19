@@ -9,7 +9,7 @@ auto standard_output = R"(
 	"variables" :
 	[
 		["x", "CoordX", "extra-space", "default-compressor:SZ~mode:abs 0.003",  "max-compression-level:Lossy"],
-		["y", "CoordY", "extra-space", "default-compressor:SZ~mode:pw_rel 0.1",  "max-compression-level:Lossy"],
+		["y", "CoordY", "extra-space", "default-compressor:SZ~mode:abs 0.003",  "max-compression-level:Lossy"],
 		["z", "CoordZ", "extra-space", "default-compressor:SZ~mode:abs 0.003",  "max-compression-level:Lossy"],
 		["vx",          "extra-space", "default-compressor:SZ~mode:pw_rel 0.1", "max-compression-level:Lossy"],
 		["vy",          "extra-space", "default-compressor:SZ~mode:pw_rel 0.1", "max-compression-level:Lossy"],

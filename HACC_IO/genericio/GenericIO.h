@@ -57,6 +57,10 @@
 
 #include <unistd.h>
 
+#include "utils/octree.hpp"
+#include "utils/timer.h"
+#include "utils/memory.h"
+
 namespace gio {
 
 class GenericFileIO {
@@ -191,24 +195,42 @@ public:
   };
 
 public:
-  struct LossyCompressionInfo {
-    enum LCMode {
-      LCModeNone,
-      LCModeAbs,
-      LCModeRel,
-      LCModeAbsAndRel,
-      LCModeAbsOrRel,
-      LCModePSNR
+  struct CompressionInfo {
+    enum CMode {
+      None=0,
+      Lossless=1,
+      LCModeAbs=2,
+      LCModeRel=3,
+      LCModeAbsAndRel=4,
+      LCModeAbsOrRel=5,
+      LCModePSNR=6,
+      LCModePWRel=7
     };
 
-    LCMode Mode;
+    CMode Mode;
     double AbsErrThreshold;
     double RelErrThreshold;
     double PSNRThreshold;
+    double PWRelThreshold;
 
-    LossyCompressionInfo()
-      : Mode(LCModeNone), AbsErrThreshold(0.0),
-        RelErrThreshold(0.0), PSNRThreshold(0.0) {}
+    CompressionInfo()
+      : Mode(None), AbsErrThreshold(0.0),
+        RelErrThreshold(0.0), PSNRThreshold(0.0), PWRelThreshold(0.0)  {}
+
+    CompressionInfo(CMode m, double val=0.0)
+    {
+      Mode = m;
+
+      AbsErrThreshold = RelErrThreshold = PSNRThreshold = PWRelThreshold = 0.0;
+      if (m == LCModeAbs)
+        AbsErrThreshold = val;
+      else if (m == LCModeRel)
+        RelErrThreshold = val;
+       else if (m == LCModePSNR)
+        PSNRThreshold = val;
+       else if (m == LCModePWRel)
+        PWRelThreshold = val;
+    }
   };
 
   class Variable {
@@ -252,32 +274,32 @@ public:
   public:
     template <typename T>
     Variable(const std::string &N, T* D, unsigned Flags = 0,
-        const LossyCompressionInfo &LCI = LossyCompressionInfo())
+        const CompressionInfo &CI = CompressionInfo())
       : Name(N), Data((void *) D), HasExtraSpace(Flags & VarHasExtraSpace),
         IsPhysCoordX(Flags & VarIsPhysCoordX),
         IsPhysCoordY(Flags & VarIsPhysCoordY),
         IsPhysCoordZ(Flags & VarIsPhysCoordZ),
         MaybePhysGhost(Flags & VarMaybePhysGhost),
-        LCI(LCI) {
+        CI(CI) {
       deduceTypeInfo(D);
     }
 
     template <typename T>
     Variable(const std::string &N, std::size_t NumElements, T* D,
              unsigned Flags = 0,
-             const LossyCompressionInfo &LCI = LossyCompressionInfo())
+             const CompressionInfo &CI = CompressionInfo())
       : Name(N), Data((void *) D), HasExtraSpace(Flags & VarHasExtraSpace),
         IsPhysCoordX(Flags & VarIsPhysCoordX),
         IsPhysCoordY(Flags & VarIsPhysCoordY),
         IsPhysCoordZ(Flags & VarIsPhysCoordZ),
         MaybePhysGhost(Flags & VarMaybePhysGhost),
-        LCI(LCI) {
+        CI(CI) {
       deduceTypeInfoFromElement(D);
       Size = ElementSize*NumElements;
     }
 
     Variable(const VariableInfo &VI, void *D, unsigned Flags = 0,
-             const LossyCompressionInfo &LCI = LossyCompressionInfo())
+             const CompressionInfo &CI = CompressionInfo())
       : Name(VI.Name), Size(VI.Size), IsFloat(VI.IsFloat),
         IsSigned(VI.IsSigned), Data(D),
         HasExtraSpace(Flags & VarHasExtraSpace),
@@ -285,7 +307,7 @@ public:
         IsPhysCoordY((Flags & VarIsPhysCoordY) || VI.IsPhysCoordY),
         IsPhysCoordZ((Flags & VarIsPhysCoordZ) || VI.IsPhysCoordZ),
         MaybePhysGhost((Flags & VarMaybePhysGhost) || VI.MaybePhysGhost),
-        ElementSize(VI.ElementSize), LCI(LCI) {}
+        ElementSize(VI.ElementSize), CI(CI) {}
 
     template <typename ET>
     bool hasElementType() {
@@ -309,7 +331,8 @@ public:
     bool MaybePhysGhost;
     std::size_t ElementSize;
 
-    LossyCompressionInfo LCI;
+    //LossyCompressionInfo LCI;
+    CompressionInfo CI;
   };
 
 public:
@@ -323,7 +346,8 @@ public:
   GenericIO(const MPI_Comm &C, const std::string &FN, unsigned FIOT = -1)
     : NElems(0), FileIOType(FIOT == (unsigned) -1 ? DefaultFileIOType : FIOT),
       Partition(DefaultPartition), Comm(C), FileName(FN), Redistributing(false),
-      DisableCollErrChecking(false), SplitComm(MPI_COMM_NULL) {
+      DisableCollErrChecking(false), SplitComm(MPI_COMM_NULL), 
+      hasOctree(false), octreeLeafshuffle(false), numOctreeLevels(0){
     std::fill(PhysOrigin, PhysOrigin + 3, 0.0);
     std::fill(PhysScale,  PhysScale + 3, 0.0);
   }
@@ -331,7 +355,8 @@ public:
   GenericIO(const std::string &FN, unsigned FIOT = -1)
     : NElems(0), FileIOType(FIOT == (unsigned) -1 ? DefaultFileIOType : FIOT),
       Partition(DefaultPartition), FileName(FN), Redistributing(false),
-      DisableCollErrChecking(false) {
+      DisableCollErrChecking(false), 
+      hasOctree(false), octreeLeafshuffle(false), numOctreeLevels(0){
     std::fill(PhysOrigin, PhysOrigin + 3, 0.0);
     std::fill(PhysScale,  PhysScale + 3, 0.0);
   }
@@ -377,41 +402,80 @@ public:
       std::fill(PhysScale,  PhysScale + 3, S);
   }
 
+
+  void useOctree(int _numOctreeLevels, bool _octreeLeafshuffle=true)
+  {
+      numOctreeLevels = _numOctreeLevels;
+      octreeLeafshuffle = _octreeLeafshuffle;
+      
+      hasOctree = true;
+  }
+
+
+  void addOctreeHeader(uint64_t _preShuffled, uint64_t _decompositionLevel, uint64_t _numEntries)
+  {
+      octreeData.preShuffled = _preShuffled; 
+      octreeData.decompositionLevel = _decompositionLevel;
+      octreeData.numEntries = _numEntries;
+  }
+
+
+  void addOctreeRow(uint64_t _blockID, uint64_t _extents[6], uint64_t _numParticles, uint64_t _offsetInFile, uint64_t _partitionLocation)
+  {
+      GIOOctreeRow temp;
+
+      temp.blockID = _blockID;
+      temp.minX = _extents[0];
+      temp.maxX = _extents[1];
+      temp.minY = _extents[2];
+      temp.maxY = _extents[3];
+      temp.minZ = _extents[4];
+      temp.maxZ = _extents[5];
+
+      temp.numParticles = _numParticles;
+      temp.offsetInFile = _offsetInFile;
+      temp.partitionLocation = _partitionLocation;
+
+      octreeData.rows.push_back(temp);
+  }
+
+
   template <typename T>
   void addVariable(const std::string &Name, T *Data,
                    unsigned Flags = 0,
-                   const LossyCompressionInfo &LCI = LossyCompressionInfo()) {
-    Vars.push_back(Variable(Name, Data, Flags, LCI));
+                   const CompressionInfo &CI = CompressionInfo()) {
+    Vars.push_back(Variable(Name, Data, Flags, CI));
   }
 
   template <typename T, typename A>
   void addVariable(const std::string &Name, std::vector<T, A> &Data,
                    unsigned Flags = 0,
-                   const LossyCompressionInfo &LCI = LossyCompressionInfo()) {
+                   const CompressionInfo &CI = CompressionInfo()) {
     T *D = Data.empty() ? 0 : &Data[0];
-    addVariable(Name, D, Flags, LCI);
+    addVariable(Name, D, Flags, CI);
   }
 
   void addVariable(const VariableInfo &VI, void *Data,
                    unsigned Flags = 0,
-                   const LossyCompressionInfo &LCI = LossyCompressionInfo()) {
-    Vars.push_back(Variable(VI, Data, Flags, LCI));
+                   const CompressionInfo &CI = CompressionInfo()) {
+    Vars.push_back(Variable(VI, Data, Flags, CI));
   }
 
   template <typename T>
   void addScalarizedVariable(const std::string &Name, T *Data,
                              std::size_t NumElements, unsigned Flags = 0,
-                             const LossyCompressionInfo &LCI = LossyCompressionInfo()) {
-    Vars.push_back(Variable(Name, NumElements, Data, Flags, LCI));
+                             const CompressionInfo &CI = CompressionInfo()) {
+    Vars.push_back(Variable(Name, NumElements, Data, Flags, CI));
   }
 
   template <typename T, typename A>
   void addScalarizedVariable(const std::string &Name, std::vector<T, A> &Data,
                              std::size_t NumElements, unsigned Flags = 0,
-                             const LossyCompressionInfo &LCI = LossyCompressionInfo()) {
+                             const CompressionInfo &CI = CompressionInfo()) {
     T *D = Data.empty() ? 0 : &Data[0];
-    addScalarizedVariable(Name, D, NumElements, Flags, LCI);
+    addScalarizedVariable(Name, D, NumElements, Flags, CI);
   }
+
 
 #ifndef GENERICIO_NO_MPI
   // Writing
@@ -448,6 +512,21 @@ public:
   int readGlobalRankNumber(int EffRank = -1);
 
   void readData(int EffRank = -1, bool PrintStats = true, bool CollStats = true);
+
+
+  // Octree Related
+  void readDataSection(size_t readOffset, size_t readNumRows, int EffRank = -1, bool PrintStats = true, bool CollStats = true);
+
+  void readDataSectionNoMPIBarrier(size_t readOffset, size_t readNumRows, int EffRank = -1, bool PrintStats = true, bool CollStats = true);
+
+  bool isOctree(){ return hasOctree; }
+
+  void printOctree(){ octreeData.print(); }
+
+  void readOctreeHeader(int octreeOffset, int octreeStringSize, bool bigEndian);
+
+  GIOOctree getOctree(){ return octreeData; }
+
 
   void getSourceRanks(std::vector<int> &SR);
 
@@ -529,9 +608,32 @@ private:
   template <bool IsBigEndian>
   void getVariableInfo(std::vector<VariableInfo> &VI);
 
+
+  void readDataSection(size_t readOffset, size_t readNumRows, int EffRank, 
+                         size_t RowOffset, int Rank, uint64_t &TotalReadSize, int NErrs[3]);
+
+  template <bool IsBigEndian>
+  void readDataSection(size_t readOffset, size_t readNumRows, int EffRank, 
+                       size_t RowOffset, int Rank, uint64_t &TotalReadSize, int NErrs[3]);
+
+  
+  void readDataSectionNoMPIBarrier(size_t readOffset, size_t readNumRows, int EffRank, 
+                                   size_t RowOffset, int Rank, uint64_t &TotalReadSize, int NErrs[3]);
+
+  template <bool IsBigEndian>
+  void readDataSectionNoMPIBarrier(size_t readOffset, size_t readNumRows, int EffRank, 
+                                   size_t RowOffset, int Rank, uint64_t &TotalReadSize, int NErrs[3]);
+
+
 protected:
   std::vector<Variable> Vars;
   std::size_t NElems;
+
+  // Octree Data
+  GIOOctree octreeData;
+  bool hasOctree;         
+  bool octreeLeafshuffle;     // shuffle paticles in a leaf
+  int numOctreeLevels;        // num octree leaves = 8^numOctreeLevels
 
   double PhysOrigin[3], PhysScale[3];
 

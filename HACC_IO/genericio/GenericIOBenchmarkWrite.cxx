@@ -191,9 +191,9 @@ int main(int argc, char *argv[]) {
   std::generate(id.begin(), id.end(), Generator<ID_T>(25, 3));
   std::fill(mask.begin(), mask.end(), 25);
 
-  GenericIO::LossyCompressionInfo LCI;
+  GenericIO::CompressionInfo LCI;
   if (UseLC) {
-    LCI.Mode = GenericIO::LossyCompressionInfo::LCModeRel;
+    LCI.Mode = GenericIO::CompressionInfo::LCModeRel;
     LCI.RelErrThreshold = 1e-3;
   }
 

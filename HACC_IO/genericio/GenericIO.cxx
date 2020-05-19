@@ -309,6 +309,8 @@ struct GlobalHeader {
   endian_specific_value<double,   IsBigEndian> PhysScale[3];
   endian_specific_value<uint64_t, IsBigEndian> BlocksSize;
   endian_specific_value<uint64_t, IsBigEndian> BlocksStart;
+  endian_specific_value<uint64_t, IsBigEndian> OctreeSize;
+  endian_specific_value<uint64_t, IsBigEndian> OctreeStart;
 };
 
 enum {
@@ -422,7 +424,8 @@ void GenericIO::write() {
   MPI_Comm_size(SplitComm, &SplitNRanks);
 
   string LocalFileName;
-  if (SplitNRanks != NRanks) {
+  if (SplitNRanks != NRanks) 
+  {
     if (Rank == 0) {
       // In split mode, the specified file becomes the rank map, and the real
       // data is partitioned.
@@ -513,70 +516,98 @@ void GenericIO::write() {
   vector<void *> LocalData;
   vector<bool> LocalHasExtraSpace;
   vector<vector<unsigned char> > LocalCData;
-  if (NeedsBlockHeaders) {
+  if (NeedsBlockHeaders) 
+  {
     LocalBlockHeaders.resize(Vars.size());
     LocalData.resize(Vars.size());
     LocalHasExtraSpace.resize(Vars.size());
     if (ShouldCompress)
       LocalCData.resize(Vars.size());
 
-    for (size_t i = 0; i < Vars.size(); ++i) {
+
+    for (size_t i = 0; i < Vars.size(); ++i) 
+    {
       // Filters null by default, leave null starting address (needs to be
       // calculated by the header-writing rank).
       memset(&LocalBlockHeaders[i], 0, sizeof(BlockHeader<IsBigEndian>));
-      if (ShouldCompress) {
+      if (ShouldCompress) 
+      {
         void *OrigData = Vars[i].Data;
         bool FreeOrigData = false;
         size_t OrigUnitSize = Vars[i].Size;
         size_t OrigDataSize = NElems*Vars[i].Size;
 
         int FilterIdx = 0;
-        if (Vars[i].LCI.Mode != LossyCompressionInfo::LCModeNone) {
-#ifdef _OPENMP
-#pragma omp master
-  {
-#endif
-         if (!sz_initialized) {
-           SZ_Init(NULL);
-           confparams_cpr->szMode = 0; // Best-speed mode.
-           sz_initialized = true;
-         }
+        if (!(Vars[i].CI.Mode == CompressionInfo::None || 
+              Vars[i].CI.Mode == CompressionInfo::Lossless))
+        {
+          std::cout << Vars[i].Name << " - SZ Compress" << std::endl;
+          // SZ compression
+          #ifdef _OPENMP
+          #pragma omp master
+          {
+          #endif
 
-#ifdef _OPENMP
-  }
-#endif
+            if (!sz_initialized) 
+            {
+               SZ_Init(NULL);
+               confparams_cpr->szMode = 0; // Best-speed mode.
+               sz_initialized = true;
+            }
+
+          #ifdef _OPENMP
+          }
+          #endif
+
+
+          // Data type does not exist for SZ, do not compress
           int SZDT = GetSZDT(Vars[i]);
           if (SZDT == -1)
-            goto nosz;
+            goto nocomp;
 
+          std::cout << Vars[i].Name << " - Vars[i].CI.Mode: " << Vars[i].CI.Mode << std::endl;
+  
           int EBM;
-          switch (Vars[i].LCI.Mode) {
-          case LossyCompressionInfo::LCModeAbs:
-            EBM = ABS;
-            break;
-          case LossyCompressionInfo::LCModeRel:
-            EBM = REL;
-            break;
-          case LossyCompressionInfo::LCModeAbsAndRel:
-            EBM = ABS_AND_REL;
-            break;
-          case LossyCompressionInfo::LCModeAbsOrRel:
-            EBM = ABS_OR_REL;
-            break;
-          case LossyCompressionInfo::LCModePSNR:
-            EBM = PSNR;
-            break;
+          switch (Vars[i].CI.Mode) 
+          {
+            case CompressionInfo::LCModeAbs:
+              EBM = ABS;
+              break;
+            case CompressionInfo::LCModeRel:
+              EBM = REL;
+              break;
+            case CompressionInfo::LCModeAbsAndRel:
+              EBM = ABS_AND_REL;
+              break;
+            case CompressionInfo::LCModeAbsOrRel:
+              EBM = ABS_OR_REL;
+              break;
+            case CompressionInfo::LCModePSNR:
+              EBM = PSNR;
+              break;
+            case CompressionInfo::LCModePWRel:
+              EBM = PW_REL;
+              break;
+            case CompressionInfo::None:
+            case CompressionInfo::Lossless:
+              EBM = -1; // Cannot happen!!!
+              break;
           }
+          
 
           size_t LOutSize;
           unsigned char *LCompressedData = SZ_compress_args(SZDT, Vars[i].Data, &LOutSize, EBM,
-                                                            Vars[i].LCI.AbsErrThreshold, Vars[i].LCI.RelErrThreshold,
-                                                            Vars[i].LCI.PSNRThreshold, 0, 0, 0, 0, NElems);
+                                                            Vars[i].CI.AbsErrThreshold, Vars[i].CI.RelErrThreshold,
+                                                            Vars[i].CI.PSNRThreshold, 0, 0, 0, 0, NElems);
           if (!LCompressedData)
-            goto nosz;
-          if (LOutSize >= NElems*Vars[i].Size) {
+            goto nocomp;
+          
+
+          if (LOutSize >= NElems*Vars[i].Size) 
+          {
+            //std::cout << "(LOutSize: " << LOutSize << ",  >= NElems*Vars[i].Size)" << NElems*Vars[i].Size << std::endl;
             free(LCompressedData);
-            goto nosz;
+            goto nocomp;
           }
 
           OrigData = LCompressedData;
@@ -586,64 +617,86 @@ void GenericIO::write() {
 
           strncpy(LocalBlockHeaders[i].Filters[FilterIdx++], LossyCompressName, FilterNameSize);
         }
-nosz:
+        else if (Vars[i].CI.Mode == CompressionInfo::Lossless)
+        {
+          std::cout << Vars[i].Name << " - BLOSC Compress" << std::endl;
+          LocalCData[i].resize(sizeof(CompressHeader<IsBigEndian>));
 
-        LocalCData[i].resize(sizeof(CompressHeader<IsBigEndian>));
+          CompressHeader<IsBigEndian> *CH = (CompressHeader<IsBigEndian>*) &LocalCData[i][0];
+          CH->OrigCRC = crc64_omp(OrigData, OrigDataSize);
 
-        CompressHeader<IsBigEndian> *CH = (CompressHeader<IsBigEndian>*) &LocalCData[i][0];
-        CH->OrigCRC = crc64_omp(OrigData, OrigDataSize);
+          #ifdef _OPENMP
+          #pragma omp master
+            {
+          #endif
 
-#ifdef _OPENMP
-#pragma omp master
-  {
-#endif
+          if (!blosc_initialized) 
+          {
+            blosc_init();
+            blosc_initialized = true;
+          }
 
-       if (!blosc_initialized) {
-         blosc_init();
-         blosc_initialized = true;
-       }
+          #ifdef _OPENMP
+              blosc_set_nthreads(omp_get_max_threads());
+            }
+          #endif
 
-#ifdef _OPENMP
-       blosc_set_nthreads(omp_get_max_threads());
-  }
-#endif
+          size_t RealOrigDataSize = NElems*Vars[i].Size;
+          LocalCData[i].resize(LocalCData[i].size() + RealOrigDataSize);
+          if (blosc_compress(9, 1, OrigUnitSize, OrigDataSize, OrigData,
+                             &LocalCData[i][0] + sizeof(CompressHeader<IsBigEndian>),
+                             RealOrigDataSize) <= 0) 
+          {
+            if (FreeOrigData)
+              free(OrigData);
 
-        size_t RealOrigDataSize = NElems*Vars[i].Size;
-        LocalCData[i].resize(LocalCData[i].size() + RealOrigDataSize);
-        if (blosc_compress(9, 1, OrigUnitSize, OrigDataSize, OrigData,
-                           &LocalCData[i][0] + sizeof(CompressHeader<IsBigEndian>),
-                           RealOrigDataSize) <= 0) {
+            goto nocomp;
+          }
+
           if (FreeOrigData)
             free(OrigData);
 
-          goto nocomp;
+          strncpy(LocalBlockHeaders[i].Filters[FilterIdx++], CompressName, FilterNameSize);
+          size_t CNBytes, CCBytes, CBlockSize;
+          blosc_cbuffer_sizes(&LocalCData[i][0] + sizeof(CompressHeader<IsBigEndian>),
+                              &CNBytes, &CCBytes, &CBlockSize);
+          LocalCData[i].resize(CCBytes + sizeof(CompressHeader<IsBigEndian>));
+
+          LocalBlockHeaders[i].Size = LocalCData[i].size();
+          LocalCData[i].resize(LocalCData[i].size() + CRCSize);
+          LocalData[i] = &LocalCData[i][0];
+          LocalHasExtraSpace[i] = true;
         }
+        else
+          goto nocomp;
+      } // ShouldCompress
+      else 
+      {
+        nocomp:
 
-        if (FreeOrigData)
-          free(OrigData);
+        std::cout << Vars[i].Name << " - Not being compressed!!!" << std::endl;
 
-        strncpy(LocalBlockHeaders[i].Filters[FilterIdx++], CompressName, FilterNameSize);
-        size_t CNBytes, CCBytes, CBlockSize;
-        blosc_cbuffer_sizes(&LocalCData[i][0] + sizeof(CompressHeader<IsBigEndian>),
-                            &CNBytes, &CCBytes, &CBlockSize);
-        LocalCData[i].resize(CCBytes + sizeof(CompressHeader<IsBigEndian>));
-
-        LocalBlockHeaders[i].Size = LocalCData[i].size();
-        LocalCData[i].resize(LocalCData[i].size() + CRCSize);
-        LocalData[i] = &LocalCData[i][0];
-        LocalHasExtraSpace[i] = true;
-      } else {
-nocomp:
         LocalBlockHeaders[i].Size = NElems*Vars[i].Size;
         LocalData[i] = Vars[i].Data;
         LocalHasExtraSpace[i] = Vars[i].HasExtraSpace;
-      }
-    }
-  }
+      } // ShouldCompress
+    }   // Vars.size()
+  }     // NeedsBlockHeaders
 
   double StartTime = MPI_Wtime();
 
-  if (SplitRank == 0) {
+  if (SplitRank == 0) 
+  {
+    std::string serializedOctree;
+    uint64_t octreeSize = 0;
+    uint64_t octreeStart = 0;
+    if (hasOctree)
+    {
+      serializedOctree = octreeData.serialize(IsBigEndian);
+      octreeSize  = serializedOctree.size();
+    }
+
+
     uint64_t HeaderSize = sizeof(GlobalHeader<IsBigEndian>) + Vars.size()*sizeof(VariableHeader<IsBigEndian>) +
                           SplitNRanks*sizeof(RankHeader<IsBigEndian>) + CRCSize;
     if (NeedsBlockHeaders)
@@ -657,13 +710,22 @@ nocomp:
     std::copy(Dims, Dims + 3, GH->Dims);
     GH->NVars = Vars.size();
     GH->VarsSize = sizeof(VariableHeader<IsBigEndian>);
-    GH->VarsStart = sizeof(GlobalHeader<IsBigEndian>);
+    GH->VarsStart = sizeof(GlobalHeader<IsBigEndian>) + octreeSize;;
     GH->NRanks = SplitNRanks;
     GH->RanksSize = sizeof(RankHeader<IsBigEndian>);
     GH->RanksStart = GH->VarsStart + Vars.size()*sizeof(VariableHeader<IsBigEndian>);
     GH->GlobalHeaderSize = sizeof(GlobalHeader<IsBigEndian>);
     std::copy(PhysOrigin, PhysOrigin + 3, GH->PhysOrigin);
     std::copy(PhysScale,  PhysScale  + 3, GH->PhysScale);
+
+    if (hasOctree)
+    {
+      octreeStart = sizeof(GlobalHeader<IsBigEndian>);
+      std::copy( serializedOctree.begin(), serializedOctree.end(), &Header[GH->GlobalHeaderSize] );
+    }
+    GH->OctreeSize = octreeSize;
+    GH->OctreeStart = octreeStart;
+
     if (!NeedsBlockHeaders) {
       GH->BlocksSize = GH->BlocksStart = 0;
     } else {
@@ -1081,6 +1143,28 @@ void GenericIO::openAndReadHeader(MismatchBehavior MB, int EffRank, bool CheckPa
   FH.getHeaderCache().clear();
 
   GlobalHeader<false> *GH = (GlobalHeader<false> *) &Header[0];
+
+
+  // Read Octree info if one is present
+  Timer readOctreeClock;
+  readOctreeClock.start();
+
+  int octreeStart = 0;
+  int octreeSize = 0;
+  if (GH->VarsStart != 168)      // for files that do not have octrees
+    if (GH->OctreeSize != 0)   // for files with octree support but have no octree in place
+    {
+      bool isBigEndian = string(GH->Magic, GH->Magic + MagicSize - 1) == MagicBE;
+      hasOctree = true;
+      octreeSize = GH->OctreeSize;
+      octreeStart = GH->OctreeStart;
+      
+      readOctreeHeader(octreeStart, octreeSize, isBigEndian);
+    }
+  readOctreeClock.stop();
+
+
+
   FH.setIsBigEndian(string(GH->Magic, GH->Magic + MagicSize - 1) == MagicBE);
 
   FH.getHeaderCache().swap(Header);
@@ -1466,10 +1550,12 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
   RankHeader<IsBigEndian> *RH = (RankHeader<IsBigEndian> *) &FH.getHeaderCache()[GH->RanksStart +
                                                RankIndex*GH->RanksSize];
 
-  for (size_t i = 0; i < Vars.size(); ++i) {
+  for (size_t i = 0; i < Vars.size(); ++i) 
+  {
     uint64_t Offset = RH->Start;
     bool VarFound = false;
-    for (uint64_t j = 0; j < GH->NVars; ++j) {
+    for (uint64_t j = 0; j < GH->NVars; ++j) 
+    {
       VariableHeader<IsBigEndian> *VH = (VariableHeader<IsBigEndian> *) &FH.getHeaderCache()[GH->VarsStart +
                                                            j*GH->VarsSize];
 
@@ -1479,7 +1565,8 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
         VName.resize(VNameNull);
 
       uint64_t ReadSize = RH->NElems*VH->Size + CRCSize;
-      if (VName != Vars[i].Name) {
+      if (VName != Vars[i].Name) 
+      {
         Offset += ReadSize;
         continue;
       }
@@ -1491,19 +1578,24 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
       VarFound = true;
       bool IsFloat = (bool) (VH->Flags & FloatValue),
            IsSigned = (bool) (VH->Flags & SignedValue);
-      if (VH->Size != Vars[i].Size) {
+      if (VH->Size != Vars[i].Size) 
+      {
         stringstream ss;
         ss << "Size mismatch for variable " << Vars[i].Name <<
               " in: " << OpenFileName << ": current: " << Vars[i].Size <<
               ", file: " << VH->Size;
         throw runtime_error(ss.str());
-      } else if (ElementSize != Vars[i].ElementSize) {
+      } 
+      else if (ElementSize != Vars[i].ElementSize) 
+      {
         stringstream ss;
         ss << "Element size mismatch for variable " << Vars[i].Name <<
               " in: " << OpenFileName << ": current: " << Vars[i].ElementSize <<
               ", file: " << ElementSize;
         throw runtime_error(ss.str());
-      } else if (IsFloat != Vars[i].IsFloat) {
+      } 
+      else if (IsFloat != Vars[i].IsFloat) 
+      {
         string Float("float"), Int("integer");
         stringstream ss;
         ss << "Type mismatch for variable " << Vars[i].Name <<
@@ -1511,7 +1603,9 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
               (Vars[i].IsFloat ? Float : Int) <<
               ", file: " << (IsFloat ? Float : Int);
         throw runtime_error(ss.str());
-      } else if (IsSigned != Vars[i].IsSigned) {
+      } 
+      else if (IsSigned != Vars[i].IsSigned) 
+      {
         string Signed("signed"), Uns("unsigned");
         stringstream ss;
         ss << "Type mismatch for variable " << Vars[i].Name <<
@@ -1526,10 +1620,12 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
 
       vector<unsigned char> LData;
       bool HasSZ = false;
+      bool HasBLOSC = false;
       void *Data = VarData;
       bool HasExtraSpace = Vars[i].HasExtraSpace;
       if (offsetof_safe(GH, BlocksStart) < GH->GlobalHeaderSize &&
-          GH->BlocksSize > 0) {
+          GH->BlocksSize > 0) 
+      {
         BlockHeader<IsBigEndian> *BH = (BlockHeader<IsBigEndian> *)
           &FH.getHeaderCache()[GH->BlocksStart +
                                (RankIndex*GH->NVars + j)*GH->BlocksSize];
@@ -1538,16 +1634,20 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
 
         int FilterIdx = 0;
 
-        if (strncmp(BH->Filters[FilterIdx], LossyCompressName, FilterNameSize) == 0) {
+        if (strncmp(BH->Filters[FilterIdx], LossyCompressName, FilterNameSize) == 0) 
+        {
           ++FilterIdx;
           HasSZ = true;
         }
-
-        if (strncmp(BH->Filters[FilterIdx], CompressName, FilterNameSize) == 0) {
+        else if (strncmp(BH->Filters[FilterIdx], CompressName, FilterNameSize) == 0) 
+        {
           LData.resize(ReadSize);
           Data = &LData[0];
           HasExtraSpace = true;
-        } else if (BH->Filters[FilterIdx][0] != '\0') {
+          HasBLOSC = true;
+        } 
+        else if (BH->Filters[FilterIdx][0] != '\0') 
+        {
           stringstream ss;
           ss << "Unknown filter \"" << BH->Filters[0] << "\" on variable " << Vars[i].Name;
           throw runtime_error(ss.str());
@@ -1573,7 +1673,8 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
         if (EnvStr)
           RetrySleep = atoi(EnvStr);
 
-        for (; Retry < RetryCount; ++Retry) {
+        for (; Retry < RetryCount; ++Retry) 
+        {
           try {
             FH.get()->read(Data, ReadSize, Offset, Vars[i].Name);
             break;
@@ -1582,20 +1683,24 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
           usleep(1000*RetrySleep);
         }
 
-        if (Retry == RetryCount) {
+        if (Retry == RetryCount) 
+        {
           ++NErrs[0];
           break;
-        } else if (Retry > 0) {
+        } 
+        else if (Retry > 0) 
+        {
           EnvStr = getenv("GENERICIO_VERBOSE");
           if (EnvStr) {
             int Mod = atoi(EnvStr);
-            if (Mod > 0) {
+            if (Mod > 0) 
+            {
               int Rank;
-#ifndef GENERICIO_NO_MPI
-              MPI_Comm_rank(MPI_COMM_WORLD, &Rank);
-#else
-              Rank = 0;
-#endif
+              #ifndef GENERICIO_NO_MPI
+                MPI_Comm_rank(MPI_COMM_WORLD, &Rank);
+              #else
+                Rank = 0;
+              #endif
 
               std::cerr << "Rank " << Rank << ": " << Retry <<
                            " I/O retries were necessary for reading " <<
@@ -1614,11 +1719,11 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
         ++NErrs[1];
 
         int Rank;
-#ifndef GENERICIO_NO_MPI
-        MPI_Comm_rank(MPI_COMM_WORLD, &Rank);
-#else
-        Rank = 0;
-#endif
+        #ifndef GENERICIO_NO_MPI
+          MPI_Comm_rank(MPI_COMM_WORLD, &Rank);
+        #else
+          Rank = 0;
+        #endif
 
         // All ranks will do this and have a good time!
         string dn = "gio_crc_errors";
@@ -1659,33 +1764,37 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
       if (HasExtraSpace)
         std::copy(CRCSave, CRCSave + CRCSize, CRCLoc);
 
-      if (LData.size()) {
+      if (LData.size()) 
+      {
         CompressHeader<IsBigEndian> *CH = (CompressHeader<IsBigEndian>*) &LData[0];
 
-#ifdef _OPENMP
-#pragma omp master
-  {
-#endif
+        #ifdef _OPENMP
+        #pragma omp master
+          {
+        #endif
 
-       if (!blosc_initialized) {
-         blosc_init();
-         blosc_initialized = true;
-       }
+        if (!blosc_initialized) 
+        {
+          blosc_init();
+          blosc_initialized = true;
+        }
 
-       if (!sz_initialized) {
-         SZ_Init(NULL);
-         sz_initialized = true;
-       }
+        if (!sz_initialized) 
+        {
+          SZ_Init(NULL);
+          sz_initialized = true;
+        }
 
-#ifdef _OPENMP
-       blosc_set_nthreads(omp_get_max_threads());
-  }
-#endif
+        #ifdef _OPENMP
+          blosc_set_nthreads(omp_get_max_threads());
+          }
+        #endif
 
         void *OrigData = VarData;
         size_t OrigDataSize = Vars[i].Size*RH->NElems;
 
-        if (HasSZ) {
+        if (HasSZ) 
+        {
           size_t CNBytes, CCBytes, CBlockSize;
           blosc_cbuffer_sizes(&LData[0] + sizeof(CompressHeader<IsBigEndian>),
                               &CNBytes, &CCBytes, &CBlockSize);
@@ -1694,15 +1803,18 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
           OrigDataSize = CNBytes;
         }
 
-        blosc_decompress(&LData[0] + sizeof(CompressHeader<IsBigEndian>),
-                         OrigData, OrigDataSize);
+        if (HasBLOSC)
+          blosc_decompress(&LData[0] + sizeof(CompressHeader<IsBigEndian>),
+                            OrigData, OrigDataSize);
 
-        if (CH->OrigCRC != crc64_omp(OrigData, OrigDataSize)) {
+        if (CH->OrigCRC != crc64_omp(OrigData, OrigDataSize)) 
+        {
           ++NErrs[2];
           break;
         }
 
-        if (HasSZ) {
+        if (HasSZ) 
+        {
           int SZDT = GetSZDT(Vars[i]);
           size_t LDSz = SZ_decompress_args(SZDT, (unsigned char *)OrigData, OrigDataSize,
                                            VarData, 0, 0, 0, 0, RH->NElems);
@@ -1756,6 +1868,7 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
       break;
   }
 }
+
 
 void GenericIO::getVariableInfo(vector<VariableInfo> &VI) {
   if (FH.isBigEndian())
@@ -1832,6 +1945,551 @@ void GenericIO::setNaturalDefaultPartition() {
   }
 #endif
 #endif
+}
+
+
+void GenericIO::readDataSection(size_t readOffset, size_t readNumRows, int EffRank, bool PrintStats, bool CollStats)
+{
+    int Rank;
+  #ifndef GENERICIO_NO_MPI
+    MPI_Comm_rank(Comm, &Rank);
+  #else
+    Rank = 0;
+  #endif
+
+    uint64_t TotalReadSize = 0;
+  #ifndef GENERICIO_NO_MPI
+    double StartTime = MPI_Wtime();
+  #else
+    double StartTime = double(clock()) / CLOCKS_PER_SEC;
+  #endif
+
+    int NErrs[3] = { 0, 0, 0 };
+
+    if (EffRank == -1 && Redistributing)
+    {
+        DisableCollErrChecking = true;
+
+        size_t RowOffset = 0;
+        for (int i = 0, ie = SourceRanks.size(); i != ie; ++i)
+        {
+            readDataSection(readOffset, readNumRows, SourceRanks[i], RowOffset, Rank, TotalReadSize, NErrs);
+            RowOffset += readNumElems(SourceRanks[i]);
+        }
+
+        DisableCollErrChecking = false;
+    }
+    else
+    {
+        readDataSection(readOffset, readNumRows, EffRank, 0, Rank, TotalReadSize, NErrs);
+    }
+
+    int AllNErrs[3];
+  #ifndef GENERICIO_NO_MPI
+    MPI_Allreduce(NErrs, AllNErrs, 3, MPI_INT, MPI_SUM, Comm);
+  #else
+    AllNErrs[0] = NErrs[0]; AllNErrs[1] = NErrs[1]; AllNErrs[2] = NErrs[2];
+  #endif
+
+    if (AllNErrs[0] > 0 || AllNErrs[1] > 0 || AllNErrs[2] > 0)
+    {
+        stringstream ss;
+        ss << "Experienced " << AllNErrs[0] << " I/O error(s), " <<
+           AllNErrs[1] << " CRC error(s) and " << AllNErrs[2] <<
+           " decompression CRC error(s) reading: " << OpenFileName;
+        throw runtime_error(ss.str());
+    }
+
+  #ifndef GENERICIO_NO_MPI
+    MPI_Barrier(Comm);
+  #endif
+
+  #ifndef GENERICIO_NO_MPI
+    double EndTime = MPI_Wtime();
+  #else
+    double EndTime = double(clock()) / CLOCKS_PER_SEC;
+  #endif
+
+    double TotalTime = EndTime - StartTime;
+    double MaxTotalTime;
+  #ifndef GENERICIO_NO_MPI
+    if (CollStats)
+        MPI_Reduce(&TotalTime, &MaxTotalTime, 1, MPI_DOUBLE, MPI_MAX, 0, Comm);
+    else
+  #endif
+        MaxTotalTime = TotalTime;
+
+    uint64_t AllTotalReadSize;
+  #ifndef GENERICIO_NO_MPI
+    if (CollStats)
+        MPI_Reduce(&TotalReadSize, &AllTotalReadSize, 1, MPI_UINT64_T, MPI_SUM, 0, Comm);
+    else
+  #endif
+        AllTotalReadSize = TotalReadSize;
+
+    if (Rank == 0 && PrintStats)
+    {
+        double Rate = ((double) AllTotalReadSize) / MaxTotalTime / (1024.*1024.);
+        cout << "Read " << Vars.size() << " variables from " << FileName <<
+             " (" << AllTotalReadSize << " bytes) in " << MaxTotalTime << "s: " <<
+             Rate << " MB/s [excluding header read]" << endl;
+    }
+}
+
+
+void GenericIO::readDataSection(size_t readOffset, size_t readNumRows, int EffRank, size_t RowOffset, int Rank, uint64_t &TotalReadSize, int NErrs[3])
+{
+    if (FH.isBigEndian())
+        readDataSection<true>(readOffset, readNumRows, EffRank, RowOffset, Rank, TotalReadSize, NErrs);
+    else
+        readDataSection<false>(readOffset, readNumRows, EffRank, RowOffset, Rank, TotalReadSize, NErrs);
+}
+
+template <bool IsBigEndian>
+void GenericIO::readDataSection(size_t readOffset, size_t readNumRows, int EffRank, size_t RowOffset, int Rank, uint64_t &TotalReadSize, int NErrs[3])
+{
+    openAndReadHeader(Redistributing ? MismatchRedistribute : MismatchAllowed, EffRank, false);
+
+    assert(FH.getHeaderCache().size() && "HeaderCache must not be empty");
+
+    if (EffRank == -1)
+        EffRank = Rank;
+
+    GlobalHeader<IsBigEndian> *GH = (GlobalHeader<IsBigEndian> *) &FH.getHeaderCache()[0];
+    size_t RankIndex = getRankIndex<IsBigEndian>(EffRank, GH, RankMap, FH.getHeaderCache());
+
+    assert(RankIndex < GH->NRanks && "Invalid rank specified");
+
+    RankHeader<IsBigEndian> *RH = (RankHeader<IsBigEndian> *) &FH.getHeaderCache()[GH->RanksStart +
+                                  RankIndex * GH->RanksSize];
+
+    for (size_t i = 0; i < Vars.size(); ++i)
+    {
+        uint64_t Offset = RH->Start;
+        bool VarFound = false;
+        for (uint64_t j = 0; j < GH->NVars; ++j)
+        {
+            VariableHeader<IsBigEndian> *VH = (VariableHeader<IsBigEndian> *) &FH.getHeaderCache()[GH->VarsStart + j * GH->VarsSize];
+
+            string VName(VH->Name, VH->Name + NameSize);
+            size_t VNameNull = VName.find('\0');
+            if (VNameNull < NameSize)
+                VName.resize(VNameNull);
+
+            uint64_t ReadSize = RH->NElems * VH->Size + CRCSize;
+            if (VName != Vars[i].Name)
+            {
+                Offset += ReadSize;
+                continue;
+            }
+
+            VarFound = true;
+            bool IsFloat = (bool) (VH->Flags & FloatValue), IsSigned = (bool) (VH->Flags & SignedValue);
+            if (VH->Size != Vars[i].Size)
+            {
+                stringstream ss;
+                ss << "Size mismatch for variable " << Vars[i].Name <<
+                   " in: " << OpenFileName << ": current: " << Vars[i].Size <<
+                   ", file: " << VH->Size;
+                throw runtime_error(ss.str());
+            }
+            else if (IsFloat != Vars[i].IsFloat)
+            {
+                string Float("float"), Int("integer");
+                stringstream ss;
+                ss << "Type mismatch for variable " << Vars[i].Name <<
+                   " in: " << OpenFileName << ": current: " <<
+                   (Vars[i].IsFloat ? Float : Int) <<
+                   ", file: " << (IsFloat ? Float : Int);
+                throw runtime_error(ss.str());
+            }
+            else if (IsSigned != Vars[i].IsSigned)
+            {
+                string Signed("signed"), Uns("unsigned");
+                stringstream ss;
+                ss << "Type mismatch for variable " << Vars[i].Name <<
+                   " in: " << OpenFileName << ": current: " <<
+                   (Vars[i].IsSigned ? Signed : Uns) <<
+                   ", file: " << (IsSigned ? Signed : Uns);
+                throw runtime_error(ss.str());
+            }
+
+            size_t VarOffset = RowOffset * Vars[i].Size;
+            void *VarData = ((char *) Vars[i].Data) + VarOffset;
+
+            vector<unsigned char> LData;
+            void *Data = VarData;
+            bool HasExtraSpace = Vars[i].HasExtraSpace;
+            if (offsetof_safe(GH, BlocksStart) < GH->GlobalHeaderSize && GH->BlocksSize > 0)
+            {
+                BlockHeader<IsBigEndian> *BH = (BlockHeader<IsBigEndian> *)
+                                               &FH.getHeaderCache()[GH->BlocksStart +
+                                                       (RankIndex * GH->NVars + j) * GH->BlocksSize];
+
+                ReadSize = BH->Size + CRCSize;
+                Offset = BH->Start;
+
+                if (strncmp(BH->Filters[0], CompressName, FilterNameSize) == 0)
+                {
+                    LData.resize(ReadSize);
+                    Data = &LData[0];
+                    HasExtraSpace = true;
+                }
+                else if (BH->Filters[0][0] != '\0')
+                {
+                    stringstream ss;
+                    ss << "Unknown filter \"" << BH->Filters[0] << "\" on variable " << Vars[i].Name;
+                    throw runtime_error(ss.str());
+                }
+            }
+
+            assert(HasExtraSpace && "Extra space required for reading");
+
+            int Retry = 0;
+            {
+                int RetryCount = 300;
+                const char *EnvStr = getenv("GENERICIO_RETRY_COUNT");
+                if (EnvStr)
+                    RetryCount = atoi(EnvStr);
+
+                int RetrySleep = 100; // ms
+                EnvStr = getenv("GENERICIO_RETRY_SLEEP");
+                if (EnvStr)
+                    RetrySleep = atoi(EnvStr);
+
+                for (; Retry < RetryCount; ++Retry)
+                {
+                    try
+                    {
+                        //
+                        // Read section
+                        ReadSize = readNumRows * VH->Size;
+                        Offset = Offset + readOffset * VH->Size;
+                        FH.get()->read(Data, ReadSize, Offset, Vars[i].Name);
+
+                        break;
+                    }
+                    catch (...) { }
+
+                    usleep(1000 * RetrySleep);
+                }
+
+                if (Retry == RetryCount)
+                {
+                    ++NErrs[0];
+                    break;
+                }
+                else if (Retry > 0)
+                {
+                    EnvStr = getenv("GENERICIO_VERBOSE");
+                    if (EnvStr)
+                    {
+                        int Mod = atoi(EnvStr);
+                        if (Mod > 0)
+                        {
+                            int Rank;
+                          #ifndef GENERICIO_NO_MPI
+                            MPI_Comm_rank(MPI_COMM_WORLD, &Rank);
+                          #else
+                            Rank = 0;
+                          #endif
+
+                            std::cerr << "Rank " << Rank << ": " << Retry <<
+                                      " I/O retries were necessary for reading " <<
+                                      Vars[i].Name << " from: " << OpenFileName << "\n";
+
+                            std::cerr.flush();
+                        }
+                    }
+                }
+            }
+
+            TotalReadSize += ReadSize;
+
+            // Byte swap the data if necessary.
+            if (IsBigEndian != isBigEndian())
+                for (size_t j = 0; j < RH->NElems; ++j)
+                {
+                    char *Offset = ((char *) VarData) + j * Vars[i].Size;
+                    bswap(Offset, Vars[i].Size);
+                }
+
+            break;
+        }
+
+        if (!VarFound)
+            throw runtime_error("Variable " + Vars[i].Name + " not found in: " + OpenFileName);
+    }
+}
+
+
+
+
+void GenericIO::readDataSectionNoMPIBarrier(size_t readOffset, size_t readNumRows, int EffRank, bool PrintStats, bool CollStats)
+{
+    int Rank;
+  #ifndef GENERICIO_NO_MPI
+    MPI_Comm_rank(Comm, &Rank);
+  #else
+    Rank = 0;
+  #endif
+
+    uint64_t TotalReadSize = 0;
+  #ifndef GENERICIO_NO_MPI
+    double StartTime = MPI_Wtime();
+  #else
+    double StartTime = double(clock()) / CLOCKS_PER_SEC;
+  #endif
+
+    int NErrs[3] = { 0, 0, 0 };
+
+    if (EffRank == -1 && Redistributing)
+    {
+        DisableCollErrChecking = true;
+
+        size_t RowOffset = 0;
+        for (int i = 0, ie = SourceRanks.size(); i != ie; ++i)
+        {
+            readDataSection(readOffset, readNumRows, SourceRanks[i], RowOffset, Rank, TotalReadSize, NErrs);
+            RowOffset += readNumElems(SourceRanks[i]);
+        }
+
+        DisableCollErrChecking = false;
+    }
+    else
+    {
+        readDataSection(readOffset, readNumRows, EffRank, 0, Rank, TotalReadSize, NErrs);
+    }
+
+    int AllNErrs[3];
+    AllNErrs[0] = NErrs[0]; AllNErrs[1] = NErrs[1]; AllNErrs[2] = NErrs[2];
+
+    if (AllNErrs[0] > 0 || AllNErrs[1] > 0 || AllNErrs[2] > 0)
+    {
+        stringstream ss;
+        ss << "Experienced " << AllNErrs[0] << " I/O error(s), " <<
+           AllNErrs[1] << " CRC error(s) and " << AllNErrs[2] <<
+           " decompression CRC error(s) reading: " << OpenFileName;
+        throw runtime_error(ss.str());
+    }
+
+  #ifndef GENERICIO_NO_MPI
+    double EndTime = MPI_Wtime();
+  #else
+    double EndTime = double(clock()) / CLOCKS_PER_SEC;
+  #endif
+
+    double TotalTime = EndTime - StartTime;
+    double MaxTotalTime;
+    MaxTotalTime = TotalTime;
+
+    uint64_t AllTotalReadSize;
+    AllTotalReadSize = TotalReadSize;
+
+    if (Rank == 0 && PrintStats)
+    {
+        double Rate = ((double) AllTotalReadSize) / MaxTotalTime / (1024.*1024.);
+        cout << "Read " << Vars.size() << " variables from " << FileName <<
+             " (" << AllTotalReadSize << " bytes) in " << MaxTotalTime << "s: " <<
+             Rate << " MB/s [excluding header read]" << endl;
+    }
+}
+
+
+void GenericIO::readDataSectionNoMPIBarrier(size_t readOffset, size_t readNumRows, int EffRank, size_t RowOffset, int Rank, uint64_t &TotalReadSize, int NErrs[3])
+{
+    if (FH.isBigEndian())
+        readDataSectionNoMPIBarrier<true>(readOffset, readNumRows, EffRank, RowOffset, Rank, TotalReadSize, NErrs);
+    else
+        readDataSectionNoMPIBarrier<false>(readOffset, readNumRows, EffRank, RowOffset, Rank, TotalReadSize, NErrs);
+}
+
+
+template <bool IsBigEndian>
+void GenericIO::readDataSectionNoMPIBarrier(size_t readOffset, size_t readNumRows, int EffRank, size_t RowOffset, int Rank, uint64_t &TotalReadSize, int NErrs[3])
+{
+    openAndReadHeader(Redistributing ? MismatchRedistribute : MismatchAllowed, EffRank, false);
+
+    assert(FH.getHeaderCache().size() && "HeaderCache must not be empty");
+
+    if (EffRank == -1)
+        EffRank = Rank;
+
+    GlobalHeader<IsBigEndian> *GH = (GlobalHeader<IsBigEndian> *) &FH.getHeaderCache()[0];
+    size_t RankIndex = getRankIndex<IsBigEndian>(EffRank, GH, RankMap, FH.getHeaderCache());
+
+    assert(RankIndex < GH->NRanks && "Invalid rank specified");
+
+    RankHeader<IsBigEndian> *RH = (RankHeader<IsBigEndian> *) &FH.getHeaderCache()[GH->RanksStart +
+                                  RankIndex * GH->RanksSize];
+
+    for (size_t i = 0; i < Vars.size(); ++i)
+    {
+        uint64_t Offset = RH->Start;
+        bool VarFound = false;
+        for (uint64_t j = 0; j < GH->NVars; ++j)
+        {
+            VariableHeader<IsBigEndian> *VH = (VariableHeader<IsBigEndian> *) &FH.getHeaderCache()[GH->VarsStart + j * GH->VarsSize];
+
+            string VName(VH->Name, VH->Name + NameSize);
+            size_t VNameNull = VName.find('\0');
+            if (VNameNull < NameSize)
+                VName.resize(VNameNull);
+
+            uint64_t ReadSize = RH->NElems * VH->Size + CRCSize;
+            if (VName != Vars[i].Name)
+            {
+                Offset += ReadSize;
+                continue;
+            }
+
+            VarFound = true;
+            bool IsFloat = (bool) (VH->Flags & FloatValue), IsSigned = (bool) (VH->Flags & SignedValue);
+            if (VH->Size != Vars[i].Size)
+            {
+                stringstream ss;
+                ss << "Size mismatch for variable " << Vars[i].Name <<
+                   " in: " << OpenFileName << ": current: " << Vars[i].Size <<
+                   ", file: " << VH->Size;
+                throw runtime_error(ss.str());
+            }
+            else if (IsFloat != Vars[i].IsFloat)
+            {
+                string Float("float"), Int("integer");
+                stringstream ss;
+                ss << "Type mismatch for variable " << Vars[i].Name <<
+                   " in: " << OpenFileName << ": current: " <<
+                   (Vars[i].IsFloat ? Float : Int) <<
+                   ", file: " << (IsFloat ? Float : Int);
+                throw runtime_error(ss.str());
+            }
+            else if (IsSigned != Vars[i].IsSigned)
+            {
+                string Signed("signed"), Uns("unsigned");
+                stringstream ss;
+                ss << "Type mismatch for variable " << Vars[i].Name <<
+                   " in: " << OpenFileName << ": current: " <<
+                   (Vars[i].IsSigned ? Signed : Uns) <<
+                   ", file: " << (IsSigned ? Signed : Uns);
+                throw runtime_error(ss.str());
+            }
+
+            size_t VarOffset = RowOffset * Vars[i].Size;
+            void *VarData = ((char *) Vars[i].Data) + VarOffset;
+
+            vector<unsigned char> LData;
+            void *Data = VarData;
+            bool HasExtraSpace = Vars[i].HasExtraSpace;
+            if (offsetof_safe(GH, BlocksStart) < GH->GlobalHeaderSize && GH->BlocksSize > 0)
+            {
+                BlockHeader<IsBigEndian> *BH = (BlockHeader<IsBigEndian> *)
+                                               &FH.getHeaderCache()[GH->BlocksStart +
+                                                       (RankIndex * GH->NVars + j) * GH->BlocksSize];
+
+                ReadSize = BH->Size + CRCSize;
+                Offset = BH->Start;
+
+                if (strncmp(BH->Filters[0], CompressName, FilterNameSize) == 0)
+                {
+                    LData.resize(ReadSize);
+                    Data = &LData[0];
+                    HasExtraSpace = true;
+                }
+                else if (BH->Filters[0][0] != '\0')
+                {
+                    stringstream ss;
+                    ss << "Unknown filter \"" << BH->Filters[0] << "\" on variable " << Vars[i].Name;
+                    throw runtime_error(ss.str());
+                }
+            }
+
+            assert(HasExtraSpace && "Extra space required for reading");
+
+            int Retry = 0;
+            {
+                int RetryCount = 300;
+                const char *EnvStr = getenv("GENERICIO_RETRY_COUNT");
+                if (EnvStr)
+                    RetryCount = atoi(EnvStr);
+
+                int RetrySleep = 100; // ms
+                EnvStr = getenv("GENERICIO_RETRY_SLEEP");
+                if (EnvStr)
+                    RetrySleep = atoi(EnvStr);
+
+                for (; Retry < RetryCount; ++Retry)
+                {
+                    try
+                    {
+                        //
+                        // Read section
+                        ReadSize = readNumRows * VH->Size;
+                        Offset = Offset + readOffset * VH->Size;
+                        FH.get()->read(Data, ReadSize, Offset, Vars[i].Name);
+
+                        break;
+                    }
+                    catch (...) { }
+
+                    usleep(1000 * RetrySleep);
+                }
+
+                if (Retry == RetryCount)
+                {
+                    ++NErrs[0];
+                    break;
+                }
+                else if (Retry > 0)
+                {
+                    EnvStr = getenv("GENERICIO_VERBOSE");
+                    if (EnvStr)
+                    {
+                        int Mod = atoi(EnvStr);
+                        if (Mod > 0)
+                        {
+                            int Rank;
+                            #ifndef GENERICIO_NO_MPI
+                            MPI_Comm_rank(MPI_COMM_WORLD, &Rank);
+                            #else
+                            Rank = 0;
+                            #endif
+
+                            std::cerr << "Rank " << Rank << ": " << Retry <<
+                                      " I/O retries were necessary for reading " <<
+                                      Vars[i].Name << " from: " << OpenFileName << "\n";
+
+                            std::cerr.flush();
+                        }
+                    }
+                }
+            }
+
+            TotalReadSize += ReadSize;
+
+            // Byte swap the data if necessary.
+            if (IsBigEndian != isBigEndian())
+                for (size_t j = 0; j < RH->NElems; ++j)
+                {
+                    char *Offset = ((char *) VarData) + j * Vars[i].Size;
+                    bswap(Offset, Vars[i].Size);
+                }
+
+            break;
+        }
+
+        if (!VarFound)
+            throw runtime_error("Variable " + Vars[i].Name + " not found in: " + OpenFileName);
+    }
+}
+
+
+void GenericIO::readOctreeHeader(int octreeOffset, int octreeStringSize, bool bigEndian)
+{
+    std::vector<char> octreeHeader;
+    octreeHeader.resize(octreeStringSize);
+    FH.get()->read(&octreeHeader[0], octreeStringSize, octreeOffset, "Octree Header");
+
+    octreeData.deserialize(&octreeHeader[0], bigEndian);
 }
 
 } /* END namespace cosmotk */

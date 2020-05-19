@@ -5,6 +5,7 @@
 #include <fstream>
 #include <algorithm>
 #include <iostream>
+#include <stdlib.h>
 
 #include "../genericio/GenericIO.h"
 
@@ -30,6 +31,28 @@ class IO
 	std::vector<std::string> splitString(std::string const &str, const char* delim);
 	void writeLogToDisk(std::string logFilename, std::string logContents);
 
+	std::string convertToLowerCase(std::string str){
+		std::transform( str.begin(), str.end(), str.begin(), ::tolower);
+		return str;
+	}
+
+
+	gio::GenericIO::CompressionInfo getCompression(std::string compressor, double value=0.0){
+		if (compressor == "BLOSC")
+			return gio::GenericIO::CompressionInfo(gio::GenericIO::CompressionInfo::Lossless);
+		else if (compressor == "SZ_abs")
+			return gio::GenericIO::CompressionInfo(gio::GenericIO::CompressionInfo::LCModeAbs, value);
+		else if (compressor == "SZ_rel")
+			return gio::GenericIO::CompressionInfo(gio::GenericIO::CompressionInfo::LCModeRel, value);
+		else if (compressor == "SZ_psnr")
+			return gio::GenericIO::CompressionInfo(gio::GenericIO::CompressionInfo::LCModePSNR, value);
+		else if (compressor == "SZ_pw_rel")
+			return gio::GenericIO::CompressionInfo(gio::GenericIO::CompressionInfo::LCModePWRel, value);
+		else
+			return gio::GenericIO::CompressionInfo(gio::GenericIO::CompressionInfo::None);
+	}
+
+
   public:
 
 	IO(std::string _filetype, std::string filename, MPI_Comm comm);
@@ -54,7 +77,7 @@ inline void IO::writeLogToDisk(std::string logFilename, std::string logContents)
 	MPI_Comm_rank(myComm, &myRank);
 
 	std::ofstream myfile;
-  	myfile.open( (logFilename + std::to_string(myRank)).c_str());
+  	myfile.open( (logFilename + std::to_string(myRank) + ".log").c_str() );
   	myfile << logContents;
   	myfile.close();
 }
@@ -271,7 +294,28 @@ inline int IO::addVariable(std::string name, T *data, std::string usrCompression
 	log << "flags: " << flags << std::endl;
 
 
-	
+	// Find maximum allowed compression
+	int maxCompressorSpecsLevel = 0;
+	std::string maxCompressor = "";
+	for (int i=0; i<fileInfo["variables"][scalarIndex].size(); i++)
+	{
+		std::string tempStr = fileInfo["variables"][scalarIndex][i];
+
+		std::string maxCompStr = "max-compression-level:";
+		if (tempStr.compare(0, maxCompStr.length(), maxCompStr) == 0)
+			maxCompressor = tempStr.substr(maxCompStr.length(), tempStr.length()-maxCompStr.length());
+	}
+
+	if (maxCompressor == "Lossy" || maxCompressor == "")
+		maxCompressorSpecsLevel = 2;
+	else if (maxCompressor == "Lossless")
+		maxCompressorSpecsLevel = 1;
+	else // None
+		maxCompressorSpecsLevel = 0;
+
+	log << "maxCompressorSpecs: " << maxCompressor << ", maxCompressorSpecsLevel: " << maxCompressorSpecsLevel << std::endl;
+
+
 
 
 	// No Compression for file
@@ -287,14 +331,11 @@ inline int IO::addVariable(std::string name, T *data, std::string usrCompression
 
 	
 	// User did not specify anythging - find Compression spefified in JSON spec file
-	int maxCompressorSpecsLevel = 0;	
 	if ( usrCompression == "" )
 	{
 		log << "\nNo user speficied compression" << std::endl;
 
 		std::string specsCompressor = "";
-		std::string maxCompressor = "";
-		
 		for (int i=0; i<fileInfo["variables"][scalarIndex].size(); i++)
 		{
 			std::string tempStr = fileInfo["variables"][scalarIndex][i];
@@ -302,26 +343,9 @@ inline int IO::addVariable(std::string name, T *data, std::string usrCompression
 			std::string defCompStr = "default-compressor:";
 			if (tempStr.compare(0, defCompStr.length(), defCompStr) == 0)
 				specsCompressor = tempStr.substr(defCompStr.length(), tempStr.length()-defCompStr.length());
-
-			std::string maxCompStr = "max-compression-level:";
-			if (tempStr.compare(0, maxCompStr.length(), maxCompStr) == 0)
-				maxCompressor = tempStr.substr(maxCompStr.length(), tempStr.length()-maxCompStr.length());
 		}
 		log << "specsCompressor: " << specsCompressor << std::endl;
-		log << "maxCompressorSpecs: " << maxCompressor << std::endl;
 
-		
-		
-		if (maxCompressor == "Lossy" || maxCompressor == "")
-			maxCompressorSpecsLevel = 2;
-		else if (maxCompressor == "Lossless")
-			maxCompressorSpecsLevel = 1;
-		else // None
-			maxCompressorSpecsLevel = 0;
-
-		log << "maxCompressorSpecsLevel: " << maxCompressorSpecsLevel << std::endl;
-
-	
 
 		// Find the compressor to use
 		std::string compressorName = "";
@@ -330,7 +354,6 @@ inline int IO::addVariable(std::string name, T *data, std::string usrCompression
   			compressorName = specsCompressor.substr(0,found_pos);
   		else
     		compressorName = specsCompressor.substr(0,specsCompressor.length());
-
     	log << "\nCompressor name: " << compressorName << std::endl;
     	
 
@@ -342,19 +365,39 @@ inline int IO::addVariable(std::string name, T *data, std::string usrCompression
   			compParams = specsCompressor.substr(found_pos+1,specsCompressor.length());
 
   		const char* delim = " ";
-		std::vector<std::string> userCompressParams = splitString(compParams,delim);
-		for (int i=0; i<userCompressParams.size(); i++)
-			log << " - jsonCompressParams " << i << ": " << userCompressParams[i] << std::endl;
+		std::vector<std::string> compressParams = splitString(compParams,delim);
+		for (int i=0; i<compressParams.size(); i++)
+			log << " - jsonCompressParams " << i << ": " << compressParams[i] << std::endl;
 
 
 
 		// Specify compression for GenericIO
-		//writer->addVariable(name, data, flags);
-
+		if (compressorName == "None")
+		{
+		  	writer->addVariable(name, data, flags);
+		  	log << "None Compressor" << std::endl;
+		}
+		else
+			if (compressorName == "SZ" && maxCompressorSpecsLevel == 2)	// User wants lossy and specs ok with that
+			{
+		 		writer->addVariable(name, data, flags, getCompression("SZ_"+compressParams[0], atof(compressParams[1].c_str())));
+		 		writer->setDefaultShouldCompress(true);
+		 		log << "SZ Compressor" << std::endl;
+			}
+			else
+		 		if (compressorName == "BLOSC" && maxCompressorSpecsLevel >= 1)	// User wants lossless and specs ok with that
+		 		{
+		 			writer->addVariable(name, data, flags, getCompression("BLOSC"));
+		 			writer->setDefaultShouldCompress(true);
+		 			log << "BLOSC Compressor" << std::endl;
+		 		}
+		 		else // disagreement, do not compress
+		 		{ 
+		 			writer->addVariable(name, data, flags);
+		 			log << "No Compressor" << std::endl;
+		 		}
 	}
-
-
-	if ( usrCompression != "" ) //Get user specified compression
+	else //Get user specified compression
 	{
 		log << "\nUser speficied compression" << std::endl;
 
@@ -387,25 +430,34 @@ inline int IO::addVariable(std::string name, T *data, std::string usrCompression
 
 
 		// Specify compression for GenericIO
-		if (userCompressParams[0] == "None")
+		if (compressorName == "None")
 		{
-		  	//writer->addVariable(name, data, flags);
+		  	writer->addVariable(name, data, flags, getCompression("None"));
+		  	log << "!None Compressor" << std::endl;
 		}
 		else
-			if (userCompressParams[0] == "SZ" && maxCompressorSpecsLevel == 2)	// User wants lossy and specs ok with that
+			if (compressorName == "SZ" && maxCompressorSpecsLevel == 2)	// User wants lossy and specs ok with that
 			{
-		 		//writer->addVariable(name, data, flags, userCompressorSpecs);
+		 		writer->addVariable(name, data, flags, getCompression("SZ_"+userCompressParams[0], atof(userCompressParams[1].c_str())));
+		 		writer->setDefaultShouldCompress(true);
+		 		log << "!SZ Compressor" << std::endl;
 			}
 			else
-		 		if (userCompressParams[0] == "BLOSC" && maxCompressorSpecsLevel >= 1)	// User wants lossless and specs ok with that
+		 		if (compressorName == "BLOSC" && maxCompressorSpecsLevel >= 1)	// User wants lossless and specs ok with that
 		 		{
-		 			//writer->addVariable(name, data, flags, userCompressorSpecs);
+		 			writer->addVariable(name, data, flags, getCompression("BLOSC"));
+		 			writer->setDefaultShouldCompress(true);
+		 			log << "!BLOSC Compressor" << std::endl;
 		 		}
 		 		else // disagreement, do not compress
 		 		{ 
-		 			//writer->addVariable(name, data, flags);
+		 			writer->addVariable(name, data, flags, getCompression("None"));
+		 			log << "!No Compressor" << std::endl;
 		 		}
 	}
+
+
+//
 
 	writeLogToDisk("log_",log.str());
 

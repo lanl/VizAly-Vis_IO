@@ -1028,6 +1028,7 @@ void GenericIO::write()
   vector<vector<unsigned char> > LocalCData;
   if (NeedsBlockHeaders)
   {
+    std::cout << "Need block headers" << std::endl;
     LocalBlockHeaders.resize(Vars.size());
     LocalData.resize(Vars.size());
     LocalHasExtraSpace.resize(Vars.size());

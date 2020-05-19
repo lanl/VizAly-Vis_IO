@@ -37,19 +37,12 @@ int main(int argc, char* argv[])
 		int physScale[3] = {256, 256, 256};
 		
 		size_t numParticles = 1000;
-		if (argc == 3)
+		if (argc >= 3)
 			numParticles = atoi(argv[2]);
 		std::cout << "num particles: " << numParticles << std::endl;
 
 
 		MPI_Cart_create(Comm, 3, dims, periods, 0, &Comm);
-		
-		//unsigned method = GenericIO::FileIOMPI;
-		//unsigned method = GenericIO::FileIOPOSIX;
-
-		filename.append("Oct");
-		//GenericIO newGIO(Comm, filename);//, method);
-		//newGIO.setNumElems(numParticles);
 
 
 		
@@ -162,10 +155,13 @@ int main(int argc, char* argv[])
 		// newGIO.addVariable("id", id, GenericIO::VarHasExtraSpace);
 		// newGIO.addVariable("mask", mask, GenericIO::VarHasExtraSpace);
 
+		std::string filetype = "standard-output";
+		if (argc == 4)
+			filetype = std::string(argv[3]);
 
-
-		IO_Layer::IO newGIO("standard-output", filename, Comm);
-		newGIO.setOctreeLevels(3);
+		IO_Layer::IO newGIO(filetype.c_str(), filename, Comm);
+		//IO_Layer::IO newGIO("checkpoint", filename, Comm);
+		//newGIO.setOctreeLevels(3);
 		newGIO.setNumElements(numParticles);
 
 		for (int d=0; d<3; ++d)
@@ -175,13 +171,13 @@ int main(int argc, char* argv[])
         }
 
 		newGIO.addVariable("x", xx);
-        newGIO.addVariable("y", yy);
-		newGIO.addVariable("z", zz);
+        newGIO.addVariable("y", yy, "compress:BLOSC");
+		newGIO.addVariable("z", zz, "compress:SZ~mode:pw_rel 0.1");
 		newGIO.addVariable("vx", vx, "compress:SZ~mode:pw_rel 0.1");
-        newGIO.addVariable("vy", vy, "compress:SZ~mode:pw_rel 0.1");
-        newGIO.addVariable("vz", vz, "ccompress:SZ~mode:pw_rel 0.1");
+  		newGIO.addVariable("vy", vy, "compress:None");
+  		newGIO.addVariable("vz", vz);
         newGIO.addVariable("phi", phi, "compress:SZ~mode:pw_rel 0.003");
-		newGIO.addVariable("id", id);
+		newGIO.addVariable("id", id, "compress:SZ~mode:pw_rel 0.1");
 		newGIO.addVariable("mask", mask);
   
         newGIO.write();
@@ -202,4 +198,5 @@ int main(int argc, char* argv[])
 
 
 // ./compile.sh
-// mpirun -np 4 ./dataGen outputFile 10000
+// mpirun --oversubscribe -np 4 ./dataGen testCompress.gio 5000000 standard-output
+// mpirun --oversubscribe -np 4 ./dataGen testNoCompress.gio 5000000 checkpoint

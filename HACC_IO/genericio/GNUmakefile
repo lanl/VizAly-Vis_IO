@@ -38,10 +38,10 @@
 # *****************************************************************************
 
 CC = gcc
-CXX = g++
+CXX = g++ -std=c++11
 
 MPICC = mpicc
-MPICXX = mpicxx
+MPICXX = mpicxx -std=c++11
 
 all: fe-progs mpi-progs
 sql: fe-sqlite
