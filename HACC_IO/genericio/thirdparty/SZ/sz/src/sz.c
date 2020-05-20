@@ -23,7 +23,6 @@
 #include "Huffman.h"
 #include "conf.h"
 #include "utility.h"
-#include "exafelSZ.h"
 //#include "CurveFillingCompressStorage.h"
 
 int versionNumber[4] = {SZ_VER_MAJOR,SZ_VER_MINOR,SZ_VER_BUILD,SZ_VER_REVISION};
@@ -553,10 +552,7 @@ sz_metadata* SZ_getMetadata(unsigned char* bytes)
 	if(confparams_dec!=NULL)
 		free(confparams_dec);
 	confparams_dec = params;*/	
-	if(confparams_dec->dataType==SZ_FLOAT)
-		index += MetaDataByteLength;
-	else if(confparams_dec->dataType==SZ_DOUBLE)
-		index += MetaDataByteLength_double;
+	index += MetaDataByteLength;
 	
 	if(confparams_dec->dataType!=SZ_FLOAT && confparams_dec->dataType!= SZ_DOUBLE) //if this type is an Int type
 		index++; //jump to the dataLength info byte address
@@ -594,8 +590,7 @@ sz_metadata* SZ_getMetadata(unsigned char* bytes)
 				pwrErrBoundBytesL = 4;
 			}
 			
-			int mdbl = confparams_dec->dataType==SZ_FLOAT?MetaDataByteLength:MetaDataByteLength_double;
-			int offset_typearray = 3 + 1 + mdbl + exe_params->SZ_SIZE_TYPE + 4 + radExpoL + segmentL + pwrErrBoundBytesL + 4 + (4 + confparams_dec->dataType*4) + 1 + 8 
+			int offset_typearray = 3 + 1 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 4 + radExpoL + segmentL + pwrErrBoundBytesL + 4 + (4 + confparams_dec->dataType*4) + 1 + 8 
 					+ exe_params->SZ_SIZE_TYPE + exe_params->SZ_SIZE_TYPE + exe_params->SZ_SIZE_TYPE + 4;
 			defactoNBBins = bytesToInt_bigEndian(bytes+offset_typearray);			
 		}
@@ -616,24 +611,14 @@ void SZ_printMetadata(sz_metadata* metadata)
 	printf("Num of elements:                \t %zu\n", metadata->dataSeriesLength);
 		
 	sz_params* params = metadata->conf_params;
-
-	if(params->sol_ID == SZ)
-		printf("compressor Name: 		\t SZ\n");
-	else if(params->sol_ID == SZ_Transpose)
-		printf("compressor Name: 		\t SZ_Transpose\n");
-	else
-		printf("compressor Name: 		\t Other compressor\n");
+	
 	switch(params->dataType)
 	{
 	case SZ_FLOAT:
 		printf("Data type:                      \t FLOAT\n");
-		printf("min value of raw data:          \t %f\n", params->fmin);
-		printf("max value of raw data:          \t %f\n", params->fmax);		
 		break;
 	case SZ_DOUBLE:
 		printf("Data type:                      \t DOUBLE\n");
-		printf("min value of raw data:          \t %f\n", params->dmin);
-		printf("max value of raw data:          \t %f\n", params->dmax);	
 		break;
 	case SZ_INT8:
 		printf("Data type:                      \t INT8\n");
@@ -747,7 +732,7 @@ void SZ_printMetadata(sz_metadata* metadata)
 	if(params->errorBoundMode>=PW_REL && params->errorBoundMode<=REL_OR_PW_REL)
 	{
 		printf("pw_relBoundRatio:               \t %f\n", params->pw_relBoundRatio);
-		//printf("segment_size:                   \t %d\n", params->segment_size);
+		printf("segment_size:                   \t %d\n", params->segment_size);
 		switch(params->pwr_type)
 		{
 		case SZ_PWR_MIN_TYPE:
@@ -1216,19 +1201,6 @@ unsigned char* SZ_compress_customize(const char* cmprName, void* userPara, int d
 		
 		result = SZ_compress(dataType, data, outSize, r5, r4, r3, r2, r1);
 		*status = SZ_SCES;		
-    }
-    else if(strcmp(cmprName, "SZ_Transpose")==0)
-    {
-		void* transData = transposeData(data, dataType, r5, r4, r3, r2, r1);
-		sz_maybe_init_with_user_params(userPara, confparams_cpr);
-		size_t n = computeDataLength(r5, r4, r3, r2, r1);
-		result = SZ_compress(dataType, transData, outSize, 0, 0, 0, 0, n);
-	}
-    else if(strcmp(cmprName, "ExaFEL")==0){
-    	assert(dataType==SZ_FLOAT);
-    	assert(r5==0);
-    	result = exafelSZ_Compress(userPara,data, r4, r3, r2, r1,outSize);
-    	*status = SZ_SCES;
 	}
 	else
 	{
@@ -1261,18 +1233,6 @@ void* SZ_decompress_customize(const char* cmprName, void* userPara, int dataType
 	{
 		result = SZ_decompress(dataType, bytes, byteLength, r5, r4, r3, r2, r1);
 		* status = SZ_SCES;
-	}
-    else if(strcmp(cmprName, "SZ_Transpose")==0)
-    {
-		size_t n = computeDataLength(r5, r4, r3, r2, r1);
-		void* tmpData = SZ_decompress(dataType, bytes, byteLength, 0, 0, 0, 0, n);
-		result = detransposeData(tmpData, dataType, r5, r4, r3, r2, r1);
-	}
-  	else if(strcmp(cmprName, "ExaFEL")==0){
-    	assert(dataType==SZ_FLOAT);
-   		assert(r5==0);
-    	result = exafelSZ_Decompress(userPara,bytes, r4, r3, r2, r1,byteLength);
-    	*status = SZ_SCES;
 	}
 	else
 	{

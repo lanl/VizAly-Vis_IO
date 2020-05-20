@@ -18,28 +18,6 @@
 #include "szd_float_ts.h"
 #include "utility.h"
 
-
-//struct timeval startTime_;
-//struct timeval endTime_;  /* Start and end times */
-//struct timeval costStart_; /*only used for recording the cost*/
-//double totalCost_ = 0;
-
-/*void cost_start_()
-{
-	totalCost_ = 0;
-	gettimeofday(&costStart_, NULL);
-}
-
-void cost_end_()
-{
-	double elapsed;
-	struct timeval costEnd;
-	gettimeofday(&costEnd, NULL);
-	elapsed = ((costEnd.tv_sec*1000000+costEnd.tv_usec)-(costStart_.tv_sec*1000000+costStart_.tv_usec))/1000000.0;
-	totalCost_ += elapsed;
-}*/
-
-
 /**
  * 
  * int compressionType: 1 (time-based compression) ; 0 (space-based compression)
@@ -92,10 +70,7 @@ size_t cmpSize, int compressionType, float* hist_data)
 		}	
 	}
 	else
-		szTmpBytes = cmpBytes;	
-		
-	confparams_dec->sol_ID = szTmpBytes[4+14]; //szTmpBytes: version(3bytes), samebyte(1byte), [14]:sol_ID=SZ or SZ_Transpose
-		
+		szTmpBytes = cmpBytes;
 	//TODO: convert szTmpBytes to data array.
 	TightDataPointStorageF* tdps;
 	int errBoundMode = new_TightDataPointStorageF_fromFlatBytes(&tdps, szTmpBytes, tmpSize);
@@ -117,11 +92,7 @@ size_t cmpSize, int compressionType, float* hist_data)
 				(*newData)[i] = bytesToFloat(p);
 		}		
 	}
-	else if(confparams_dec->sol_ID==SZ_Transpose)
-	{
-		getSnapshotData_float_1D(newData,dataLength,tdps, errBoundMode, 0, hist_data);		
-	}
-	else //confparams_dec->sol_ID==SZ
+	else 
 	{
 		if(tdps->raBytes_size > 0) //v2.0
 		{
@@ -156,26 +127,6 @@ size_t cmpSize, int compressionType, float* hist_data)
 			}			
 		}
 	}
-
-	//cost_start_();	
-	if(PROTECT_VALUE_RANGE)
-	{
-		float* nd = *newData;
-		float min = confparams_dec->fmin;
-		float max = confparams_dec->fmax;		
-		for(i=0;i<dataLength;i++)
-		{
-			float v = nd[i];
-			if(v <= max && v >= min)
-				continue;
-			if(v < min)
-				nd[i] = min;
-			else if(v > max)
-				nd[i] = max;
-		}
-	}
-	//cost_end_();
-	//printf("totalCost_=%f\n", totalCost_);
 	free_TightDataPointStorageF2(tdps);
 	if(confparams_dec->szMode!=SZ_BEST_SPEED && cmpSize!=8+MetaDataByteLength+exe_params->SZ_SIZE_TYPE)
 		free(szTmpBytes);
@@ -293,7 +244,7 @@ void decompressDataSeries_float_2D(float** data, size_t r1, size_t r2, float* hi
 	//	printf ("%d %d\n", r1, r2);
 
 	unsigned char* leadNum;
-	float realPrecision = tdps->realPrecision;
+	double realPrecision = tdps->realPrecision;
 
 	convertByteArray2IntArray_fast_2b(tdps->exactDataNum, tdps->leadNumArray, tdps->leadNumArray_size, &leadNum);
 
@@ -605,7 +556,7 @@ void decompressDataSeries_float_3D(float** data, size_t r1, size_t r2, size_t r3
 	size_t dataSeriesLength = r1*r2*r3;
 	size_t r23 = r2*r3;
 	unsigned char* leadNum;
-	float realPrecision = tdps->realPrecision;
+	double realPrecision = tdps->realPrecision;
 
 	//TODO
 	convertByteArray2IntArray_fast_2b(tdps->exactDataNum, tdps->leadNumArray, tdps->leadNumArray_size, &leadNum);

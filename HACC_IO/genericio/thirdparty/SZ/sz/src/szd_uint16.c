@@ -83,29 +83,22 @@ int SZ_decompress_args_uint16(uint16_t** newData, size_t r5, size_t r4, size_t r
 				(*newData)[i] = bytesToUInt16_bigEndian(p);
 		}		
 	}
-	else if(confparams_dec->sol_ID==SZ_Transpose)
+	else if (dim == 1)
+		getSnapshotData_uint16_1D(newData,r1,tdps, errBoundMode);
+	else
+	if (dim == 2)
+		getSnapshotData_uint16_2D(newData,r2,r1,tdps, errBoundMode);
+	else
+	if (dim == 3)
+		getSnapshotData_uint16_3D(newData,r3,r2,r1,tdps, errBoundMode);
+	else
+	if (dim == 4)
+		getSnapshotData_uint16_4D(newData,r4,r3,r2,r1,tdps, errBoundMode);
+	else
 	{
-		getSnapshotData_uint16_1D(newData,dataLength,tdps, errBoundMode);		
+		printf("Error: currently support only at most 4 dimensions!\n");
+		status = SZ_DERR;
 	}
-	else //confparams_dec->sol_ID==SZ
-	{
-		if (dim == 1)
-			getSnapshotData_uint16_1D(newData,r1,tdps, errBoundMode);
-		else
-		if (dim == 2)
-			getSnapshotData_uint16_2D(newData,r2,r1,tdps, errBoundMode);
-		else
-		if (dim == 3)
-			getSnapshotData_uint16_3D(newData,r3,r2,r1,tdps, errBoundMode);
-		else
-		if (dim == 4)
-			getSnapshotData_uint16_4D(newData,r4,r3,r2,r1,tdps, errBoundMode);
-		else
-		{
-			printf("Error: currently support only at most 4 dimensions!\n");
-			status = SZ_DERR;
-		}		
-	}	
 	free_TightDataPointStorageI2(tdps);
 	if(confparams_dec->szMode!=SZ_BEST_SPEED && cmpSize!=4+sizeof(uint16_t)+exe_params->SZ_SIZE_TYPE+MetaDataByteLength)
 		free(szTmpBytes);

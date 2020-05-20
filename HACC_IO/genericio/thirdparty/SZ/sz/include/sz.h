@@ -58,7 +58,6 @@
 #include "CacheTable.h"
 #include "MultiLevelCacheTable.h"
 #include "MultiLevelCacheTableWideInterval.h"
-#include "exafelSZ.h"
 
 #ifdef _WIN32
 #define PATH_SEPARATOR ';'
@@ -164,7 +163,7 @@ typedef struct sz_params
 	unsigned int max_quant_intervals; //max number of quantization intervals for quantization
 	unsigned int quantization_intervals; 
 	unsigned int maxRangeRadius;
-	int sol_ID;// it's SZ or SZ_Transpose, unless the setting is PASTRI compression mode (./configure --enable-pastri)
+	int sol_ID;// it's always SZ, unless the setting is PASTRI compression mode (./configure --enable-pastri)
 	int losslessCompressor;
 	int sampleDistance; //2 bytes
 	float predThreshold;  // 2 bytes
@@ -174,13 +173,9 @@ typedef struct sz_params
 	double absErrBound; //absolute error bound
 	double relBoundRatio; //value range based relative error bound ratio
 	double psnr; //PSNR
-	double normErr;
 	double pw_relBoundRatio; //point-wise relative error bound
-	int segment_size; //only used for 2D/3D data compression with pw_relBoundRatio (deprecated)
+	int segment_size; //only used for 2D/3D data compression with pw_relBoundRatio
 	int pwr_type; //only used for 2D/3D data compression with pw_relBoundRatio
-	
-	float fmin, fmax;
-	double dmin, dmax;
 	
 	int snapshotCmprStep; //perform single-snapshot-based compression if time_step == snapshotCmprStep
 	int predictionMode;
@@ -189,8 +184,7 @@ typedef struct sz_params
 	int plus_bits;
 	
 	int randomAccess;
-	int withRegression;
-	
+  int withRegression;
 } sz_params;
 
 typedef struct sz_metadata

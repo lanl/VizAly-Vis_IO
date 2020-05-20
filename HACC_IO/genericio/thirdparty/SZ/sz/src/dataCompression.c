@@ -695,10 +695,7 @@ int initRandomAccessBytes(unsigned char* raBytes)
 	raBytes[k++] = sameByte;
 
 	convertSZParamsToBytes(confparams_cpr, &(raBytes[k]));
-	if(confparams_cpr->dataType==SZ_FLOAT)
-		k = k + MetaDataByteLength;
-	else if(confparams_cpr->dataType==SZ_DOUBLE)
-		k = k + MetaDataByteLength_double;
+	k = k + MetaDataByteLength;
 
 	return k;
 }

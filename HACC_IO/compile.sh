@@ -1,9 +1,8 @@
 #!/bin/bash
 PROJECT_HOME=$(pwd)
 
-
-OPENMPFLAG="-fopenmp"
 OPENMPFLAG="" # On OSX
+OPENMPFLAG="-fopenmp"
 
 BLOSC_O="genericio/mpi/thirdparty/blosc/blosc.o \
 	genericio/mpi/thirdparty/blosc/blosclz.o \
@@ -66,6 +65,7 @@ SZ_O="genericio/mpi/thirdparty/SZ/sz/src/ByteToolkit.o \
 	genericio/mpi/thirdparty/SZ/sz/src/TypeManager.o \
 	genericio/mpi/thirdparty/SZ/sz/src/dictionary.o \
 	genericio/mpi/thirdparty/SZ/sz/src/DynamicFloatArray.o \
+	genericio/mpi/thirdparty/SZ/sz/src/MultiLevelCacheTableWideInterval.o \
 	genericio/mpi/thirdparty/SZ/sz/src/VarSet.o \
 	genericio/mpi/thirdparty/SZ/sz/src/callZlib.o \
 	genericio/mpi/thirdparty/SZ/sz/src/Huffman.o \

@@ -27,9 +27,9 @@ size_t cmpSize, int compressionType, double* hist_data)
 	//unsigned char* tmpBytes;
 	size_t targetUncompressSize = dataLength <<3; //i.e., *8
 	//tmpSize must be "much" smaller than dataLength
-	size_t i, tmpSize = 12+MetaDataByteLength_double+exe_params->SZ_SIZE_TYPE;
+	size_t i, tmpSize = 12+MetaDataByteLength+exe_params->SZ_SIZE_TYPE;
 	unsigned char* szTmpBytes;
-	if(cmpSize!=12+4+MetaDataByteLength_double && cmpSize!=12+8+MetaDataByteLength_double)
+	if(cmpSize!=12+4+MetaDataByteLength && cmpSize!=12+8+MetaDataByteLength)
 	{
 		confparams_dec->losslessCompressor = is_lossless_compressed_data(cmpBytes, cmpSize);
 		if(confparams_dec->szMode!=SZ_TEMPORAL_COMPRESSION)
@@ -48,7 +48,7 @@ size_t cmpSize, int compressionType, double* hist_data)
 		{
 			if(targetUncompressSize<MIN_ZLIB_DEC_ALLOMEM_BYTES) //Considering the minimum size
 				targetUncompressSize = MIN_ZLIB_DEC_ALLOMEM_BYTES; 			
-			tmpSize = sz_lossless_decompress(confparams_dec->losslessCompressor, cmpBytes, (unsigned long)cmpSize, &szTmpBytes, (unsigned long)targetUncompressSize+4+MetaDataByteLength_double+exe_params->SZ_SIZE_TYPE);			
+			tmpSize = sz_lossless_decompress(confparams_dec->losslessCompressor, cmpBytes, (unsigned long)cmpSize, &szTmpBytes, (unsigned long)targetUncompressSize+4+MetaDataByteLength+exe_params->SZ_SIZE_TYPE);			
 			//szTmpBytes = (unsigned char*)malloc(sizeof(unsigned char)*tmpSize);
 			//memcpy(szTmpBytes, tmpBytes, tmpSize);
 			//free(tmpBytes); //release useless memory		
@@ -62,8 +62,6 @@ size_t cmpSize, int compressionType, double* hist_data)
 	}
 	else
 		szTmpBytes = cmpBytes;
-		
-	confparams_dec->sol_ID = szTmpBytes[4+14]; //szTmpBytes: version(3bytes), samebyte(1byte), [14]:sol_ID=SZ or SZ_Transpose		
 	//TODO: convert szTmpBytes to double array.
 	TightDataPointStorageD* tdps;
 	int errBoundMode = new_TightDataPointStorageD_fromFlatBytes(&tdps, szTmpBytes, tmpSize);
@@ -75,20 +73,16 @@ size_t cmpSize, int compressionType, double* hist_data)
 		*newData = (double*)malloc(doubleSize*dataLength);
 		if(sysEndianType==BIG_ENDIAN_SYSTEM)
 		{
-			memcpy(*newData, szTmpBytes+4+MetaDataByteLength_double+exe_params->SZ_SIZE_TYPE, dataLength*doubleSize);
+			memcpy(*newData, szTmpBytes+4+MetaDataByteLength+exe_params->SZ_SIZE_TYPE, dataLength*doubleSize);
 		}
 		else
 		{
-			unsigned char* p = szTmpBytes+4+MetaDataByteLength_double+exe_params->SZ_SIZE_TYPE;
+			unsigned char* p = szTmpBytes+4+MetaDataByteLength+exe_params->SZ_SIZE_TYPE;
 			for(i=0;i<dataLength;i++,p+=doubleSize)
 				(*newData)[i] = bytesToDouble(p);
 		}		
 	}
-	else if(confparams_dec->sol_ID==SZ_Transpose)
-	{
-		getSnapshotData_double_1D(newData,dataLength,tdps, errBoundMode, 0, hist_data);		
-	}
-	else //confparams_dec->sol_ID==SZ
+	else 
 	{
 		if(tdps->raBytes_size > 0) //v2.0
 		{
@@ -127,25 +121,8 @@ size_t cmpSize, int compressionType, double* hist_data)
 		}
 	}	
 
-	if(PROTECT_VALUE_RANGE)
-	{
-		double* nd = *newData;
-		double min = confparams_dec->dmin;
-		double max = confparams_dec->dmax;		
-		for(i=0;i<dataLength;i++)
-		{
-			double v = nd[i];
-			if(v <= max && v >= min)
-				continue;
-			if(v < min)
-				nd[i] = min;
-			else if(v > max)
-				nd[i] = max;
-		}
-	}
-
 	free_TightDataPointStorageD2(tdps);
-	if(confparams_dec->szMode!=SZ_BEST_SPEED && cmpSize!=12+MetaDataByteLength_double+exe_params->SZ_SIZE_TYPE)
+	if(confparams_dec->szMode!=SZ_BEST_SPEED && cmpSize!=12+MetaDataByteLength+exe_params->SZ_SIZE_TYPE)
 		free(szTmpBytes);	
 	return status;
 }

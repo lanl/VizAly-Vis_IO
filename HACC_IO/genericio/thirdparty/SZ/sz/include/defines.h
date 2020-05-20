@@ -13,13 +13,12 @@
 #define SZ_VERNUM 0x0200
 #define SZ_VER_MAJOR 2
 #define SZ_VER_MINOR 1
-#define SZ_VER_BUILD 8
-#define SZ_VER_REVISION 3
+#define SZ_VER_BUILD 7
+#define SZ_VER_REVISION 0
 
 #define PASTRI 103
 #define HZ 102 //deprecated
 #define SZ 101
-#define SZ_Transpose 104
 
 //prediction mode of temporal dimension based compression
 #define SZ_PREVIOUS_VALUE_ESTIMATE 0
@@ -32,7 +31,6 @@
 #define ABS_AND_REL 2
 #define ABS_OR_REL 3
 #define PSNR 4
-#define NORM 5
 
 #define PW_REL 10
 #define ABS_AND_PW_REL 11
@@ -94,15 +92,11 @@
 
 #define GROUP_COUNT 16 //2^{16}=65536
 	
-#define MetaDataByteLength 28
-#define MetaDataByteLength_double 36 //meta data length for double type
+#define MetaDataByteLength 20	
 	
 #define numOfBufferedSteps 1 //the number of time steps in the buffer	
 
 
 #define GZIP_COMPRESSOR 0 //i.e., ZLIB_COMPRSSOR
 #define ZSTD_COMPRESSOR 1
-
-#define PROTECT_VALUE_RANGE 0
-
 #endif /* _SZ_DEFINES_H */

@@ -405,7 +405,7 @@ void SZ_compress_args_double_StoreOriData(double* oriData, size_t dataLength, un
 {	
 	int doubleSize = sizeof(double);
 	size_t k = 0, i;
-	size_t totalByteLength = 3 + MetaDataByteLength_double + exe_params->SZ_SIZE_TYPE + 1 + doubleSize*dataLength;
+	size_t totalByteLength = 3 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 1 + doubleSize*dataLength;
 	/*No need to malloc because newByteData should always already be allocated with no less totalByteLength.*/
 	//*newByteData = (unsigned char*)malloc(totalByteLength);
 	
@@ -419,17 +419,17 @@ void SZ_compress_args_double_StoreOriData(double* oriData, size_t dataLength, un
 		(*newByteData)[k++] = 80;	//01010000: 01000000 indicates the SZ_SIZE_TYPE=8
 
 	convertSZParamsToBytes(confparams_cpr, &((*newByteData)[k]));
-	k = k + MetaDataByteLength_double;
+	k = k + MetaDataByteLength;
 
 	sizeToBytes(dsLengthBytes,dataLength);
 	for (i = 0; i < exe_params->SZ_SIZE_TYPE; i++)//ST: 4 or 8
 		(*newByteData)[k++] = dsLengthBytes[i];
 
 	if(sysEndianType==BIG_ENDIAN_SYSTEM)
-		memcpy((*newByteData)+4+MetaDataByteLength_double+exe_params->SZ_SIZE_TYPE, oriData, dataLength*doubleSize);
+		memcpy((*newByteData)+4+MetaDataByteLength+exe_params->SZ_SIZE_TYPE, oriData, dataLength*doubleSize);
 	else
 	{
-		unsigned char* p = (*newByteData)+4+MetaDataByteLength_double+exe_params->SZ_SIZE_TYPE;
+		unsigned char* p = (*newByteData)+4+MetaDataByteLength+exe_params->SZ_SIZE_TYPE;
 		for(i=0;i<dataLength;i++,p+=doubleSize)
 			doubleToBytes(p, oriData[i]);
 	}
@@ -479,7 +479,7 @@ size_t dataLength, double realPrecision, size_t *outSize, double valueRangeSize,
 	
 	convertTDPStoFlatBytes_double(tdps, newByteData, outSize);
 	
-	if(*outSize>3 + MetaDataByteLength_double + exe_params->SZ_SIZE_TYPE + 1 + sizeof(double)*dataLength)
+	if(*outSize>3 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 1 + sizeof(double)*dataLength)
 		SZ_compress_args_double_StoreOriData(oriData, dataLength, newByteData, outSize);
 	
 	free_TightDataPointStorageD(tdps);	
@@ -767,7 +767,7 @@ char SZ_compress_args_double_NoCkRngeNoGzip_2D(int cmprType, unsigned char** new
 	
 	convertTDPStoFlatBytes_double(tdps, newByteData, outSize);
 	
-	if(*outSize>3 + MetaDataByteLength_double + exe_params->SZ_SIZE_TYPE + 1 + sizeof(double)*dataLength)
+	if(*outSize>3 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 1 + sizeof(double)*dataLength)
 		SZ_compress_args_double_StoreOriData(oriData, dataLength, newByteData, outSize);	
 	
 	free_TightDataPointStorageD(tdps);
@@ -1179,7 +1179,7 @@ char SZ_compress_args_double_NoCkRngeNoGzip_3D(int cmprType, unsigned char** new
 	if(tdps!=NULL)
 	{
 		convertTDPStoFlatBytes_double(tdps, newByteData, outSize);
-		if(*outSize>3 + MetaDataByteLength_double + exe_params->SZ_SIZE_TYPE + 1 + sizeof(double)*dataLength)
+		if(*outSize>3 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 1 + sizeof(double)*dataLength)
 			SZ_compress_args_double_StoreOriData(oriData, dataLength, newByteData, outSize);
 		free_TightDataPointStorageD(tdps);
 	}	
@@ -1524,7 +1524,7 @@ char SZ_compress_args_double_NoCkRngeNoGzip_4D(unsigned char** newByteData, doub
 	convertTDPStoFlatBytes_double(tdps, newByteData, outSize);
 
 	size_t dataLength = r1*r2*r3*r4;
-	if(*outSize>3 + MetaDataByteLength_double + exe_params->SZ_SIZE_TYPE + 1 + sizeof(double)*dataLength)
+	if(*outSize>3 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 1 + sizeof(double)*dataLength)
 		SZ_compress_args_double_StoreOriData(oriData, dataLength, newByteData, outSize);
 
 	free_TightDataPointStorageD(tdps);
@@ -2446,7 +2446,7 @@ void SZ_compress_args_double_withinRange(unsigned char** newByteData, double *or
 
 	//*newByteData = (unsigned char*)malloc(sizeof(unsigned char)*16); //for floating-point data (1+3+4+4)
 	//memcpy(*newByteData, tmpByteData, 16);
-	*outSize = tmpOutSize;//12==3+1+8(double_size)+MetaDataByteLength_double
+	*outSize = tmpOutSize;//12==3+1+8(double_size)+MetaDataByteLength
 	free_TightDataPointStorageD(tdps);	
 }
 
@@ -2540,9 +2540,7 @@ int errBoundMode, double absErr_Bound, double relBoundRatio, double pwRelBoundRa
 	else
 		min = computeRangeSize_double(oriData, dataLength, &valueRangeSize, &medianValue);	
 	double max = min+valueRangeSize;
-	confparams_cpr->dmin = min;
-	confparams_cpr->dmax = max;
-	
+
 	double realPrecision = 0; 
 	
 	if(confparams_cpr->errorBoundMode==PSNR)
@@ -2550,12 +2548,6 @@ int errBoundMode, double absErr_Bound, double relBoundRatio, double pwRelBoundRa
 		confparams_cpr->errorBoundMode = ABS;
 		realPrecision = confparams_cpr->absErrBound = computeABSErrBoundFromPSNR(confparams_cpr->psnr, (double)confparams_cpr->predThreshold, valueRangeSize);
 	}
-	else if(confparams_cpr->errorBoundMode==NORM) //norm error = sqrt(sum((xi-xi_)^2))
-	{
-		confparams_cpr->errorBoundMode = ABS;
-		realPrecision = confparams_cpr->absErrBound = computeABSErrBoundFromNORM_ERR(confparams_cpr->normErr, dataLength);
-		//printf("realPrecision=%lf\n", realPrecision);				
-	}	
 	else
 	{
 		realPrecision = getRealPrecision_double(valueRangeSize, errBoundMode, absErr_Bound, relBoundRatio, &status);
@@ -2589,7 +2581,7 @@ int errBoundMode, double absErr_Bound, double relBoundRatio, double pwRelBoundRa
 #endif
 					{
 						SZ_compress_args_double_NoCkRngeNoGzip_1D(cmprType, &tmpByteData, oriData, r1, realPrecision, &tmpOutSize, valueRangeSize, medianValue);
-						if(tmpOutSize>=dataLength*sizeof(double) + 3 + MetaDataByteLength_double + exe_params->SZ_SIZE_TYPE + 1)
+						if(tmpOutSize>=dataLength*sizeof(double) + 3 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 1)
 							SZ_compress_args_double_StoreOriData(oriData, dataLength, &tmpByteData, &tmpOutSize);
 					}
 		}
@@ -2615,7 +2607,7 @@ int errBoundMode, double absErr_Bound, double relBoundRatio, double pwRelBoundRa
 					else 
 					{
 						tmpByteData = SZ_compress_double_2D_MDQ_nonblocked_with_blocked_regression(oriData, r2, r1, realPrecision, &tmpOutSize);
-						if(tmpOutSize>=dataLength*sizeof(double) + 3 + MetaDataByteLength_double + exe_params->SZ_SIZE_TYPE + 1)
+						if(tmpOutSize>=dataLength*sizeof(double) + 3 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 1)
 							SZ_compress_args_double_StoreOriData(oriData, dataLength, &tmpByteData, &tmpOutSize);
 					}
 				}
@@ -2642,7 +2634,7 @@ int errBoundMode, double absErr_Bound, double relBoundRatio, double pwRelBoundRa
 					else 
 					{
 						tmpByteData = SZ_compress_double_3D_MDQ_nonblocked_with_blocked_regression(oriData, r3, r2, r1, realPrecision, &tmpOutSize);
-						if(tmpOutSize>=dataLength*sizeof(double) + 3 + MetaDataByteLength_double + exe_params->SZ_SIZE_TYPE + 1)
+						if(tmpOutSize>=dataLength*sizeof(double) + 3 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 1)
 							SZ_compress_args_double_StoreOriData(oriData, dataLength, &tmpByteData, &tmpOutSize);
 					}
 				}
@@ -2671,7 +2663,7 @@ int errBoundMode, double absErr_Bound, double relBoundRatio, double pwRelBoundRa
 					else 
 					{
 						tmpByteData = SZ_compress_double_3D_MDQ_nonblocked_with_blocked_regression(oriData, r4*r3, r2, r1, realPrecision, &tmpOutSize);								
-						if(tmpOutSize>=dataLength*sizeof(double) + 3 + MetaDataByteLength_double + exe_params->SZ_SIZE_TYPE + 1)
+						if(tmpOutSize>=dataLength*sizeof(double) + 3 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 1)
 							SZ_compress_args_double_StoreOriData(oriData, dataLength, &tmpByteData, &tmpOutSize);
 					}
 				}
@@ -5762,7 +5754,7 @@ unsigned char * SZ_compress_double_2D_MDQ_nonblocked_with_blocked_regression(dou
 	unsigned char *treeBytes;
 	unsigned int treeByteSize = convert_HuffTree_to_bytes_anyStates(huffmanTree, nodeCount, &treeBytes);
 
-	unsigned int meta_data_offset = 3 + 1 + MetaDataByteLength_double;
+	unsigned int meta_data_offset = 3 + 1 + MetaDataByteLength;
 	// total size 										metadata		  # elements   real precision		intervals	nodeCount		huffman 	 	block index 						unpredicatable count						mean 					 	unpred size 				elements
 	unsigned char * result = (unsigned char *) calloc(meta_data_offset + exe_params->SZ_SIZE_TYPE + sizeof(double) + sizeof(int) + sizeof(int) + 5*treeByteSize + 3*num_blocks*sizeof(int) + num_blocks * sizeof(unsigned short) + num_blocks * sizeof(unsigned short) + num_blocks * sizeof(double) + total_unpred * sizeof(double) + num_elements * sizeof(int), 1);
 	unsigned char * result_pos = result;
@@ -6716,7 +6708,7 @@ unsigned char * SZ_compress_double_3D_MDQ_nonblocked_with_blocked_regression(dou
 	unsigned char *treeBytes;
 	unsigned int treeByteSize = convert_HuffTree_to_bytes_anyStates(huffmanTree, nodeCount, &treeBytes);
 
-	unsigned int meta_data_offset = 3 + 1 + MetaDataByteLength_double;
+	unsigned int meta_data_offset = 3 + 1 + MetaDataByteLength;
 	// total size 										metadata		  # elements     real precision		intervals	nodeCount		huffman 	 	block index 						unpredicatable count						mean 					 	unpred size 				elements
 	unsigned char * result = (unsigned char *) calloc(meta_data_offset + exe_params->SZ_SIZE_TYPE + sizeof(double) + sizeof(int) + sizeof(int) + 5*treeByteSize + 4*num_blocks*sizeof(int)+ num_blocks * sizeof(unsigned short) + num_blocks * sizeof(unsigned short) + num_blocks * sizeof(double) + total_unpred * sizeof(double) + num_elements * sizeof(int), 1);
 	unsigned char * result_pos = result;

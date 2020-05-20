@@ -505,8 +505,8 @@ size_t dataLength, float realPrecision, float valueRangeSize, float medianValue_
 /*	int sum =0;
 	for(i=0;i<dataLength;i++)
 		if(type[i]==0) sum++;
-	printf("opt_quantizations=%d, exactDataNum=%zu, sum=%d\n",quantization_intervals, exactDataNum, sum);
-*/	
+	printf("opt_quantizations=%d, exactDataNum=%d, sum=%d\n",quantization_intervals, exactDataNum, sum);*/
+	
 	//free memory
 	free_DIA(exactLeadNumArray);
 	free_DIA(resiBitArray);
@@ -2814,9 +2814,6 @@ int errBoundMode, double absErr_Bound, double relBoundRatio, double pwRelBoundRa
 	else
 		min = computeRangeSize_float(oriData, dataLength, &valueRangeSize, &medianValue);	
 	float max = min+valueRangeSize;
-	confparams_cpr->fmin = min;
-	confparams_cpr->fmax = max;
-	
 	double realPrecision = 0; 
 	
 	if(confparams_cpr->errorBoundMode==PSNR)
@@ -2824,12 +2821,6 @@ int errBoundMode, double absErr_Bound, double relBoundRatio, double pwRelBoundRa
 		confparams_cpr->errorBoundMode = ABS;
 		realPrecision = confparams_cpr->absErrBound = computeABSErrBoundFromPSNR(confparams_cpr->psnr, (double)confparams_cpr->predThreshold, (double)valueRangeSize);
 		//printf("realPrecision=%lf\n", realPrecision);
-	}
-	else if(confparams_cpr->errorBoundMode==NORM) //norm error = sqrt(sum((xi-xi_)^2))
-	{
-		confparams_cpr->errorBoundMode = ABS;
-		realPrecision = confparams_cpr->absErrBound = computeABSErrBoundFromNORM_ERR(confparams_cpr->normErr, dataLength);
-		//printf("realPrecision=%lf\n", realPrecision);				
 	}
 	else
 	{
@@ -7368,8 +7359,6 @@ unsigned char * SZ_compress_float_3D_MDQ_nonblocked_with_blocked_regression(floa
 	result_pos += indicator_size;
 	
 	//convert the lead/mid/resi to byte stream
-	
-	//printf("reg_count = %d, num_blocks = %d\n", reg_count, num_blocks);
 	if(reg_count > 0){
 		for(int e=0; e<4; e++){
 			int stateNum = 2*coeff_intvCapacity_sz;

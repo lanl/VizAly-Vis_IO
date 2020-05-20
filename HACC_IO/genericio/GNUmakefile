@@ -154,6 +154,7 @@ SZ_O := \
 	thirdparty/SZ/sz/src/TightDataPointStorageF.o \
 	thirdparty/SZ/sz/src/conf.o \
 	thirdparty/SZ/sz/src/DynamicDoubleArray.o \
+	thirdparty/SZ/sz/src/MultiLevelCacheTableWideInterval.o \
 	thirdparty/SZ/sz/src/TypeManager.o \
 	thirdparty/SZ/sz/src/dictionary.o \
 	thirdparty/SZ/sz/src/DynamicFloatArray.o \

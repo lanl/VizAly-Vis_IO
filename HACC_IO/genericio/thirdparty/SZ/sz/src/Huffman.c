@@ -693,19 +693,7 @@ node reconstruct_HuffTree_from_bytes_anyStates(HuffmanTree *huffmanTree, unsigne
 		if(cmpSysEndianType!=(unsigned char)sysEndianType)
 		{
 			unsigned char* p = (unsigned char*)(bytes+1);
-			size_t i = 0, size = 2*nodeCount*sizeof(unsigned short);
-			
-			while(1)
-			{
-				symTransform_2bytes(p);
-				i+=sizeof(unsigned short);
-				if(i<size)
-					p+=sizeof(unsigned short);
-				else
-					break;
-			}
-			
-			size = nodeCount*sizeof(unsigned int);
+			size_t i = 0, size = 3*nodeCount*sizeof(unsigned int);
 			while(1)
 			{
 				symTransform_4bytes(p);
@@ -713,8 +701,8 @@ node reconstruct_HuffTree_from_bytes_anyStates(HuffmanTree *huffmanTree, unsigne
 				if(i<size)
 					p+=sizeof(unsigned int);
 				else
-					break;				
-			}
+					break;
+			}		
 		}
 
 		memcpy(L, bytes+1, nodeCount*sizeof(unsigned short));
