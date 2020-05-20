@@ -58,7 +58,7 @@
     ["y", "CoordX", "extra-space", "default-compressor:BLOSC", "max-compression:Lossy"],
     ["z", "CoordZ", "extra-space", "default-compressor:BLOSC~compressor:SNAPPY~shuffle:BITSHUFFLE", "max-compression:Lossy"],
     ["vx", "extra-space", "default-compressor:SZ~mode:pw_rel 0.01"],
-    ["vy", "extra-space", "default-compressor:SZ~mode:pw_rel 0.01"],
+    ["vy", "extra-space", "default-compressor:None"],
     ["vz", "extra-space", "default-compressor:SZ~mode:pw_rel 0.01"],
     ["id", "extra-space", "default-compressor:BLOSC", "max-compression:Lossless"],
     ["mask", "extra-space"],

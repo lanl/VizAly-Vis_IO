@@ -229,7 +229,7 @@ inline int IO::addVariable(std::string name, T *data, std::string usrCompression
 		return 1;
 	}
 
-	log << "\n\nAdding variable " << name << std::endl;
+	log << "\n\n+ Adding variable " << name << std::endl;
 
 	bool scalarFound;
 	int scalarIndex;

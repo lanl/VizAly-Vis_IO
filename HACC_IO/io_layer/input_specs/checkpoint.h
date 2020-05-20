@@ -16,7 +16,7 @@ auto checkpoint = R"(
 			["z", "CoordZ", "extra-space"],
 			["vx",          "extra-space"],
 			["vy",          "extra-space"],
-			["zz",          "extra-space"],
+			["vz",          "extra-space"],
 			["id",          "extra-space"],
 			["mask",        "extra-space"],
 			["phi",         "extra-space"]

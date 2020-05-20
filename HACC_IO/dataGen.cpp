@@ -45,22 +45,11 @@ int main(int argc, char* argv[])
 		MPI_Cart_create(Comm, 3, dims, periods, 0, &Comm);
 
 
-		
 		//
 		// Variables
 		std::vector<float> xx, yy, zz, vx, vy, vz, phi;
 		std::vector<uint16_t> mask;
 		std::vector<int64_t> id;
-
-		// xx.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
-		// yy.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
-		// zz.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
-		// vx.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
-		// vy.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
-		// vz.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(float));
-		// phi.resize(numParticles  + newGIO.requestedExtraSpace() / sizeof(float));
-		// id.resize(numParticles   + newGIO.requestedExtraSpace() / sizeof(int64_t));
-		// mask.resize(numParticles + newGIO.requestedExtraSpace() / sizeof(uint16_t));
 
 		xx.resize(numParticles);
 		yy.resize(numParticles);
@@ -107,10 +96,7 @@ int main(int argc, char* argv[])
 		{
 			offsetX = _8RankOffset;		offsetY = _8RankOffset;	offsetZ = _8RankOffset;
 		}
-
-		MPI_Barrier(MPI_COMM_WORLD);
-		//log << offsetX << ", " << offsetY << ", " << offsetZ << std::endl;
-
+		
 
 		double maxX, maxY, maxZ;
 		maxX = maxY = maxZ = 0;
@@ -141,27 +127,16 @@ int main(int argc, char* argv[])
 				maxZ = zz[i];
 		}
 
-		// unsigned CoordFlagsX = GenericIO::VarIsPhysCoordX;
-  //       unsigned CoordFlagsY = GenericIO::VarIsPhysCoordY;
-  //       unsigned CoordFlagsZ = GenericIO::VarIsPhysCoordZ;
+		MPI_Barrier(MPI_COMM_WORLD);
 
-		// newGIO.addVariable("x", xx, CoordFlagsX | GenericIO::VarHasExtraSpace);
-  //       newGIO.addVariable("y", yy, CoordFlagsY | GenericIO::VarHasExtraSpace);
-		// newGIO.addVariable("z", zz, CoordFlagsZ | GenericIO::VarHasExtraSpace);
-		// newGIO.addVariable("vx", vx, GenericIO::VarHasExtraSpace);
-  //       newGIO.addVariable("vy", vy, GenericIO::VarHasExtraSpace);
-  //       newGIO.addVariable("vz", vz, GenericIO::VarHasExtraSpace);
-  //       newGIO.addVariable("phi", phi, GenericIO::VarHasExtraSpace);
-		// newGIO.addVariable("id", id, GenericIO::VarHasExtraSpace);
-		// newGIO.addVariable("mask", mask, GenericIO::VarHasExtraSpace);
+
+
 
 		std::string filetype = "standard-output";
 		if (argc == 4)
 			filetype = std::string(argv[3]);
 
 		IO_Layer::IO newGIO(filetype.c_str(), filename, Comm);
-		//IO_Layer::IO newGIO("checkpoint", filename, Comm);
-		//newGIO.setOctreeLevels(3);
 		newGIO.setNumElements(numParticles);
 
 		for (int d=0; d<3; ++d)
@@ -170,26 +145,21 @@ int main(int argc, char* argv[])
             newGIO.setPhysScale(physScale[d], d);
         }
 
-		newGIO.addVariable("x", xx);
-        newGIO.addVariable("y", yy, "compress:BLOSC");
-		newGIO.addVariable("z", zz, "compress:SZ~mode:pw_rel 0.1");
-		newGIO.addVariable("vx", vx, "compress:SZ~mode:pw_rel 0.1");
-  		newGIO.addVariable("vy", vy, "compress:None");
-  		newGIO.addVariable("vz", vz);
-        newGIO.addVariable("phi", phi, "compress:SZ~mode:pw_rel 0.003");
-		newGIO.addVariable("id", id, "compress:SZ~mode:pw_rel 0.1");
-		newGIO.addVariable("mask", mask);
+		newGIO.addVariable("x", xx, "compress:BLOSC");
+		newGIO.addVariable("y", yy);
+  //       newGIO.addVariable("y", yy);
+		// newGIO.addVariable("z", zz);
+		// newGIO.addVariable("vx", vx, "compress:BLOSC");
+  // 		newGIO.addVariable("vy", vy, "compress:None");
+  // 		newGIO.addVariable("vz", vz, "compress:SZ~mode:abs 0.1");
+  //       newGIO.addVariable("phi", phi, "compress:SZ~mode:abs 0.1");
+		// newGIO.addVariable("id", id, "compress:SZ~mode:abs 0.1");
+		// newGIO.addVariable("mask", mask);
   
         newGIO.write();
 
 		MPI_Barrier(MPI_COMM_WORLD);
 	}
-
-	
-	//std::ofstream outputFile( ("dataGEn_" + std::to_string(myRank) + "_.log").c_str(), std::ios::out);
-	//outputFile << log.str();
-	//outputFile.close();
-
 	
 	MPI_Finalize();
 
@@ -198,5 +168,5 @@ int main(int argc, char* argv[])
 
 
 // ./compile.sh
-// mpirun --oversubscribe -np 4 ./dataGen testCompress.gio 5000000 standard-output
-// mpirun --oversubscribe -np 4 ./dataGen testNoCompress.gio 5000000 checkpoint
+// mpirun --oversubscribe -np 4 ./dataGen testCompress.gio 500000 standard-output
+// mpirun --oversubscribe -np 4 ./dataGen testNoCompress.gio 500000 checkpoint
