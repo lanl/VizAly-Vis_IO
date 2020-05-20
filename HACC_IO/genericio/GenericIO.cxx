@@ -601,7 +601,6 @@ void GenericIO::write() {
                                                             Vars[i].CI.PSNRThreshold, 0, 0, 0, 0, NElems);
           if (!LCompressedData)
             goto nocomp;
-          
 
           if (LOutSize >= NElems*Vars[i].Size) 
           {
@@ -609,58 +608,25 @@ void GenericIO::write() {
             goto nocomp;
           }
 
-          if (FreeOrigData)
-            free(OrigData);
-
-          
+          OrigData = LCompressedData;
+          FreeOrigData = true;
+          OrigUnitSize = 1;
+          OrigDataSize = LOutSize;
 
           strncpy(LocalBlockHeaders[i].Filters[FilterIdx++], LossyCompressName, FilterNameSize);
-          //strncpy(LocalBlockHeaders[i].Filters[FilterIdx], LossyCompressName, FilterNameSize);
-
-
-          LocalCData[i].resize(sizeof(CompressHeader<IsBigEndian>));
-          CompressHeader<IsBigEndian> *CH = (CompressHeader<IsBigEndian>*) &LocalCData[i][0];
-          CH->OrigCRC = crc64_omp(LCompressedData, LOutSize);
-
-
-          // exact up to here
-
-
-          size_t RealOrigDataSize = NElems*Vars[i].Size;
-          LocalCData[i].resize(LocalCData[i].size() + RealOrigDataSize);
-
-
-          LocalCData[i].resize(LOutSize + sizeof(CompressHeader<IsBigEndian>));
-
-          LocalBlockHeaders[i].Size = LocalCData[i].size();
-          LocalCData[i].resize(LocalCData[i].size() + CRCSize);
-          LocalData[i] = &LocalCData[i][0];
-          LocalHasExtraSpace[i] = true;
-
-
-
-          std::cout << "sizeof(CompressHeader<IsBigEndian>): " << sizeof(CompressHeader<IsBigEndian>) << std::endl;
-          std::cout << "sizeof(LCompressedData): " << sizeof(LCompressedData) << std::endl;
-
-          std::cout << "SZ -- CH->OrigCRC: " << CH->OrigCRC << ", LOutSize:" << LOutSize << std::endl;
-          std::cout << "SZ -- sizeof(CompressHeader<IsBigEndian>): " << sizeof(CompressHeader<IsBigEndian>) << std::endl;
-
-
         }
-        else if (Vars[i].CI.Mode == CompressionInfo::Lossless)
-        {
-          std::cout << Vars[i].Name << " - BLOSC Compress" << std::endl;
 
+        if (Vars[i].CI.Mode != CompressionInfo::None)
+        {
           LocalCData[i].resize(sizeof(CompressHeader<IsBigEndian>));
 
           CompressHeader<IsBigEndian> *CH = (CompressHeader<IsBigEndian>*) &LocalCData[i][0];
           CH->OrigCRC = crc64_omp(OrigData, OrigDataSize);
 
-          std::cout << "BLOSC -- CH->OrigCRC: " << CH->OrigCRC << ", OrigDataSize: " << OrigDataSize << std::endl;
 
           #ifdef _OPENMP
           #pragma omp master
-            {
+          {
           #endif
 
           if (!blosc_initialized) 
@@ -670,8 +636,8 @@ void GenericIO::write() {
           }
 
           #ifdef _OPENMP
-              blosc_set_nthreads(omp_get_max_threads());
-            }
+            blosc_set_nthreads(omp_get_max_threads());
+          }
           #endif
 
           size_t RealOrigDataSize = NElems*Vars[i].Size;
@@ -680,7 +646,8 @@ void GenericIO::write() {
                              &LocalCData[i][0] + sizeof(CompressHeader<IsBigEndian>),
                              RealOrigDataSize) <= 0) 
           {
-            free(OrigData);
+            if (FreeOrigData)
+              free(OrigData);
 
             goto nocomp;
           }
@@ -688,7 +655,6 @@ void GenericIO::write() {
           if (FreeOrigData)
             free(OrigData);
 
-          //strncpy(LocalBlockHeaders[i].Filters[FilterIdx], CompressName, FilterNameSize);
           strncpy(LocalBlockHeaders[i].Filters[FilterIdx++], CompressName, FilterNameSize);
           size_t CNBytes, CCBytes, CBlockSize;
           blosc_cbuffer_sizes(&LocalCData[i][0] + sizeof(CompressHeader<IsBigEndian>),
@@ -1679,20 +1645,15 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
 
         if (strncmp(BH->Filters[FilterIdx], LossyCompressName, FilterNameSize) == 0) 
         {
-          //++FilterIdx;
-          LData.resize(readSize);
-          Data = &LData[0];
-          HasExtraSpace = true;
+          ++FilterIdx;
           HasSZ = true;
-          std::cout << VH->Name <<" -- HasSZ" << std::endl;
         }
-        else if (strncmp(BH->Filters[FilterIdx], CompressName, FilterNameSize) == 0) 
+
+        if (strncmp(BH->Filters[FilterIdx], CompressName, FilterNameSize) == 0) 
         {
           LData.resize(ReadSize);
           Data = &LData[0];
           HasExtraSpace = true;
-          HasBLOSC = true;
-          std::cout << VH->Name << " - HasBLOSC" << std::endl;
         } 
         else if (BH->Filters[FilterIdx][0] != '\0') 
         {
@@ -1826,118 +1787,54 @@ void GenericIO::readData(int EffRank, size_t RowOffset, int Rank,
           {
         #endif
 
-        if (!blosc_initialized) 
-        {
+        if (!blosc_initialized) {
           blosc_init();
           blosc_initialized = true;
         }
 
-        if (!sz_initialized) 
-        {
+        if (!sz_initialized) {
           SZ_Init(NULL);
           sz_initialized = true;
         }
 
         #ifdef _OPENMP
-          blosc_set_nthreads(omp_get_max_threads());
+               blosc_set_nthreads(omp_get_max_threads());
           }
         #endif
 
         void *OrigData = VarData;
         size_t OrigDataSize = Vars[i].Size*RH->NElems;
 
-        // if (HasSZ) 
-        // {
-        //   size_t CNBytes, CCBytes, CBlockSize;
-        //   blosc_cbuffer_sizes(&LData[0] + sizeof(CompressHeader<IsBigEndian>),
-        //                       &CNBytes, &CCBytes, &CBlockSize);
+        if (HasSZ) 
+        {
+          size_t CNBytes, CCBytes, CBlockSize;
+          blosc_cbuffer_sizes(&LData[0] + sizeof(CompressHeader<IsBigEndian>),
+                              &CNBytes, &CCBytes, &CBlockSize);
 
-        //   OrigData = malloc(CNBytes);
-        //   OrigDataSize = CNBytes;
-        // }
+          OrigData = malloc(CNBytes);
+          OrigDataSize = CNBytes;
+        }
 
-        std::cout << "CH->OrigCRC " << CH->OrigCRC << std::endl;
+
+        blosc_decompress(&LData[0] + sizeof(CompressHeader<IsBigEndian>),
+                         OrigData, OrigDataSize);
+
+        if (CH->OrigCRC != crc64_omp(OrigData, OrigDataSize)) {
+          ++NErrs[2];
+          break;
+        }
 
         if (HasSZ) 
         {
           int SZDT = GetSZDT(Vars[i]);
-          std::cout << "sizeof(OrigData): " << sizeof(OrigData) << std::endl;
-          std::cout << "sizeof(LData.size()): " << sizeof(&LData[0]) << std::endl;
-          //std::cout << "crc64_omp(OrigData, OrigDataSize) " << crc64_omp(OrigData, OrigDataSize) << ", OrigDataSize: " << OrigDataSize << std::endl;
-          std::cout << "crc64_omp(OrigData, readSize) " << crc64_omp(OrigData, readSize) << ", readSize: " << readSize << std::endl;
-          std::cout << "crc64_omp(&LData[0], LData.size()) " << crc64_omp(&LData[0], LData.size()) << ", LData.size(): " << LData.size() << std::endl;
-          std::cout << "crc64_omp(&LData[0] + sizeof(CompressHeader<IsBigEndian>), ReadSize) " << crc64_omp(&LData[0] + sizeof(CompressHeader<IsBigEndian>), ReadSize) << ", ReadSize: " << readSize << std::endl;
-
-          //if (CH->OrigCRC != crc64_omp(OrigData, OrigDataSize)) 
-         
-
-          //cdef size_t SZ_decompress_args(int dataType, unsigned char *bytes, size_t byteLength, 
-          //          void* decompressed_array, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1);
-
-          // size_t SZ_decompress_args(int dataType, unsigned char *bytes, size_t byteLength, void* decompressed_array, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1);
-
-
-          size_t LDSz = SZ_decompress_args(SZDT, &LData[0], LData.size(),
+          size_t LDSz = SZ_decompress_args(SZDT, (unsigned char *)OrigData, OrigDataSize,
                                            VarData, 0, 0, 0, 0, RH->NElems);
-
-          std::cout << (static_cast<float *>(VarData))[0] << std::endl;
-
-
-           if (CH->OrigCRC != crc64_omp(&LData[0], readSize))   
-          {
-            std::cout << "SZ CRC Error!!!" << std::endl;
-            ++NErrs[2];
-            break;
-          }
-
           free(OrigData);
 
           if (LDSz != RH->NElems)
             throw runtime_error("Variable " + Vars[i].Name +
                                 ": SZ decompression yielded the wrong amount of data");
-
-
         }
-
-        //1991208
-        //2000000
-
-        if (HasBLOSC)
-        { 
-          blosc_decompress(&LData[0] + sizeof(CompressHeader<IsBigEndian>),
-                            OrigData, OrigDataSize);
-
-          std::cout << "crc64_omp(OrigData, OrigDataSize) " << crc64_omp(OrigData, OrigDataSize) << ", OrigDataSize: " << OrigDataSize << std::endl;
-
-          if (CH->OrigCRC != crc64_omp(OrigData, OrigDataSize)) 
-          {
-            std::cout << "BLOSC CRC Error!!!" << std::endl;
-            ++NErrs[2];
-            break;
-          }
-        }
-
-        // if (HasBLOSC)
-        //   blosc_decompress(&LData[0] + sizeof(CompressHeader<IsBigEndian>),
-        //                     OrigData, OrigDataSize);
-
-        // if (CH->OrigCRC != crc64_omp(OrigData, OrigDataSize)) 
-        // {
-        //   ++NErrs[2];
-        //   break;
-        // }
-
-        // if (HasSZ) 
-        // {
-        //   int SZDT = GetSZDT(Vars[i]);
-        //   size_t LDSz = SZ_decompress_args(SZDT, (unsigned char *)OrigData, OrigDataSize,
-        //                                    VarData, 0, 0, 0, 0, RH->NElems);
-        //   free(OrigData);
-
-        //   if (LDSz != RH->NElems)
-        //     throw runtime_error("Variable " + Vars[i].Name +
-        //                         ": SZ decompression yielded the wrong amount of data");
-        // }
       }
 
       // Byte swap the data if necessary.
