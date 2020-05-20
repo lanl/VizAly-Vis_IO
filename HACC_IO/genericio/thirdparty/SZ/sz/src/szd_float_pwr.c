@@ -1,7 +1,7 @@
 /**
  *  @file szd_float_pwr.c
- *  @author Sheng Di
- *  @date Aug, 2016
+ *  @author Sheng Di, Dingwen Tao, Xin Liang, Xiangyu Zou, Tao Lu, Wen Xia, Xuan Wang, Weizhe Zhang
+ *  @date Feb., 2019
  *  @brief 
  *  (C) 2016 by Mathematics and Computer Science (MCS), Argonne National Laboratory.
  *      See COPYRIGHT in top-level directory.
@@ -1353,11 +1353,11 @@ void decompressDataSeries_float_1D_pwrgroup(float** data, size_t dataSeriesLengt
 
 void decompressDataSeries_float_1D_pwr_pre_log(float** data, size_t dataSeriesLength, TightDataPointStorageF* tdps) {
 
-	decompressDataSeries_float_1D(data, dataSeriesLength, tdps);
+	decompressDataSeries_float_1D(data, dataSeriesLength, NULL, tdps);
 	float threshold = tdps->minLogValue;
 	if(tdps->pwrErrBoundBytes_size > 0){
 		unsigned char * signs;
-		sz_lossless_decompress(confparams_dec->losslessCompressor, tdps->pwrErrBoundBytes, tdps->pwrErrBoundBytes_size, &signs, dataSeriesLength);
+		sz_lossless_decompress(ZSTD_COMPRESSOR, tdps->pwrErrBoundBytes, tdps->pwrErrBoundBytes_size, &signs, dataSeriesLength);
 		for(size_t i=0; i<dataSeriesLength; i++){
 			if((*data)[i] < threshold) (*data)[i] = 0;
 			else (*data)[i] = exp2((*data)[i]);
@@ -1377,11 +1377,11 @@ void decompressDataSeries_float_1D_pwr_pre_log(float** data, size_t dataSeriesLe
 void decompressDataSeries_float_2D_pwr_pre_log(float** data, size_t r1, size_t r2, TightDataPointStorageF* tdps) {
 
 	size_t dataSeriesLength = r1 * r2;
-	decompressDataSeries_float_2D(data, r1, r2, tdps);
+	decompressDataSeries_float_2D(data, r1, r2, NULL, tdps);
 	float threshold = tdps->minLogValue;
 	if(tdps->pwrErrBoundBytes_size > 0){
 		unsigned char * signs;
-		sz_lossless_decompress(confparams_dec->losslessCompressor, tdps->pwrErrBoundBytes, tdps->pwrErrBoundBytes_size, &signs, dataSeriesLength);
+		sz_lossless_decompress(ZSTD_COMPRESSOR, tdps->pwrErrBoundBytes, tdps->pwrErrBoundBytes_size, &signs, dataSeriesLength);
 		for(size_t i=0; i<dataSeriesLength; i++){
 			if((*data)[i] < threshold) (*data)[i] = 0;
 			else (*data)[i] = exp2((*data)[i]);
@@ -1401,11 +1401,11 @@ void decompressDataSeries_float_2D_pwr_pre_log(float** data, size_t r1, size_t r
 void decompressDataSeries_float_3D_pwr_pre_log(float** data, size_t r1, size_t r2, size_t r3, TightDataPointStorageF* tdps) {
 
 	size_t dataSeriesLength = r1 * r2 * r3;
-	decompressDataSeries_float_3D(data, r1, r2, r3, tdps);
+	decompressDataSeries_float_3D(data, r1, r2, r3, NULL, tdps);
 	float threshold = tdps->minLogValue;
 	if(tdps->pwrErrBoundBytes_size > 0){
 		unsigned char * signs;
-		sz_lossless_decompress(confparams_dec->losslessCompressor, tdps->pwrErrBoundBytes, tdps->pwrErrBoundBytes_size, &signs, dataSeriesLength);
+		sz_lossless_decompress(ZSTD_COMPRESSOR, tdps->pwrErrBoundBytes, tdps->pwrErrBoundBytes_size, &signs, dataSeriesLength);
 		for(size_t i=0; i<dataSeriesLength; i++){
 			if((*data)[i] < threshold) (*data)[i] = 0;
 			else (*data)[i] = exp2((*data)[i]);
@@ -1420,4 +1420,109 @@ void decompressDataSeries_float_3D_pwr_pre_log(float** data, size_t r1, size_t r
 		}
 	}
 }
+
+
+void decompressDataSeries_float_1D_pwr_pre_log_MSST19(float** data, size_t dataSeriesLength, TightDataPointStorageF* tdps) 
+{
+	decompressDataSeries_float_1D_MSST19(data, dataSeriesLength, tdps);
+	float threshold = tdps->minLogValue;
+	uint32_t* ptr;
+
+	if(tdps->pwrErrBoundBytes_size > 0){
+		unsigned char * signs = NULL;
+		if(tdps->pwrErrBoundBytes_size==0)
+		{
+			signs = (unsigned char*)malloc(dataSeriesLength);
+			memset(signs, 0, dataSeriesLength);
+		}
+		else
+			sz_lossless_decompress(ZSTD_COMPRESSOR, tdps->pwrErrBoundBytes, tdps->pwrErrBoundBytes_size, &signs, dataSeriesLength);
+		for(size_t i=0; i<dataSeriesLength; i++){
+			if((*data)[i] < threshold && (*data)[i] >= 0){
+				(*data)[i] = 0;
+				continue;
+			}
+			if(signs[i]){
+			    ptr = (uint32_t*)(*data) + i;
+				*ptr |= 0x80000000;
+			}
+		}
+		free(signs);
+	}
+	else{
+		for(size_t i=0; i<dataSeriesLength; i++){
+			if((*data)[i] < threshold) (*data)[i] = 0;
+		}
+	}
+}
+
+void decompressDataSeries_float_2D_pwr_pre_log_MSST19(float** data, size_t r1, size_t r2, TightDataPointStorageF* tdps) {
+
+	size_t dataSeriesLength = r1 * r2;
+	decompressDataSeries_float_2D_MSST19(data, r1, r2, tdps);
+	float threshold = tdps->minLogValue;
+	uint32_t* ptr;
+
+	if(tdps->pwrErrBoundBytes_size > 0){
+		unsigned char * signs;
+		if(tdps->pwrErrBoundBytes_size==0)
+		{
+			signs = (unsigned char*)malloc(dataSeriesLength);
+			memset(signs, 0, dataSeriesLength);
+		}
+		else
+			sz_lossless_decompress(ZSTD_COMPRESSOR, tdps->pwrErrBoundBytes, tdps->pwrErrBoundBytes_size, &signs, dataSeriesLength);
+		for(size_t i=0; i<dataSeriesLength; i++){
+			if((*data)[i] < threshold && (*data)[i] >= 0){
+				(*data)[i] = 0;
+				continue;
+			}
+			if(signs[i]){
+				ptr = (uint32_t*)(*data) + i;
+				*ptr |= 0x80000000;
+			}
+		}
+		free(signs);
+	}
+	else{
+		for(size_t i=0; i<dataSeriesLength; i++){
+			if((*data)[i] < threshold) (*data)[i] = 0;
+		}
+	}
+}
+
+void decompressDataSeries_float_3D_pwr_pre_log_MSST19(float** data, size_t r1, size_t r2, size_t r3, TightDataPointStorageF* tdps) {
+
+	size_t dataSeriesLength = r1 * r2 * r3;
+	decompressDataSeries_float_3D_MSST19(data, r1, r2, r3, tdps);
+	float threshold = tdps->minLogValue;
+	if(tdps->pwrErrBoundBytes_size > 0){
+		unsigned char * signs;
+		uint32_t* ptr;
+		if(tdps->pwrErrBoundBytes_size==0)
+		{
+			signs = (unsigned char*)malloc(dataSeriesLength);
+			memset(signs, 0, dataSeriesLength);
+		}
+		else
+			sz_lossless_decompress(ZSTD_COMPRESSOR, tdps->pwrErrBoundBytes, tdps->pwrErrBoundBytes_size, &signs, dataSeriesLength);
+		for(size_t i=0; i<dataSeriesLength; i++){
+			if((*data)[i] < threshold && (*data)[i] >= 0) {
+			    (*data)[i] = 0;
+                continue;
+			}
+			if(signs[i]) {
+			    ptr = (uint32_t*)(*data)+i;
+			    *ptr |= 0x80000000;
+			}
+		}
+		free(signs);
+	}
+	else{
+		for(size_t i=0; i<dataSeriesLength; i++){
+			if((*data)[i] < threshold) (*data)[i] = 0;
+		}
+	}
+}
+
 #pragma GCC diagnostic pop

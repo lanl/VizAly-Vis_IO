@@ -59,6 +59,9 @@ typedef struct TightDataPointStorageF
 	
 	unsigned char* raBytes;
 	size_t raBytes_size;
+
+	unsigned char plus_bits;
+	unsigned char max_bits;
 	
 } TightDataPointStorageF;
 

@@ -16,9 +16,9 @@
 #include "Huffman.h"
 #include "szd_float_ts.h"
 
-void decompressDataSeries_float_1D_ts(float** data, size_t dataSeriesLength, sz_multisteps* multisteps, TightDataPointStorageF* tdps) 
+void decompressDataSeries_float_1D_ts(float** data, size_t dataSeriesLength, float* hist_data, TightDataPointStorageF* tdps) 
 {
-	float* lastSnapshotData = (float*)multisteps->hist_data;
+	float* lastSnapshotData = hist_data;
 	updateQuantizationInfo(tdps->intervals);
 	size_t i, j, k = 0, p = 0, l = 0; // k is to track the location of residual_bit
 								// in resiMidBits, p is to track the
@@ -107,7 +107,7 @@ void decompressDataSeries_float_1D_ts(float** data, size_t dataSeriesLength, sz_
 		//printf("%.30G\n",(*data)[i]);
 	}
 	
-	memcpy(multisteps->hist_data, (*data), dataSeriesLength*sizeof(float));
+	memcpy(hist_data, (*data), dataSeriesLength*sizeof(float));
 	
 	free(leadNum);
 	free(type);

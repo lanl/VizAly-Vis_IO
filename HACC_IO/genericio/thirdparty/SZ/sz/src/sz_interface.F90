@@ -951,8 +951,9 @@ MODULE SZ
 
 !--------batch add float
 
-	SUBROUTINE SZ_BatchAddVar_d1_Fortran_REAL_K4(varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
+	SUBROUTINE SZ_BatchAddVar_d1_Fortran_REAL_K4(varID, varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
 		implicit none
+		INTEGER(kind=4) :: varID
 		CHARACTER(len=*) :: varName
 		REAL(KIND=4), DIMENSION(:) :: VAR
 		INTEGER(kind=4) :: ErrBoundMode
@@ -960,11 +961,12 @@ MODULE SZ
 		REAL(kind=4) :: AbsErrBound, RelBoundRatio
 		R1 = SIZE(VAR,1)
 
-		CALL SZ_batchAddVar_d1_Float(varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1)
+		CALL SZ_batchAddVar_d1_Float(varID, varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1)
 	END SUBROUTINE SZ_BatchAddVar_d1_Fortran_REAL_K4
 
-	SUBROUTINE SZ_BatchAddVar_d2_Fortran_REAL_K4(varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
-		implicit none		
+	SUBROUTINE SZ_BatchAddVar_d2_Fortran_REAL_K4(varID, varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
+		implicit none	
+		INTEGER(kind=4) :: varID			
 		CHARACTER(len=*) :: varName
 		REAL(KIND=4), DIMENSION(:,:) :: VAR
 		INTEGER(kind=4) :: ErrBoundMode
@@ -973,11 +975,12 @@ MODULE SZ
 		R1 = SIZE(VAR,1)
 		R2 = SIZE(VAR,2)
 
-		CALL SZ_batchAddVar_d2_Float(varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1, R2)
+		CALL SZ_batchAddVar_d2_Float(varID, varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1, R2)
 	END SUBROUTINE SZ_BatchAddVar_d2_Fortran_REAL_K4
 
-	SUBROUTINE SZ_BatchAddVar_d3_Fortran_REAL_K4(varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
+	SUBROUTINE SZ_BatchAddVar_d3_Fortran_REAL_K4(varID, varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
 		implicit none		
+		INTEGER(kind=4) :: varID		
 		CHARACTER(len=*) :: varName
 		REAL(KIND=4), DIMENSION(:,:,:) :: VAR
 		INTEGER(kind=4) :: ErrBoundMode
@@ -987,11 +990,12 @@ MODULE SZ
 		R2 = SIZE(VAR,2)
 		R3 = SIZE(VAR,3)
 
-		CALL SZ_batchAddVar_d3_Float(varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1, R2, R3)
+		CALL SZ_batchAddVar_d3_Float(varID, varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1, R2, R3)
 	END SUBROUTINE SZ_BatchAddVar_d3_Fortran_REAL_K4
 
-	SUBROUTINE SZ_BatchAddVar_d4_Fortran_REAL_K4(varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
+	SUBROUTINE SZ_BatchAddVar_d4_Fortran_REAL_K4(varID, varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
 		implicit none
+		INTEGER(kind=4) :: varID		
 		CHARACTER(len=*) :: varName
 		REAL(KIND=4), DIMENSION(:,:,:,:) :: VAR
 		INTEGER(kind=4) :: ErrBoundMode
@@ -1002,11 +1006,12 @@ MODULE SZ
 		R3 = SIZE(VAR,3)
 		R4 = SIZE(VAR,4)
 
-		CALL SZ_batchAddVar_d4_Float(varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1, R2, R3, R4)
+		CALL SZ_batchAddVar_d4_Float(varID, varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1, R2, R3, R4)
 	END SUBROUTINE SZ_BatchAddVar_d4_Fortran_REAL_K4
 
-	SUBROUTINE SZ_BatchAddVar_d5_Fortran_REAL_K4(varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
+	SUBROUTINE SZ_BatchAddVar_d5_Fortran_REAL_K4(varID, varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
 		implicit none
+		INTEGER(kind=4) :: varID		
 		CHARACTER(len=*) :: varName
 		REAL(KIND=4), DIMENSION(:,:,:,:,:) :: VAR
 		INTEGER(kind=4) :: ErrBoundMode
@@ -1018,12 +1023,14 @@ MODULE SZ
 		R4 = SIZE(VAR,4)
 		R5 = SIZE(VAR,5)
 
-		CALL SZ_batchAddVar_d5_Float(varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1, R2, R3, R4, R5)
+		CALL SZ_batchAddVar_d5_Float(varID, varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1, R2, &
+                R3, R4, R5)
 	END SUBROUTINE SZ_BatchAddVar_d5_Fortran_REAL_K4
 
 !------batch add double
-	SUBROUTINE SZ_BatchAddVar_d1_Fortran_REAL_K8(varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
+	SUBROUTINE SZ_BatchAddVar_d1_Fortran_REAL_K8(varID, varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
 		implicit none
+		INTEGER(kind=4) :: varID		
 		CHARACTER(len=*) :: varName
 		REAL(KIND=8), DIMENSION(:) :: VAR
 		INTEGER(kind=4) :: ErrBoundMode
@@ -1031,11 +1038,12 @@ MODULE SZ
 		REAL(kind=8) :: AbsErrBound, RelBoundRatio
 		R1 = SIZE(VAR,1)
 
-		CALL SZ_batchAddVar_d1_Double(varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1)
+		CALL SZ_batchAddVar_d1_Double(varID, varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1)
 	END SUBROUTINE SZ_BatchAddVar_d1_Fortran_REAL_K8
 
-	SUBROUTINE SZ_BatchAddVar_d2_Fortran_REAL_K8(varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
+	SUBROUTINE SZ_BatchAddVar_d2_Fortran_REAL_K8(varID, varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
 		implicit none
+		INTEGER(kind=4) :: varID		
 		CHARACTER(len=*) :: varName
 		REAL(KIND=8), DIMENSION(:,:) :: VAR
 		INTEGER(kind=4) :: ErrBoundMode
@@ -1044,11 +1052,12 @@ MODULE SZ
 		R1 = SIZE(VAR,1)
 		R2 = SIZE(VAR,2)
 
-		CALL SZ_batchAddVar_d2_Double(varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1, R2)
+		CALL SZ_batchAddVar_d2_Double(varID, varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1, R2)
 	END SUBROUTINE SZ_BatchAddVar_d2_Fortran_REAL_K8
 
-	SUBROUTINE SZ_BatchAddVar_d3_Fortran_REAL_K8(varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
+	SUBROUTINE SZ_BatchAddVar_d3_Fortran_REAL_K8(varID, varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
 		implicit none
+		INTEGER(kind=4) :: varID		
 		CHARACTER(len=*) :: varName
 		REAL(KIND=8), DIMENSION(:,:,:) :: VAR
 		INTEGER(kind=4) :: ErrBoundMode
@@ -1058,11 +1067,12 @@ MODULE SZ
 		R2 = SIZE(VAR,2)
 		R3 = SIZE(VAR,3)
 
-		CALL SZ_batchAddVar_d3_Double(varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1, R2, R3)
+		CALL SZ_batchAddVar_d3_Double(varID, varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1, R2, R3)
 	END SUBROUTINE SZ_BatchAddVar_d3_Fortran_REAL_K8
 
-	SUBROUTINE SZ_BatchAddVar_d4_Fortran_REAL_K8(varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
+	SUBROUTINE SZ_BatchAddVar_d4_Fortran_REAL_K8(varID, varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
 		implicit none
+		INTEGER(kind=4) :: varID		
 		CHARACTER(len=*) :: varName
 		REAL(KIND=8), DIMENSION(:,:,:,:) :: VAR
 		INTEGER(kind=4) :: ErrBoundMode
@@ -1073,11 +1083,12 @@ MODULE SZ
 		R3 = SIZE(VAR,3)
 		R4 = SIZE(VAR,4)
 
-		CALL SZ_batchAddVar_d4_Double(varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1, R2, R3, R4)
+		CALL SZ_batchAddVar_d4_Double(varID, varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1, R2, R3, R4)
 	END SUBROUTINE SZ_BatchAddVar_d4_Fortran_REAL_K8
 
-	SUBROUTINE SZ_BatchAddVar_d5_Fortran_REAL_K8(varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
+	SUBROUTINE SZ_BatchAddVar_d5_Fortran_REAL_K8(varID, varName, VAR, ErrBoundMode, AbsErrBound, RelBoundRatio)
 		implicit none
+		INTEGER(kind=4) :: varID		
 		CHARACTER(len=*) :: varName
 		REAL(KIND=8), DIMENSION(:,:,:,:,:) :: VAR
 		INTEGER(kind=4) :: ErrBoundMode
@@ -1089,7 +1100,8 @@ MODULE SZ
 		R4 = SIZE(VAR,4)
 		R5 = SIZE(VAR,5)
 
-		CALL SZ_batchAddVar_d5_Double(varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, R1, R2, R3, R4, R5)
+		CALL SZ_batchAddVar_d5_Double(varID, varName, len(trim(varName)), VAR, ErrBoundMode, AbsErrBound, RelBoundRatio, & 
+		R1, R2, R3, R4, R5)
 	END SUBROUTINE SZ_BatchAddVar_d5_Fortran_REAL_K8
 
 	SUBROUTINE SZ_GetVarDim(varName, DIMEN, R1, R2, R3, R4, R5)

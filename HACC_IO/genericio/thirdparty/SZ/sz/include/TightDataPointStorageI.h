@@ -52,7 +52,7 @@ void new_TightDataPointStorageI(TightDataPointStorageI **self,
 		int* type, unsigned char* exactDataBytes, size_t exactDataBytes_size,
 		double realPrecision, long minValue, int intervals, int dataType);
 
-void convertTDPStoBytes_int(TightDataPointStorageI* tdps, unsigned char* bytes, unsigned char* dsLengthBytes, unsigned char sameByte);
+void convertTDPStoBytes_int(TightDataPointStorageI* tdps, unsigned char* bytes, unsigned char sameByte);
 void convertTDPStoFlatBytes_int(TightDataPointStorageI *tdps, unsigned char** bytes, size_t *size);
 void convertTDPStoFlatBytes_int_args(TightDataPointStorageI *tdps, unsigned char* bytes, size_t *size);
 void free_TightDataPointStorageI(TightDataPointStorageI *tdps);

@@ -147,14 +147,14 @@ int main(int argc, char* argv[])
 
 		newGIO.addVariable("x", xx, "compress:BLOSC");
 		newGIO.addVariable("y", yy);
-  //       newGIO.addVariable("y", yy);
-		// newGIO.addVariable("z", zz);
-		// newGIO.addVariable("vx", vx, "compress:BLOSC");
-  // 		newGIO.addVariable("vy", vy, "compress:None");
-  // 		newGIO.addVariable("vz", vz, "compress:SZ~mode:abs 0.1");
-  //       newGIO.addVariable("phi", phi, "compress:SZ~mode:abs 0.1");
-		// newGIO.addVariable("id", id, "compress:SZ~mode:abs 0.1");
-		// newGIO.addVariable("mask", mask);
+        newGIO.addVariable("y", yy);
+		newGIO.addVariable("z", zz);
+		newGIO.addVariable("vx", vx, "compress:BLOSC");
+  		newGIO.addVariable("vy", vy, "compress:None");
+  		newGIO.addVariable("vz", vz, "compress:SZ~mode:abs 0.1");
+        newGIO.addVariable("phi", phi, "compress:SZ~mode:abs 0.1");
+		newGIO.addVariable("id", id, "compress:SZ~mode:abs 0.1");
+		newGIO.addVariable("mask", mask);
   
         newGIO.write();
 

@@ -26,6 +26,10 @@ void decompressDataSeries_float_1D_pwr_pre_log(float** data, size_t dataSeriesLe
 void decompressDataSeries_float_2D_pwr_pre_log(float** data, size_t r1, size_t r2, TightDataPointStorageF* tdps);
 void decompressDataSeries_float_3D_pwr_pre_log(float** data, size_t r1, size_t r2, size_t r3, TightDataPointStorageF* tdps);
 
+void decompressDataSeries_float_1D_pwr_pre_log_MSST19(float** data, size_t dataSeriesLength, TightDataPointStorageF* tdps);
+void decompressDataSeries_float_2D_pwr_pre_log_MSST19(float** data, size_t r1, size_t r2, TightDataPointStorageF* tdps);
+void decompressDataSeries_float_3D_pwr_pre_log_MSST19(float** data, size_t r1, size_t r2, size_t r3, TightDataPointStorageF* tdps);
+
 #ifdef __cplusplus
 }
 #endif

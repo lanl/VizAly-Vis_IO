@@ -58,6 +58,9 @@ typedef struct TightDataPointStorageD
 	unsigned char* raBytes;
 	size_t raBytes_size;
 	
+	unsigned char plus_bits;
+	unsigned char max_bits;
+	
 } TightDataPointStorageD;
 
 void new_TightDataPointStorageD_Empty(TightDataPointStorageD **self);

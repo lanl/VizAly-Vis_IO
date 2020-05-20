@@ -345,7 +345,7 @@ inline short getExponent_double(double value)
 	return (short)expValue;
 }
 
-short getPrecisionReqLength_double(double precision)
+inline short getPrecisionReqLength_double(double precision)
 {
 	ldouble lbuf;
 	lbuf.value = precision;
@@ -832,15 +832,54 @@ inline void sizeToBytes(unsigned char* outBytes, size_t size)
 		longToBytes_bigEndian(outBytes, size);//8
 }
 
+/**
+ * put 'buf_nbBits' bits represented by buf into a long byte stream (the current output byte pointer is p, where offset is the number of bits already filled out for this byte so far)
+ * */
+void put_codes_to_output(unsigned int buf, int bitSize, unsigned char** p, int* lackBits, size_t *outSize)
+{
+	int byteSize, byteSizep;
+	if(*lackBits == 0)
+	{
+		byteSize = bitSize%8==0 ? bitSize/8 : bitSize/8+1; //it's equal to the number of bytes involved (for *outSize)
+		byteSizep = bitSize >> 3; //it's used to move the pointer p for next data
+		intToBytes_bigEndian(*p, buf);
+		(*p) += byteSizep;
+		*outSize += byteSize;
+		(*lackBits) = bitSize%8==0 ? 0 : 8 - bitSize%8;
+	}
+	else
+	{
+		**p = (**p) | (unsigned char)(buf >> (32 - *lackBits));
+		if((*lackBits) < bitSize)
+		{
+			(*p)++;
+			int newCode = buf << (*lackBits);
+			intToBytes_bigEndian(*p, newCode);
+			bitSize -= *lackBits;
+			byteSizep = bitSize >> 3; // =bitSize/8
+			byteSize = bitSize%8==0 ? byteSizep : byteSizep+1;
+			*p += byteSizep;
+			(*outSize)+=byteSize;
+			(*lackBits) = bitSize%8==0 ? 0 : 8 - bitSize%8;
+		}
+		else
+		{
+			(*lackBits) -= bitSize;
+			if(*lackBits==0)
+				(*p)++;
+		}
+	}
+}
+
 void convertSZParamsToBytes(sz_params* params, unsigned char* result)
 {
 	//unsigned char* result = (unsigned char*)malloc(16);
-	unsigned char buf;
+	unsigned char buf = 0;
 	//flag1: exe_params->optQuantMode(1bit), dataEndianType(1bit), sysEndianType(1bit), conf_params->szMode (1bit), conf_params->gzipMode (2bits), pwrType (2bits)
 	buf = exe_params->optQuantMode;
 	buf = (buf << 1) | dataEndianType;
 	buf = (buf << 1) | sysEndianType;
-	buf = (buf << 1) | params->szMode;
+	buf = (buf << 2) | params->szMode;
 	
 	int tmp = 0;
 	switch(params->gzipMode)
@@ -856,7 +895,7 @@ void convertSZParamsToBytes(sz_params* params, unsigned char* result)
 		break;
 	}
 	buf = (buf << 2) | tmp;
-	buf = (buf << 2) |  params->pwr_type;
+	//buf = (buf << 2) |  params->pwr_type; //deprecated
 	result[0] = buf;
 	
     //sampleDistance; //2 bytes
@@ -909,26 +948,39 @@ void convertSZParamsToBytes(sz_params* params, unsigned char* result)
 		break;		
 	}
    
-    //segment_size  // 2 bytes
-    int16ToBytes_bigEndian(&result[14], (short)(params->segment_size));
+    //compressor
+    result[14] = (unsigned char)params->sol_ID;
+    
+    //int16ToBytes_bigEndian(&result[14], (short)(params->segment_size));
     
     if(exe_params->optQuantMode==1)
 		int32ToBytes_bigEndian(&result[16], params->max_quant_intervals);
 	else
 		int32ToBytes_bigEndian(&result[16], params->quantization_intervals);
+	
+	if(params->dataType==SZ_FLOAT)
+	{
+		floatToBytes(&result[20], params->fmin);
+		floatToBytes(&result[24], params->fmax);		
+	}
+	else
+	{
+		doubleToBytes(&result[20], params->dmin);
+		doubleToBytes(&result[28], params->dmax);		
+	}
+
 }
 
-sz_params* convertBytesToSZParams(unsigned char* bytes)
+void convertBytesToSZParams(unsigned char* bytes, sz_params* params)
 {
-	sz_params* params = (sz_params*)malloc(sizeof(struct sz_params));
 	unsigned char flag1 = bytes[0];
-	exe_params->optQuantMode = flag1 >> 7;
-	dataEndianType = (flag1 & 0x7f) >> 7;
-	sysEndianType = (flag1 & 0x3f) >> 7;
+	exe_params->optQuantMode = (flag1 & 0x40) >> 6;
+	dataEndianType = (flag1 & 0x20) >> 5;
+	//sysEndianType = (flag1 & 0x10) >> 4;
 	
-	params->szMode = (flag1 & 0x1f) >> 7;
+	params->szMode = (flag1 & 0x0c) >> 2;
 	
-	int tmp = (flag1 & 0x0f) >> 6;
+	int tmp = (flag1 & 0x03);
 	switch(tmp)
 	{
 	case 0:
@@ -942,7 +994,7 @@ sz_params* convertBytesToSZParams(unsigned char* bytes)
 		break;
 	}
 	
-	params->pwr_type = (flag1 & 0x03) >> 6;
+	//params->pwr_type = (flag1 & 0x03) >> 0;
 
 	params->sampleDistance = bytesToInt16_bigEndian(&bytes[1]);
 	
@@ -983,7 +1035,8 @@ sz_params* convertBytesToSZParams(unsigned char* bytes)
 	}
 	
     //segment_size  // 2 bytes
-    params->segment_size = bytesToInt16_bigEndian(&bytes[14]);	
+    //params->segment_size = bytesToInt16_bigEndian(&bytes[14]);	
+    params->sol_ID = (int)(bytes[14]);
     
     if(exe_params->optQuantMode==1)
     {
@@ -995,5 +1048,16 @@ sz_params* convertBytesToSZParams(unsigned char* bytes)
 		params->max_quant_intervals = 0;
 		params->quantization_intervals = bytesToInt32_bigEndian(&bytes[16]);  
 	}
-	return params;
+	
+	if(params->dataType==SZ_FLOAT)
+	{
+		params->fmin = bytesToFloat(&bytes[20]);
+		params->fmax = bytesToFloat(&bytes[24]);		
+	}
+	else if(params->dataType==SZ_DOUBLE)
+	{
+		params->dmin = bytesToDouble(&bytes[20]);
+		params->dmax = bytesToDouble(&bytes[28]);				
+	}
+
 }

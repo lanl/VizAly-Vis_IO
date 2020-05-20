@@ -1137,6 +1137,7 @@ void SZ_compress_args_int32_withinRange(unsigned char** newByteData, int32_t *or
 	//tdps->exactByteSize = 4;
 	tdps->exactDataNum = 1;
 	tdps->exactDataBytes_size = 4;
+	tdps->dataTypeSize = convertDataTypeSize(sizeof(int32_t));
 	
 	int32_t value = oriData[0];
 	int32ToBytes_bigEndian(tdps->exactDataBytes, value);

@@ -69,8 +69,9 @@ double realPrecision, float valueRangeSize, float medianValue_f)
 	float* preStepData = (float*)(multisteps->hist_data);
 
 	//store the decompressed data
-	float* decData = (float*)malloc(sizeof(float)*dataLength);
-	memset(decData, 0, sizeof(float)*dataLength);
+	//float* decData = (float*)malloc(sizeof(float)*dataLength);
+	//memset(decData, 0, sizeof(float)*dataLength);
+	float* decData = preStepData;
 	
 	unsigned int quantization_intervals;
 	if(exe_params->optQuantMode==1)
@@ -197,8 +198,8 @@ double realPrecision, float valueRangeSize, float medianValue_f)
 	free(lce);	
 	free(exactMidByteArray); //exactMidByteArray->array has been released in free_TightDataPointStorageF(tdps);
 		
-	memcpy(preStepData, decData, dataLength*sizeof(float)); //update the data
-	free(decData);
+	//memcpy(preStepData, decData, dataLength*sizeof(float)); //update the data
+	//free(decData);
 	
 	return tdps;
 }

@@ -16,6 +16,7 @@ extern "C" {
 
 #include "sz.h"
 #include <stdio.h>
+#include <stdbool.h>
 
 #define computeMinMax(data) \
         for(i=1;i<size;i++)\
@@ -33,7 +34,10 @@ int computeByteSizePerIntValue(long valueRangeSize);
 long computeRangeSize_int(void* oriData, int dataType, size_t size, int64_t* valueRangeSize);
 double computeRangeSize_double(double* oriData, size_t size, double* valueRangeSize, double* medianValue);
 float computeRangeSize_float(float* oriData, size_t size, float* valueRangeSize, float* medianValue);
-float computeRangeSize_double_subblock(double* oriData, double* valueRangeSize, double* medianValue,
+float computeRangeSize_float_MSST19(float* oriData, size_t size, float* valueRangeSize, float* medianValue, unsigned char * signs, bool* positive, float* nearZero);
+double computeRangeSize_double_MSST19(double* oriData, size_t size, double* valueRangeSize, double* medianValue, unsigned char * signs, bool* positive, double* nearZero);
+
+double computeRangeSize_double_subblock(double* oriData, double* valueRangeSize, double* medianValue,
 size_t r5, size_t r4, size_t r3, size_t r2, size_t r1,
 size_t s5, size_t s4, size_t s3, size_t s2, size_t s1,
 size_t e5, size_t e4, size_t e3, size_t e2, size_t e1);
@@ -64,8 +68,11 @@ void compressUInt64Value(uint64_t tgtValue, uint64_t minValue, int byteSize, uns
 
 void compressSingleFloatValue(FloatValueCompressElement *vce, float tgtValue, float precision, float medianValue, 
 		int reqLength, int reqBytesLength, int resiBitsLength);
+void compressSingleFloatValue_MSST19(FloatValueCompressElement *vce, float tgtValue, float precision, int reqLength, int reqBytesLength, int resiBitsLength);
 void compressSingleDoubleValue(DoubleValueCompressElement *vce, double tgtValue, double precision, double medianValue, 
 		int reqLength, int reqBytesLength, int resiBitsLength);
+void compressSingleDoubleValue_MSST19(DoubleValueCompressElement *vce, double tgtValue, double precision, int reqLength, int reqBytesLength, int resiBitsLength);
+                              
 int compIdenticalLeadingBytesCount_double(unsigned char* preBytes, unsigned char* curBytes);
 int compIdenticalLeadingBytesCount_float(unsigned char* preBytes, unsigned char* curBytes);
 void addExactData(DynamicByteArray *exactMidByteArray, DynamicIntArray *exactLeadNumArray, 

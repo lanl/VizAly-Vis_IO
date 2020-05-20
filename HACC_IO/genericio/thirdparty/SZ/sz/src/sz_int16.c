@@ -1253,6 +1253,7 @@ void SZ_compress_args_int16_withinRange(unsigned char** newByteData, int16_t *or
 	//tdps->exactByteSize = 4;
 	tdps->exactDataNum = 1;
 	tdps->exactDataBytes_size = 2;
+	tdps->dataTypeSize = convertDataTypeSize(sizeof(int16_t));
 	
 	int16_t value = oriData[0];
 	int16ToBytes_bigEndian(tdps->exactDataBytes, value);

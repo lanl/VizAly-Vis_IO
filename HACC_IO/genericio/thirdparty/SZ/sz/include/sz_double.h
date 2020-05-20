@@ -18,6 +18,8 @@ extern "C" {
 unsigned char* SZ_skip_compress_double(double* data, size_t dataLength, size_t* outSize);
 
 void computeReqLength_double(double realPrecision, short radExpo, int* reqLength, double* medianValue);
+short computeReqLength_double_MSST19(double realPrecision);
+
 unsigned int optimize_intervals_double_1D(double *oriData, size_t dataLength, double realPrecision);
 unsigned int optimize_intervals_double_2D(double *oriData, size_t r1, size_t r2, double realPrecision);
 unsigned int optimize_intervals_double_3D(double *oriData, size_t r1, size_t r2, size_t r3, double realPrecision);
@@ -27,28 +29,37 @@ unsigned int optimize_intervals_double_3D_opt(double *oriData, size_t r1, size_t
 unsigned int optimize_intervals_double_2D_opt(double *oriData, size_t r1, size_t r2, double realPrecision);
 unsigned int optimize_intervals_double_1D_opt(double *oriData, size_t dataLength, double realPrecision);
 
+size_t SZ_compress_double_3D_MDQ_RA_block(double * block_ori_data, double * mean, size_t dim_0, size_t dim_1, size_t dim_2, size_t block_dim_0, size_t block_dim_1, size_t block_dim_2, double realPrecision, double * P0, double * P1, int * type, double * unpredictable_data);
+
+unsigned int optimize_intervals_double_1D_opt_MSST19(double *oriData, size_t dataLength, double realPrecision);
+unsigned int optimize_intervals_double_2D_opt_MSST19(double *oriData, size_t r1, size_t r2, double realPrecision);
+unsigned int optimize_intervals_double_3D_opt_MSST19(double *oriData, size_t r1, size_t r2, size_t r3, double realPrecision);
 TightDataPointStorageD* SZ_compress_double_1D_MDQ(double *oriData, 
 size_t dataLength, double realPrecision, double valueRangeSize, double medianValue_d);
-void SZ_compress_args_double_StoreOriData(double* oriData, size_t dataLength, TightDataPointStorageD* tdps, unsigned char** newByteData, size_t *outSize);
+void SZ_compress_args_double_StoreOriData(double* oriData, size_t dataLength, unsigned char** newByteData, size_t *outSize);
 
-char SZ_compress_args_double_NoCkRngeNoGzip_1D(unsigned char** newByteData, double *oriData, size_t dataLength, double realPrecision, size_t *outSize, double valueRangeSize, double medianValue_d);
+char SZ_compress_args_double_NoCkRngeNoGzip_1D(int cmprType, unsigned char** newByteData, double *oriData, size_t dataLength, double realPrecision, size_t *outSize, double valueRangeSize, double medianValue_d);
 
 TightDataPointStorageD* SZ_compress_double_2D_MDQ(double *oriData, size_t r1, size_t r2, double realPrecision, double valueRangeSize, double medianValue_d);
-char SZ_compress_args_double_NoCkRngeNoGzip_2D(unsigned char** newByteData, double *oriData, size_t r1, size_t r2, double realPrecision, size_t *outSize, double valueRangeSize, double medianValue_d);
+char SZ_compress_args_double_NoCkRngeNoGzip_2D(int cmprType, unsigned char** newByteData, double *oriData, size_t r1, size_t r2, double realPrecision, size_t *outSize, double valueRangeSize, double medianValue_d);
 
 TightDataPointStorageD* SZ_compress_double_3D_MDQ(double *oriData, size_t r1, size_t r2, size_t r3, double realPrecision, double valueRangeSize, double medianValue_d);
-char SZ_compress_args_double_NoCkRngeNoGzip_3D(unsigned char** newByteData, double *oriData, size_t r1, size_t r2, size_t r3, double realPrecision, size_t *outSize, double valueRangeSize, double medianValue_d);
+char SZ_compress_args_double_NoCkRngeNoGzip_3D(int cmprType, unsigned char** newByteData, double *oriData, size_t r1, size_t r2, size_t r3, double realPrecision, size_t *outSize, double valueRangeSize, double medianValue_d);
 
 TightDataPointStorageD* SZ_compress_double_4D_MDQ(double *oriData, size_t r1, size_t r2, size_t r3, size_t r4, double realPrecision, double valueRangeSize, double medianValue_d);
 char SZ_compress_args_double_NoCkRngeNoGzip_4D(unsigned char** newByteData, double *oriData, size_t r1, size_t r2, size_t r3, size_t r4, double realPrecision, size_t *outSize, double valueRangeSize, double medianValue_d);
 
+TightDataPointStorageD* SZ_compress_double_1D_MDQ_MSST19(double *oriData, size_t dataLength, double realPrecision, double valueRangeSize, double medianValue_f);
+TightDataPointStorageD* SZ_compress_double_2D_MDQ_MSST19(double *oriData, size_t r1, size_t r2, double realPrecision, double valueRangeSize, double medianValue_f);
+TightDataPointStorageD* SZ_compress_double_3D_MDQ_MSST19(double *oriData, size_t r1, size_t r2, size_t r3, double realPrecision, double valueRangeSize, double medianValue_f);
+
 void SZ_compress_args_double_withinRange(unsigned char** newByteData, double *oriData, size_t dataLength, size_t *outSize);
 
-int SZ_compress_args_double_wRngeNoGzip(unsigned char** newByteData, double *oriData, 
+/*int SZ_compress_args_double_wRngeNoGzip(unsigned char** newByteData, double *oriData, 
 size_t r5, size_t r4, size_t r3, size_t r2, size_t r1, size_t *outSize, 
-int errBoundMode, double absErr_Bound, double relBoundRatio, double pwrErrRatio);
+int errBoundMode, double absErr_Bound, double relBoundRatio, double pwrErrRatio);*/
 
-int SZ_compress_args_double(unsigned char** newByteData, double *oriData, 
+int SZ_compress_args_double(int cmprType, unsigned char** newByteData, double *oriData, 
 size_t r5, size_t r4, size_t r3, size_t r2, size_t r1, size_t *outSize, 
 int errBoundMode, double absErr_Bound, double relBoundRatio, double pwRelBoundRatio);
 

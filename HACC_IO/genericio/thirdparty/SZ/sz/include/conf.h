@@ -24,6 +24,7 @@ int checkVersion(char* version);
 void initSZ_TSC();
 unsigned int roundUpToPowerOf2(unsigned int base);
 double computeABSErrBoundFromPSNR(double psnr, double threshold, double value_range);
+double computeABSErrBoundFromNORM_ERR(double normErr, size_t nbEle);
 
 #ifdef __cplusplus
 }

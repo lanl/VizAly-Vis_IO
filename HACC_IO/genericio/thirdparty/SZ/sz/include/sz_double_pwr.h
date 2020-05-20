@@ -15,6 +15,7 @@ extern "C" {
 #endif
 
 #include <stdio.h>
+#include <stdbool.h>
 
 void compute_segment_precisions_double_1D(double *oriData, size_t dataLength, double* pwrErrBound, unsigned char* pwrErrBoundBytes, double globalPrecision);
 unsigned int optimize_intervals_double_1D_pwr(double *oriData, size_t dataLength, double* pwrErrBound); 
@@ -40,6 +41,13 @@ size_t dataLength, double absErrBound, double relBoundRatio, double pwrErrRatio,
 void SZ_compress_args_double_NoCkRngeNoGzip_1D_pwr_pre_log(unsigned char** newByteData, double *oriData, double globalPrecision, size_t dataLength, size_t *outSize, double min, double max);
 void SZ_compress_args_double_NoCkRngeNoGzip_2D_pwr_pre_log(unsigned char** newByteData, double *oriData, double globalPrecision, size_t r1, size_t r2, size_t *outSize, double min, double max);
 void SZ_compress_args_double_NoCkRngeNoGzip_3D_pwr_pre_log(unsigned char** newByteData, double *oriData, double globalPrecision, size_t r1, size_t r2, size_t r3, size_t *outSize, double min, double max);
+
+void SZ_compress_args_double_NoCkRngeNoGzip_1D_pwr_pre_log_MSST19(unsigned char** newByteData, double *oriData, double pwrErrRatio, size_t dataLength, size_t *outSize, double valueRangeSize, double medianValue_f,
+																unsigned char* signs, bool* positive, double min, double max, double nearZero);
+void SZ_compress_args_double_NoCkRngeNoGzip_2D_pwr_pre_log_MSST19(unsigned char** newByteData, double *oriData, double pwrErrRatio, size_t r1, size_t r2, size_t *outSize, double valueRangeSize,
+																unsigned char* signs, bool* positive, double min, double max, double nearZero);
+void SZ_compress_args_double_NoCkRngeNoGzip_3D_pwr_pre_log_MSST19(unsigned char** newByteData, double *oriData, double pwrErrRatio, size_t r1, size_t r2, size_t r3, size_t *outSize, double valueRangeSize, 
+																unsigned char* signs, bool* positive, double min, double max, double nearZero);
 
 #ifdef __cplusplus
 }

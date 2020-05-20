@@ -75,7 +75,9 @@ int new_TightDataPointStorageD_fromFlatBytes(TightDataPointStorageD **this, unsi
 	(*this)->isLossless = (sameRByte & 0x10)>>4;
 	int isPW_REL = (sameRByte & 0x20)>>5;
 	exe_params->SZ_SIZE_TYPE = ((sameRByte & 0x40)>>6)==1?8:4;
-	
+	//confparams_dec->randomAccess = (sameRByte & 0x02) >> 1;
+	//confparams_dec->szMode = (sameRByte & 0x06) >> 1;						//0000,0110	
+	confparams_dec->accelerate_pw_rel_compression = (sameRByte & 0x08) >> 3;
 	int errorBoundMode = ABS;
 	if(isPW_REL)
 	{
@@ -84,24 +86,16 @@ int new_TightDataPointStorageD_fromFlatBytes(TightDataPointStorageD **this, unsi
 		pwrErrBoundBytesL = 4;
 	}
 	
-	sz_params* params = convertBytesToSZParams(&(flatBytes[index]));
-	int mode = confparams_dec->szMode;
-	int predictionMode = confparams_dec->predictionMode;
-	int losslessCompressor = confparams_dec->losslessCompressor;
-	if(confparams_dec!=NULL)
-		free(confparams_dec);
-	confparams_dec = params;
-	confparams_dec->szMode = mode;
-	confparams_dec->losslessCompressor = losslessCompressor;
-	
-	if(mode==SZ_TEMPORAL_COMPRESSION)
+	if(confparams_dec==NULL)
 	{
-		confparams_dec->szMode = SZ_TEMPORAL_COMPRESSION;
-		confparams_dec->predictionMode = predictionMode;
-	}
-	index += MetaDataByteLength;
+		confparams_dec = (sz_params*)malloc(sizeof(sz_params));
+		memset(confparams_dec, 0, sizeof(sz_params));
+	}	
+	convertBytesToSZParams(&(flatBytes[index]), confparams_dec);
 
-	int isRandomAccess = (sameRByte >> 7) & 0x01;
+	index += MetaDataByteLength_double;
+
+	int isRegression = (sameRByte >> 7) & 0x01;
 
 	unsigned char dsLengthBytes[8];
 	for (i = 0; i < exe_params->SZ_SIZE_TYPE; i++)
@@ -118,26 +112,21 @@ int new_TightDataPointStorageD_fromFlatBytes(TightDataPointStorageD **this, unsi
 	else if(same==1)
 	{
 		(*this)->allSameData = 1;
-		size_t exactMidBytesLength = sizeof(double);//flatBytesLength - 3 - 1 - MetaDataByteLength -exe_params->SZ_SIZE_TYPE;
-		if(exactMidBytesLength>0)
-			(*this)->exactMidBytes = (unsigned char*)malloc(sizeof(unsigned char)*exactMidBytesLength);
-		else
-			(*this)->exactMidBytes = NULL;
-		for(i = 0;i<exactMidBytesLength;i++)
-			(*this)->exactMidBytes[i] = flatBytes[index++];
+		//size_t exactMidBytesLength = sizeof(double);//flatBytesLength - 3 - 1 - MetaDataByteLength_double -exe_params->SZ_SIZE_TYPE;
+		(*this)->exactMidBytes = &(flatBytes[index]);
 		return errorBoundMode;
 	}
 	else
 		(*this)->allSameData = 0;
 		
-	if(isRandomAccess == 1)
+	if(isRegression == 1)
 	{
-		(*this)->raBytes_size = flatBytesLength - 3 - 1 - MetaDataByteLength - exe_params->SZ_SIZE_TYPE;
+		(*this)->raBytes_size = flatBytesLength - 3 - 1 - MetaDataByteLength_double - exe_params->SZ_SIZE_TYPE;
 		(*this)->raBytes = &(flatBytes[index]);
 		return errorBoundMode;
 	}					
 		
-	int rtype_ = sameRByte & 0x08; //1000		
+	int rtype_ = 0;//sameRByte & 0x08; //1000		
 
 	unsigned char byteBuf[8];
 
@@ -153,7 +142,7 @@ int new_TightDataPointStorageD_fromFlatBytes(TightDataPointStorageD **this, unsi
 		radExpoL = 1;
 		for (i = 0; i < exe_params->SZ_SIZE_TYPE; i++)
 			byteBuf[i] = flatBytes[index++];
-		params->segment_size = (*this)->segment_size = bytesToSize(byteBuf);// exe_params->SZ_SIZE_TYPE	
+		confparams_dec->segment_size = (*this)->segment_size = bytesToSize(byteBuf);// exe_params->SZ_SIZE_TYPE	
 
 		for (i = 0; i < 4; i++)
 			byteBuf[i] = flatBytes[index++];
@@ -174,7 +163,13 @@ int new_TightDataPointStorageD_fromFlatBytes(TightDataPointStorageD **this, unsi
 	(*this)->medianValue = bytesToDouble(byteBuf);//8
 
 	(*this)->reqLength = flatBytes[index++]; //1
-
+	
+	if(isPW_REL && confparams_dec->accelerate_pw_rel_compression)
+	{
+		(*this)->plus_bits = flatBytes[index++];
+		(*this)->max_bits = flatBytes[index++];
+	}
+	
 	for (i = 0; i < 8; i++)
 		byteBuf[i] = flatBytes[index++];
 	(*this)->realPrecision = bytesToDouble(byteBuf);//8
@@ -227,18 +222,18 @@ int new_TightDataPointStorageD_fromFlatBytes(TightDataPointStorageD **this, unsi
 
 	if ((*this)->rtypeArray != NULL) 
 	{
-		(*this)->residualMidBits_size = flatBytesLength - 3 - 1 - MetaDataByteLength - exe_params->SZ_SIZE_TYPE - 4 - radExpoL - segmentL - pwrErrBoundBytesL - 4 - 8 - 1 - 8 
-				- exe_params->SZ_SIZE_TYPE - exe_params->SZ_SIZE_TYPE - exe_params->SZ_SIZE_TYPE - exe_params->SZ_SIZE_TYPE - 8 - (*this)->rtypeArray_size 
+		(*this)->residualMidBits_size = flatBytesLength - 3 - 1 - MetaDataByteLength_double - exe_params->SZ_SIZE_TYPE - 4 - radExpoL - segmentL - pwrErrBoundBytesL - 4 - 8 - 1 - 8 
+				- exe_params->SZ_SIZE_TYPE - exe_params->SZ_SIZE_TYPE - exe_params->SZ_SIZE_TYPE - minLogValueSize - exe_params->SZ_SIZE_TYPE - 8 - (*this)->rtypeArray_size 
 				- minLogValueSize - (*this)->typeArray_size - (*this)->leadNumArray_size
-				- (*this)->exactMidBytes_size - pwrErrBoundBytes_size;
+				- (*this)->exactMidBytes_size - pwrErrBoundBytes_size - 1 - 1;
 		for (i = 0; i < (*this)->rtypeArray_size; i++)
 			(*this)->rtypeArray[i] = flatBytes[index++];
 	}
 	else
 	{
-		(*this)->residualMidBits_size = flatBytesLength - 3 - 1 - MetaDataByteLength - exe_params->SZ_SIZE_TYPE - 4 - radExpoL - segmentL - pwrErrBoundBytesL - 4 - 8 - 1 - 8
+		(*this)->residualMidBits_size = flatBytesLength - 3 - 1 - MetaDataByteLength_double - exe_params->SZ_SIZE_TYPE - 4 - radExpoL - segmentL - pwrErrBoundBytesL - 4 - 8 - 1 - 8
 				- exe_params->SZ_SIZE_TYPE - exe_params->SZ_SIZE_TYPE - exe_params->SZ_SIZE_TYPE - minLogValueSize - (*this)->typeArray_size
-				- (*this)->leadNumArray_size - (*this)->exactMidBytes_size - pwrErrBoundBytes_size;
+				- (*this)->leadNumArray_size - (*this)->exactMidBytes_size - pwrErrBoundBytes_size - 1 - 1;
 	}	
 
 	if(errorBoundMode >= PW_REL){
@@ -303,7 +298,10 @@ void new_TightDataPointStorageD(TightDataPointStorageD **this,
 
 	int stateNum = 2*intervals;
 	HuffmanTree* huffmanTree = createHuffmanTree(stateNum);
-	encode_withTree(huffmanTree, type, dataSeriesLength, &(*this)->typeArray, &(*this)->typeArray_size);
+	if(confparams_cpr->errorBoundMode == PW_REL && confparams_cpr->accelerate_pw_rel_compression)
+		(*this)->max_bits = encode_withTree_MSST19(huffmanTree, type, dataSeriesLength, &(*this)->typeArray, &(*this)->typeArray_size);
+	else
+		encode_withTree(huffmanTree, type, dataSeriesLength, &(*this)->typeArray, &(*this)->typeArray_size);
 	SZ_ReleaseHuffman(huffmanTree);
 		
 	(*this)->exactMidBytes = exactMidBytes;
@@ -397,7 +395,7 @@ void convertTDPStoBytes_double(TightDataPointStorageD* tdps, unsigned char* byte
 	bytes[k++] = sameByte;	//1	byte	
 	
 	convertSZParamsToBytes(confparams_cpr, &(bytes[k]));
-	k = k + MetaDataByteLength;
+	k = k + MetaDataByteLength_double;
 	
 	for(i = 0;i<exe_params->SZ_SIZE_TYPE;i++)//ST: 4 or 8 bytes
 		bytes[k++] = dsLengthBytes[i];	
@@ -428,9 +426,12 @@ void convertTDPStoBytes_double(TightDataPointStorageD* tdps, unsigned char* byte
 
 	bytes[k++] = tdps->reqLength; //1 byte
 
-	/*if(errorBoundMode>=PW_REL)
-		doubleToBytes(realPrecisionBytes, pw_relBoundRatio);
-	else*/
+	if(confparams_cpr->errorBoundMode == PW_REL && confparams_cpr->accelerate_pw_rel_compression==1)
+	{
+		bytes[k++] = tdps->plus_bits;
+		bytes[k++] = tdps->max_bits;
+	}
+
 	doubleToBytes(realPrecisionBytes, tdps->realPrecision);
 	for (i = 0; i < 8; i++)// 8
 		bytes[k++] = realPrecisionBytes[i];
@@ -496,7 +497,7 @@ void convertTDPStoBytes_double_reserve(TightDataPointStorageD* tdps, unsigned ch
 	bytes[k++] = sameByte;			//1
 
 	convertSZParamsToBytes(confparams_cpr, &(bytes[k]));
-	k = k + MetaDataByteLength;
+	k = k + MetaDataByteLength_double;
 	
 	for(i = 0;i<exe_params->SZ_SIZE_TYPE;i++)//ST
 		bytes[k++] = dsLengthBytes[i];		
@@ -591,17 +592,19 @@ void convertTDPStoFlatBytes_double(TightDataPointStorageD *tdps, unsigned char**
 		longToBytes_bigEndian(dsLengthBytes, tdps->dataSeriesLength);//8
 	
 	unsigned char sameByte = tdps->allSameData==1?(unsigned char)1:(unsigned char)0;
-	sameByte = sameByte | (confparams_cpr->szMode << 1);
+	//sameByte = sameByte | (confparams_cpr->szMode << 1);
 	if(tdps->isLossless)
 		sameByte = (unsigned char) (sameByte | 0x10);	
 	if(confparams_cpr->errorBoundMode>=PW_REL)
 		sameByte = (unsigned char) (sameByte | 0x20); // 00100000, the 5th bit
 	if(exe_params->SZ_SIZE_TYPE==8)
 		sameByte = (unsigned char) (sameByte | 0x40); // 01000000, the 6th bit
-		
+	if(confparams_cpr->errorBoundMode == PW_REL && confparams_cpr->accelerate_pw_rel_compression)
+		sameByte = (unsigned char) (sameByte | 0x08); 	
+	
 	if(tdps->allSameData==1)
 	{
-		size_t totalByteLength = 3 + 1 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + tdps->exactMidBytes_size;
+		size_t totalByteLength = 3 + 1 + MetaDataByteLength_double + exe_params->SZ_SIZE_TYPE + tdps->exactMidBytes_size;
 		*bytes = (unsigned char *)malloc(sizeof(unsigned char)*totalByteLength);
 	
 		for (i = 0; i < 3; i++)//3
@@ -609,7 +612,7 @@ void convertTDPStoFlatBytes_double(TightDataPointStorageD *tdps, unsigned char**
 		(*bytes)[k++] = sameByte;
 
 		convertSZParamsToBytes(confparams_cpr, &((*bytes)[k]));
-		k = k + MetaDataByteLength;
+		k = k + MetaDataByteLength_double;
 
 		for (i = 0; i < exe_params->SZ_SIZE_TYPE; i++)
 			(*bytes)[k++] = dsLengthBytes[i];
@@ -633,12 +636,14 @@ void convertTDPStoFlatBytes_double(TightDataPointStorageD *tdps, unsigned char**
 			minLogValueSize = 8;
 		}
 
-		size_t totalByteLength = 3 + 1 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 4 + radExpoL + segmentL + pwrBoundArrayL + 4 + 8 + 1 + 8 
+		size_t totalByteLength = 3 + 1 + MetaDataByteLength_double + exe_params->SZ_SIZE_TYPE + 4 + radExpoL + segmentL + pwrBoundArrayL + 4 + 8 + 1 + 8 
 				+ exe_params->SZ_SIZE_TYPE + exe_params->SZ_SIZE_TYPE + exe_params->SZ_SIZE_TYPE 
 				+ minLogValueSize /*max absolute log value*/
 				+ tdps->typeArray_size + tdps->leadNumArray_size
 				+ tdps->exactMidBytes_size + residualMidBitsLength + tdps->pwrErrBoundBytes_size;
-
+		if(confparams_cpr->errorBoundMode == PW_REL && confparams_cpr->accelerate_pw_rel_compression)
+			totalByteLength += (1+1); // for MSST19
+			
 		*bytes = (unsigned char *)malloc(sizeof(unsigned char)*totalByteLength);
 
 		convertTDPStoBytes_double(tdps, *bytes, dsLengthBytes, sameByte);
@@ -647,33 +652,7 @@ void convertTDPStoFlatBytes_double(TightDataPointStorageD *tdps, unsigned char**
 	}
 	else //the case with reserved value
 	{
-		size_t residualMidBitsLength = tdps->residualMidBits == NULL ? 0 : tdps->residualMidBits_size;
-		size_t segmentL = 0, radExpoL = 0, pwrBoundArrayL = 0;
-		int minLogValueSize = 0;
-		if(confparams_cpr->errorBoundMode>=PW_REL)
-		{
-			segmentL = exe_params->SZ_SIZE_TYPE;
-			radExpoL = 1;
-			pwrBoundArrayL = 4;
-			minLogValueSize = 8;
-		}
-
-		size_t totalByteLength = 3 + 1 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 4 + radExpoL + segmentL + pwrBoundArrayL + 4 + 8 + 1 + 8 
-				+ exe_params->SZ_SIZE_TYPE + exe_params->SZ_SIZE_TYPE + exe_params->SZ_SIZE_TYPE + exe_params->SZ_SIZE_TYPE + 8 + tdps->rtypeArray_size
-				+ minLogValueSize + tdps->typeArray_size + tdps->leadNumArray_size 
-				+ tdps->exactMidBytes_size + residualMidBitsLength + tdps->pwrErrBoundBytes_size;
-
-		sameByte = (unsigned char) (sameByte | 0x08); // 00001000, the 4th bit
-												// denotes whether it is
-												// with "reserved value"
-		if(confparams_cpr->errorBoundMode>=PW_REL)
-			sameByte = (unsigned char) (sameByte | 0x10); // 00001000, the 5th bit
-
-		*bytes = (unsigned char*)malloc(sizeof(unsigned char)*totalByteLength);
-		
-		convertTDPStoBytes_double_reserve(tdps, *bytes, dsLengthBytes, sameByte);
-
-		*size = totalByteLength;
+		//TODO
 	}
 }
 
@@ -687,25 +666,26 @@ void convertTDPStoFlatBytes_double_args(TightDataPointStorageD *tdps, unsigned c
 	else
 		longToBytes_bigEndian(dsLengthBytes, tdps->dataSeriesLength);//8
 		
-	unsigned char sameByte = tdps->allSameData==1?(unsigned char)1:(unsigned char)0;
-	sameByte = sameByte | (confparams_cpr->szMode << 1);
+	unsigned char sameByte = tdps->allSameData==1?(unsigned char)1:(unsigned char)0; //0000,0001
+	sameByte = sameByte | (confparams_cpr->szMode << 1); //0000,0110
 	if(tdps->isLossless)
-		sameByte = (unsigned char) (sameByte | 0x10);	
+		sameByte = (unsigned char) (sameByte | 0x10); // 0001,0000
 	if(confparams_cpr->errorBoundMode>=PW_REL)
-		sameByte = (unsigned char) (sameByte | 0x20); // 00100000, the 5th bit
+		sameByte = (unsigned char) (sameByte | 0x20); // 0010,0000, the 5th bit
 	if(exe_params->SZ_SIZE_TYPE==8)
-		sameByte = (unsigned char) (sameByte | 0x40); //01000000, the 6th bit
-
+		sameByte = (unsigned char) (sameByte | 0x40); //0100,0000, the 6th bit
+	if(confparams_cpr->errorBoundMode == PW_REL && confparams_cpr->accelerate_pw_rel_compression)
+		sameByte = (unsigned char) (sameByte | 0x08); //0000,1000, the 7th bit 	
 	if(tdps->allSameData==1)
 	{
-		size_t totalByteLength = 3 + 1 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + tdps->exactMidBytes_size;
+		size_t totalByteLength = 3 + 1 + MetaDataByteLength_double + exe_params->SZ_SIZE_TYPE + tdps->exactMidBytes_size;
 	
 		for (i = 0; i < 3; i++)//3
 			bytes[k++] = versionNumber[i];
 		bytes[k++] = sameByte;
 		
 		convertSZParamsToBytes(confparams_cpr, &(bytes[k]));
-		k = k + MetaDataByteLength;
+		k = k + MetaDataByteLength_double;
 				
 		for (i = 0; i < exe_params->SZ_SIZE_TYPE; i++)
 			bytes[k++] = dsLengthBytes[i];		
@@ -725,40 +705,19 @@ void convertTDPStoFlatBytes_double_args(TightDataPointStorageD *tdps, unsigned c
 			pwrBoundArrayL = 4;
 		}
 
-		size_t totalByteLength = 3 + 1 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE+ 4 + radExpoL + segmentL + pwrBoundArrayL + 4 + 8 + 1 + 8 
+		size_t totalByteLength = 3 + 1 + MetaDataByteLength_double + exe_params->SZ_SIZE_TYPE+ 4 + radExpoL + segmentL + pwrBoundArrayL + 4 + 8 + 1 + 8 
 				+ exe_params->SZ_SIZE_TYPE + exe_params->SZ_SIZE_TYPE + exe_params->SZ_SIZE_TYPE 
 				+ tdps->typeArray_size + tdps->leadNumArray_size
 				+ tdps->exactMidBytes_size + residualMidBitsLength + tdps->pwrErrBoundBytes_size;
-
+		if(confparams_cpr->errorBoundMode == PW_REL && confparams_cpr->accelerate_pw_rel_compression)
+			totalByteLength += (1+1); // for MSST19
 		convertTDPStoBytes_double(tdps, bytes, dsLengthBytes, sameByte);
 		
 		*size = totalByteLength;
 	}
 	else //the case with reserved value
 	{
-		size_t residualMidBitsLength = tdps->residualMidBits == NULL ? 0 : tdps->residualMidBits_size;
-		size_t segmentL = 0, radExpoL = 0, pwrBoundArrayL = 0;
-		if(confparams_cpr->errorBoundMode>=PW_REL)
-		{
-			segmentL = exe_params->SZ_SIZE_TYPE;
-			radExpoL = 1;
-			pwrBoundArrayL = 4;
-		}
-
-		size_t totalByteLength = 3 + 1 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 4 + radExpoL + segmentL + pwrBoundArrayL + 4 + 8 + 1 + 8 
-				+ exe_params->SZ_SIZE_TYPE + exe_params->SZ_SIZE_TYPE + exe_params->SZ_SIZE_TYPE + exe_params->SZ_SIZE_TYPE + 8 + tdps->rtypeArray_size
-				+ tdps->typeArray_size + tdps->leadNumArray_size 
-				+ tdps->exactMidBytes_size + residualMidBitsLength + tdps->pwrErrBoundBytes_size;
-
-		sameByte = (unsigned char) (sameByte | 0x08); // 00001000, the 4th bit
-												// denotes whether it is
-												// with "reserved value"
-		if(confparams_cpr->errorBoundMode>=PW_REL)
-			sameByte = (unsigned char) (sameByte | 0x10); // 00010000, the 5th bit
-		
-		convertTDPStoBytes_double_reserve(tdps, bytes, dsLengthBytes, sameByte);
-
-		*size = totalByteLength;
+		//TODO
 	}
 }
 

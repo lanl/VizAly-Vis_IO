@@ -58,6 +58,12 @@ double computeABSErrBoundFromPSNR(double psnr, double threshold, double value_ra
 	double v3 = pow(10, v2);
 	return value_range * v3;
 } 
+
+double computeABSErrBoundFromNORM_ERR(double normErr, size_t nbEle)
+{
+	return sqrt(3.0/nbEle)*normErr;
+} 
+
  
 /*-------------------------------------------------------------------------*/
 /**
@@ -86,6 +92,8 @@ int SZ_ReadConf(const char* sz_cfgFile) {
 	else //=0
 		sysEndianType = BIG_ENDIAN_SYSTEM;
     
+    confparams_cpr->plus_bits = 3;
+    
     if(sz_cfgFile == NULL)
     {
 		dataEndianType = LITTLE_ENDIAN_DATA;
@@ -112,6 +120,7 @@ int SZ_ReadConf(const char* sz_cfgFile) {
 		confparams_cpr->psnr = 90;
 		confparams_cpr->absErrBound = 1E-4;
 		confparams_cpr->relBoundRatio = 1E-4;
+		confparams_cpr->accelerate_pw_rel_compression = 1;
 		
 		confparams_cpr->pw_relBoundRatio = 1E-3;
 		confparams_cpr->segment_size = 36;
@@ -120,7 +129,9 @@ int SZ_ReadConf(const char* sz_cfgFile) {
 		
 		confparams_cpr->snapshotCmprStep = 5;
 		
-		sz_with_regression = SZ_WITH_LINEAR_REGRESSION;
+		confparams_cpr->withRegression = SZ_WITH_LINEAR_REGRESSION;
+	
+		confparams_cpr->randomAccess = 0; //0: no random access , 1: support random access
 	
 		return SZ_SCES;
 	}
@@ -160,13 +171,15 @@ int SZ_ReadConf(const char* sz_cfgFile) {
 		confparams_cpr->sol_ID = SZ;
 	else if(strcmp(sol_name, "PASTRI")==0)
 		confparams_cpr->sol_ID = PASTRI;
+	else if(strcmp(sol_name, "SZ_Transpose")==0)
+		confparams_cpr->sol_ID = SZ_Transpose;
 	else{
-		printf("[SZ] Error: wrong solution name (please check sz.config file)\n");
+		printf("[SZ] Error: wrong solution name (please check sz.config file), sol=%s\n", sol_name);
 		iniparser_freedict(ini);
 		return SZ_NSCS;
 	}
 	
-	if(confparams_cpr->sol_ID==SZ)
+	if(confparams_cpr->sol_ID==SZ || confparams_cpr->sol_ID==SZ_Transpose)
 	{
 		int max_quant_intervals = iniparser_getint(ini, "PARAMETER:max_quant_intervals", 65536);
 		confparams_cpr->max_quant_intervals = max_quant_intervals;
@@ -234,9 +247,9 @@ int SZ_ReadConf(const char* sz_cfgFile) {
 		
 		modeBuf = iniparser_getstring(ini, "PARAMETER:withLinearRegression", "YES");
 		if(strcmp(modeBuf, "YES")==0 || strcmp(modeBuf, "yes")==0)
-			sz_with_regression = SZ_WITH_LINEAR_REGRESSION;
+			confparams_cpr->withRegression = SZ_WITH_LINEAR_REGRESSION;
 		else
-			sz_with_regression = SZ_NO_REGRESSION;
+			confparams_cpr->withRegression = SZ_NO_REGRESSION;
 		
 		modeBuf = iniparser_getstring(ini, "PARAMETER:gzipMode", "Gzip_BEST_SPEED");
 		if(modeBuf==NULL)
@@ -282,6 +295,8 @@ int SZ_ReadConf(const char* sz_cfgFile) {
 			return SZ_NSCS;
 		}		
 		
+		confparams_cpr->randomAccess = (int)iniparser_getint(ini, "PARAMETER:randomAccess", 0);
+		
 		//TODO
 		confparams_cpr->snapshotCmprStep = (int)iniparser_getint(ini, "PARAMETER:snapshotCmprStep", 5);
 				
@@ -295,6 +310,8 @@ int SZ_ReadConf(const char* sz_cfgFile) {
 		else if(strcmp(errBoundMode,"ABS")==0||strcmp(errBoundMode,"abs")==0)
 			confparams_cpr->errorBoundMode=ABS;
 		else if(strcmp(errBoundMode, "REL")==0||strcmp(errBoundMode,"rel")==0)
+			confparams_cpr->errorBoundMode=REL;
+		else if(strcmp(errBoundMode, "VR_REL")==0||strcmp(errBoundMode, "vr_rel")==0)
 			confparams_cpr->errorBoundMode=REL;
 		else if(strcmp(errBoundMode, "ABS_AND_REL")==0||strcmp(errBoundMode, "abs_and_rel")==0)
 			confparams_cpr->errorBoundMode=ABS_AND_REL;
@@ -312,6 +329,8 @@ int SZ_ReadConf(const char* sz_cfgFile) {
 			confparams_cpr->errorBoundMode=REL_AND_PW_REL;
 		else if(strcmp(errBoundMode, "REL_OR_PW_REL")==0||strcmp(errBoundMode, "rel_or_pw_rel")==0)
 			confparams_cpr->errorBoundMode=REL_OR_PW_REL;
+		else if(strcmp(errBoundMode, "NORM")==0||strcmp(errBoundMode, "norm")==0)
+			confparams_cpr->errorBoundMode=NORM;
 		else
 		{
 			printf("[SZ] Error: Wrong error bound mode (please check sz.config file)\n");
@@ -322,8 +341,10 @@ int SZ_ReadConf(const char* sz_cfgFile) {
 		confparams_cpr->absErrBound = (double)iniparser_getdouble(ini, "PARAMETER:absErrBound", 0);
 		confparams_cpr->relBoundRatio = (double)iniparser_getdouble(ini, "PARAMETER:relBoundRatio", 0);
 		confparams_cpr->psnr = (double)iniparser_getdouble(ini, "PARAMETER:psnr", 0);
+		confparams_cpr->normErr = (double)iniparser_getdouble(ini, "PARAMETER:normErr", 0);
 		confparams_cpr->pw_relBoundRatio = (double)iniparser_getdouble(ini, "PARAMETER:pw_relBoundRatio", 0);
 		confparams_cpr->segment_size = (int)iniparser_getint(ini, "PARAMETER:segment_size", 0);
+		confparams_cpr->accelerate_pw_rel_compression = (int)iniparser_getint(ini, "PARAMETER:accelerate_pw_rel_compression", 1);
 		
 		modeBuf = iniparser_getstring(ini, "PARAMETER:pwr_type", "MIN");
 		
@@ -392,14 +413,14 @@ void initSZ_TSC()
 {
 	sz_tsc = (sz_tsc_metadata*)malloc(sizeof(sz_tsc_metadata));
 	memset(sz_tsc, 0, sizeof(sz_tsc_metadata));
-	sprintf(sz_tsc->metadata_filename, "sz_tsc_metainfo.txt");
+	/*sprintf(sz_tsc->metadata_filename, "sz_tsc_metainfo.txt");
 	sz_tsc->metadata_file = fopen(sz_tsc->metadata_filename, "wb");
 	if (sz_tsc->metadata_file == NULL)
 	{
 		printf("Failed to open sz_tsc_metainfo.txt file for writing metainfo.\n");
 		exit(1);
 	}
-	fputs("#metadata of the time-step based compression\n", sz_tsc->metadata_file);	
+	fputs("#metadata of the time-step based compression\n", sz_tsc->metadata_file);	*/
 }
 
 /*double fabs(double value)

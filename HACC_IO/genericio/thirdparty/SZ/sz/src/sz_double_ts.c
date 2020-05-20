@@ -68,8 +68,9 @@ double realPrecision, double valueRangeSize, double medianValue_d)
 {
 	double* preStepData = (double*)(multisteps->hist_data);
 	//store the decompressed data
-	double* decData = (double*)malloc(sizeof(double)*dataLength);
-	memset(decData, 0, sizeof(double)*dataLength);
+	//double* decData = (double*)malloc(sizeof(double)*dataLength);
+	//memset(decData, 0, sizeof(double)*dataLength);
+	double* decData = preStepData;
 	
 	unsigned int quantization_intervals;
 	if(exe_params->optQuantMode==1)
@@ -132,7 +133,7 @@ double realPrecision, double valueRangeSize, double medianValue_d)
 	double interval = 2*realPrecision;
 
 	for(i=2;i<dataLength;i++)
-	{				
+	{
 		curData = spaceFillingValue[i];
 		pred = preStepData[i];
 		predAbsErr = fabs(curData - pred);	
@@ -149,7 +150,7 @@ double realPrecision, double valueRangeSize, double medianValue_d)
 				type[i] = exe_params->intvRadius-state;
 				pred = pred - state*interval;
 			}
-				
+			decData[i] = pred;	
 			continue;
 		}
 		
@@ -181,8 +182,8 @@ double realPrecision, double valueRangeSize, double medianValue_d)
 	free(lce);	
 	free(exactMidByteArray); //exactMidByteArray->array has been released in free_TightDataPointStorageF(tdps);
 		
-	memcpy(preStepData, decData, dataLength*sizeof(float)); //update the data
-	free(decData);
+	//memcpy(preStepData, decData, dataLength*sizeof(double)); //update the data
+	//free(decData);
 	
 	return tdps;
 }

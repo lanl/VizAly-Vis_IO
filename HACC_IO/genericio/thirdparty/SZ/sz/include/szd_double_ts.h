@@ -16,7 +16,7 @@ extern "C" {
 
 #include "TightDataPointStorageD.h"
 
-void decompressDataSeries_double_1D_ts(double** data, size_t dataSeriesLength, sz_multisteps* multisteps, TightDataPointStorageD* tdps);
+void decompressDataSeries_double_1D_ts(double** data, size_t dataSeriesLength, double* hist_data, TightDataPointStorageD* tdps);
 
 #ifdef __cplusplus
 }

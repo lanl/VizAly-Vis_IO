@@ -16,7 +16,7 @@ extern "C" {
 
 #include "TightDataPointStorageF.h"
 
-void decompressDataSeries_float_1D_ts(float** data, size_t dataSeriesLength, sz_multisteps* multisteps, TightDataPointStorageF* tdps);
+void decompressDataSeries_float_1D_ts(float** data, size_t dataSeriesLength, float* hist_data, TightDataPointStorageF* tdps);
 
 #ifdef __cplusplus
 }

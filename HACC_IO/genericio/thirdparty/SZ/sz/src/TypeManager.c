@@ -490,7 +490,7 @@ void decompressBitArraybySimpleLZ77(int** result, unsigned char* bytes, size_t b
 	for(i = 0;i<tmpLength;i=i+2)
 	{
 		int state = tmpResult[i];
-		int num = tmpResult[i+1];
+		size_t num = tmpResult[i+1];
 		for(j = 0;j<num;j++)
 			(*result)[k++] = state;
 	}

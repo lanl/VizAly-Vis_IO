@@ -14,6 +14,9 @@
 extern "C" {
 #endif
 
+#include <stdio.h>
+#include <stdbool.h>
+
 void compute_segment_precisions_float_1D(float *oriData, size_t dataLength, float* pwrErrBound, unsigned char* pwrErrBoundBytes, double globalPrecision);
 unsigned int optimize_intervals_float_1D_pwr(float *oriData, size_t dataLength, float* pwrErrBound);
 
@@ -47,6 +50,13 @@ size_t dataLength, double absErrBound, double relBoundRatio, double pwrErrRatio,
 void SZ_compress_args_float_NoCkRngeNoGzip_1D_pwr_pre_log(unsigned char** newByteData, float *oriData, double pwrErrRatio, size_t dataLength, size_t *outSize, float min, float max);
 void SZ_compress_args_float_NoCkRngeNoGzip_2D_pwr_pre_log(unsigned char** newByteData, float *oriData, double pwrErrRatio, size_t r1, size_t r2, size_t *outSize, float min, float max);
 void SZ_compress_args_float_NoCkRngeNoGzip_3D_pwr_pre_log(unsigned char** newByteData, float *oriData, double pwrErrRatio, size_t r1, size_t r2, size_t r3, size_t *outSize, float min, float max);
+
+void SZ_compress_args_float_NoCkRngeNoGzip_1D_pwr_pre_log_MSST19(unsigned char** newByteData, float *oriData, double pwrErrRatio, size_t dataLength, size_t *outSize, float valueRangeSize, float medianValue_f,
+																unsigned char* signs, bool* positive, float min, float max, float nearZero);
+void SZ_compress_args_float_NoCkRngeNoGzip_2D_pwr_pre_log_MSST19(unsigned char** newByteData, float *oriData, double pwrErrRatio, size_t r1, size_t r2, size_t *outSize, float valueRangeSize,
+																unsigned char* signs, bool* positive, float min, float max, float nearZero);																
+void SZ_compress_args_float_NoCkRngeNoGzip_3D_pwr_pre_log_MSST19(unsigned char** newByteData, float *oriData, double pwrErrRatio, size_t r1, size_t r2, size_t r3, size_t *outSize, float valueRangeSize, 
+																unsigned char* signs, bool* positive, float min, float max, float nearZero);
 
 #ifdef __cplusplus
 }

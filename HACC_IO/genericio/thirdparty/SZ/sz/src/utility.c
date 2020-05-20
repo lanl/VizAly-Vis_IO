@@ -156,15 +156,14 @@ float calculate_delta_t(size_t size){
 int is_lossless_compressed_data(unsigned char* compressedBytes, size_t cmpSize)
 {
 #if ZSTD_VERSION_NUMBER >= 10300
-	int frameContentSize = ZSTD_getFrameContentSize(compressedBytes, cmpSize);
+	unsigned long long frameContentSize = ZSTD_getFrameContentSize(compressedBytes, cmpSize);
 	if(frameContentSize != ZSTD_CONTENTSIZE_ERROR)
 		return ZSTD_COMPRESSOR;
 #else
-	int frameContentSize = ZSTD_getDecompressedSize(compressedBytes, cmpSize);
+	unsigned long long frameContentSize = ZSTD_getDecompressedSize(compressedBytes, cmpSize);
 	if(frameContentSize != 0)
 		return ZSTD_COMPRESSOR;
 #endif
-	
 	int flag = isZlibFormat(compressedBytes[0], compressedBytes[1]);
 	if(flag)
 		return GZIP_COMPRESSOR;
@@ -182,7 +181,10 @@ unsigned long sz_lossless_compress(int losslessCompressor, int level, unsigned c
 		outSize = zlib_compress5(data, dataLength, compressBytes, level);
 		break;
 	case ZSTD_COMPRESSOR:
-		estimatedCompressedSize = dataLength*1.2;
+		if(dataLength < 100) 
+			estimatedCompressedSize = 200;
+		else
+			estimatedCompressedSize = dataLength*1.2;
 		*compressBytes = (unsigned char*)malloc(estimatedCompressedSize);
 		outSize = ZSTD_compress(*compressBytes, estimatedCompressedSize, data, dataLength, level); //default setting of level is 3
 		break;
@@ -229,4 +231,421 @@ unsigned long sz_lossless_decompress65536bytes(int losslessCompressor, unsigned 
 		printf("Error: Unrecognized lossless compressor\n");
 	}
 	return outSize;
+}
+
+void* detransposeData(void* data, int dataType, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1)
+{
+	size_t len = computeDataLength(r5, r4, r3, r2, r1);
+	int dim = computeDimension(r5, r4, r3, r2, r1);
+	if(dataType == SZ_FLOAT)
+	{
+		float* ori_data = data;
+		float* new_data = (float*)malloc(sizeof(float)*len);
+		if(dim==1)
+		{
+			memcpy(new_data, ori_data, sizeof(float)*len);
+			return new_data;			
+		}
+		else if(dim==2)
+		{
+			size_t i, j, s = 0;
+			for(i=0;i<r2;i++)
+				for(j=0;j<r1;j++)
+				{
+					//size_t s = i*r1+j;
+					size_t t = j*r2+i;
+					new_data[t] = ori_data[s++];					
+				}
+		}
+		else if(dim==3)
+		{
+			size_t i, j, k, s = 0;
+			size_t B = r1*r2;
+			for(i=0;i<r2;i++)
+				for(j=0;j<r1;j++)
+					for(k=0;k<r3;k++)
+					{
+						size_t t = k*B+i*r1+j;
+						new_data[t] = ori_data[s++];
+					}
+		}
+		else if(dim==4)
+		{
+			size_t i, j, k, w, s = 0;
+			size_t C = r2*r1;
+			size_t B = r3*C;
+			for(i=0;i<r3;i++)
+				for(j=0;j<r2;j++)
+					for(k=0;k<r1;k++)
+						for(w=0;w<r4;w++)
+						{
+							size_t t = w*B+i*C+j*r1+k;
+							new_data[t] = ori_data[s++];
+						}
+		}
+		return new_data;
+	}
+	else if(dataType == SZ_DOUBLE)
+	{
+		double* ori_data = data;
+		double* new_data = (double*)malloc(sizeof(double)*len);
+		if(dim==1)
+		{
+			memcpy(new_data, ori_data, sizeof(double)*len);
+			return new_data;			
+		}
+		else if(dim==2)
+		{
+			size_t i, j, s = 0;
+			for(i=0;i<r2;i++)
+				for(j=0;j<r1;j++)
+				{
+					//size_t s = i*r1+j;
+					size_t t = j*r2+i;
+					new_data[t] = ori_data[s++];					
+				}
+		}
+		else if(dim==3)
+		{
+			size_t i, j, k, s = 0;
+			size_t B = r1*r2;
+			for(i=0;i<r2;i++)
+				for(j=0;j<r1;j++)
+					for(k=0;k<r3;k++)
+					{
+						size_t t = k*B+i*r1+j;
+						new_data[t] = ori_data[s++];
+					}
+		}
+		else if(dim==4)
+		{
+			size_t i, j, k, w, s = 0;
+			size_t C = r2*r1;
+			size_t B = r3*C;
+			for(i=0;i<r3;i++)
+				for(j=0;j<r2;j++)
+					for(k=0;k<r1;k++)
+						for(w=0;w<r4;w++)
+						{
+							size_t t = w*B+i*C+j*r1+k;
+							new_data[t] = ori_data[s++];
+						}
+		}
+		return new_data;		
+	}
+	else if(dataType == SZ_UINT16)
+	{
+		uint16_t* ori_data = data;
+		uint16_t* new_data = (uint16_t*)malloc(sizeof(uint16_t)*len);
+		if(dim==1)
+		{
+			memcpy(new_data, ori_data, sizeof(uint16_t)*len);
+			return new_data;			
+		}
+		else if(dim==2)
+		{
+			size_t i, j, s = 0;
+			for(i=0;i<r2;i++)
+				for(j=0;j<r1;j++)
+				{
+					//size_t s = i*r1+j;
+					size_t t = j*r2+i;
+					new_data[t] = ori_data[s++];					
+				}
+		}
+		else if(dim==3)
+		{
+			size_t i, j, k, s = 0;
+			size_t B = r1*r2;
+			for(i=0;i<r2;i++)
+				for(j=0;j<r1;j++)
+					for(k=0;k<r3;k++)
+					{
+						size_t t = k*B+i*r1+j;
+						new_data[t] = ori_data[s++];
+					}
+		}
+		else if(dim==4)
+		{
+			size_t i, j, k, w, s = 0;
+			size_t C = r2*r1;
+			size_t B = r3*C;
+			for(i=0;i<r3;i++)
+				for(j=0;j<r2;j++)
+					for(k=0;k<r1;k++)
+						for(w=0;w<r4;w++)
+						{
+							size_t t = w*B+i*C+j*r1+k;
+							new_data[t] = ori_data[s++];
+						}
+		}
+		return new_data;				
+	}
+	else if(dataType == SZ_INT16)
+	{
+		int16_t* ori_data = data;
+		int16_t* new_data = (int16_t*)malloc(sizeof(int16_t)*len);
+		if(dim==1)
+		{
+			memcpy(new_data, ori_data, sizeof(int16_t)*len);
+			return new_data;			
+		}
+		else if(dim==2)
+		{
+			size_t i, j, s = 0;
+			for(i=0;i<r2;i++)
+				for(j=0;j<r1;j++)
+				{
+					//size_t s = i*r1+j;
+					size_t t = j*r2+i;
+					new_data[t] = ori_data[s++];					
+				}
+		}
+		else if(dim==3)
+		{
+			size_t i, j, k, s = 0;
+			size_t B = r1*r2;
+			for(i=0;i<r2;i++)
+				for(j=0;j<r1;j++)
+					for(k=0;k<r3;k++)
+					{
+						size_t t = k*B+i*r1+j;
+						new_data[t] = ori_data[s++];
+					}
+		}
+		else if(dim==4)
+		{
+			size_t i, j, k, w, s = 0;
+			size_t C = r2*r1;
+			size_t B = r3*C;
+			for(i=0;i<r3;i++)
+				for(j=0;j<r2;j++)
+					for(k=0;k<r1;k++)
+						for(w=0;w<r4;w++)
+						{
+							size_t t = w*B+i*C+j*r1+k;
+							new_data[t] = ori_data[s++];
+						}
+		}
+		return new_data;			
+	}
+	else
+	{
+		return NULL;
+	}	
+}
+
+void* transposeData(void* data, int dataType, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1)
+{
+	size_t len = computeDataLength(r5, r4, r3, r2, r1);
+	int dim = computeDimension(r5, r4, r3, r2, r1);
+	if(dataType == SZ_FLOAT)
+	{
+		float* ori_data = data;
+		float* new_data = (float*)malloc(sizeof(float)*len);
+		if(dim==1)
+		{
+			memcpy(new_data, ori_data, sizeof(float)*len);
+		}
+		else if(dim==2)
+		{
+			size_t i, j, s = 0;
+			for(i=0;i<r2;i++)
+				for(j=0;j<r1;j++)
+				{
+					size_t t = j*r2+i;
+					new_data[t] = ori_data[s++];
+				}
+		}
+		else if(dim==3)
+		{
+			size_t i, j, k, s = 0;			
+			//size_t B = r2*r1;
+			for(i=0;i<r3;i++)
+				for(j=0;j<r2;j++)
+					for(k=0;k<r1;k++)
+					{
+						size_t jk = j*r1+k;
+						//size_t s = i*B+jk;
+						size_t t = r3*jk+i;
+						new_data[t] = ori_data[s++];
+					}
+		}
+		else if(dim==4)
+		{
+			size_t C = r2*r1;
+			//size_t B = r3*C;
+			size_t D = C*r4;
+			size_t i, j, k, w, s = 0;			
+			for(i=0;i<r4;i++)
+				for(j=0;j<r3;j++)
+					for(k=0;k<r2;k++)
+						for(w=0;w<r1;w++)
+						{
+							size_t kw = k*r1+w;
+							//size_t s = i*B+j*C+kw;
+							size_t t = j*D+r4*kw+i;
+							new_data[t] = ori_data[s++];
+						}
+		}
+		return new_data;
+	}
+	else if(dataType == SZ_DOUBLE)
+	{
+		double* ori_data = data;
+		double* new_data = (double*)malloc(sizeof(double)*len);
+		if(dim==1)
+		{
+			memcpy(new_data, ori_data, sizeof(double)*len);
+		}
+		else if(dim==2)
+		{
+			size_t i, j, s = 0;
+			for(i=0;i<r2;i++)
+				for(j=0;j<r1;j++)
+				{
+					size_t t = j*r2+i;
+					new_data[t] = ori_data[s++];
+				}
+		}
+		else if(dim==3)
+		{
+			size_t i, j, k, s = 0;			
+			//size_t B = r2*r1;
+			for(i=0;i<r3;i++)
+				for(j=0;j<r2;j++)
+					for(k=0;k<r1;k++)
+					{
+						size_t jk = j*r1+k;
+						//size_t s = i*B+jk;
+						size_t t = r3*jk+i;
+						new_data[t] = ori_data[s++];
+					}
+		}
+		else if(dim==4)
+		{
+			size_t C = r2*r1;
+			//size_t B = r3*C;
+			size_t D = C*r4;
+			size_t i, j, k, w, s = 0;			
+			for(i=0;i<r4;i++)
+				for(j=0;j<r3;j++)
+					for(k=0;k<r2;k++)
+						for(w=0;w<r1;w++)
+						{
+							size_t kw = k*r1+w;
+							//size_t s = i*B+j*C+kw;
+							size_t t = j*D+r4*kw+i;
+							new_data[t] = ori_data[s++];	
+						}
+		}
+		return new_data;	
+	}
+	else if(dataType == SZ_UINT16)
+	{
+		uint16_t* ori_data = data;
+		uint16_t* new_data = (uint16_t*)malloc(sizeof(uint16_t)*len);
+		if(dim==1)
+		{
+			memcpy(new_data, ori_data, sizeof(uint16_t)*len);
+		}
+		else if(dim==2)
+		{
+			size_t i, j, s = 0;
+			for(i=0;i<r2;i++)
+				for(j=0;j<r1;j++)
+				{
+					size_t t = j*r2+i;
+					new_data[t] = ori_data[s++];
+				}
+		}
+		else if(dim==3)
+		{
+			size_t i, j, k, s = 0;			
+			//size_t B = r2*r1;
+			for(i=0;i<r3;i++)
+				for(j=0;j<r2;j++)
+					for(k=0;k<r1;k++)
+					{
+						size_t jk = j*r1+k;
+						//size_t s = i*B+jk;
+						size_t t = r3*jk+i;
+						new_data[t] = ori_data[s++];
+					}
+		}
+		else if(dim==4)
+		{
+			size_t C = r2*r1;
+			//size_t B = r3*C;
+			size_t D = C*r4;
+			size_t i, j, k, w, s = 0;			
+			for(i=0;i<r4;i++)
+				for(j=0;j<r3;j++)
+					for(k=0;k<r2;k++)
+						for(w=0;w<r1;w++)
+						{
+							size_t kw = k*r1+w;
+							//size_t s = i*B+j*C+kw;
+							size_t t = j*D+r4*kw+i;
+							new_data[t] = ori_data[s++];	
+						}
+		}
+		return new_data;		
+	}
+	else if(dataType == SZ_INT16)
+	{
+		int16_t* ori_data = data;
+		int16_t* new_data = (int16_t*)malloc(sizeof(int16_t)*len);
+		if(dim==1)
+		{
+			memcpy(new_data, ori_data, sizeof(int16_t)*len);
+		}
+		else if(dim==2)
+		{
+			size_t i, j, s = 0;
+			for(i=0;i<r2;i++)
+				for(j=0;j<r1;j++)
+				{
+					size_t t = j*r2+i;
+					new_data[t] = ori_data[s++];
+				}
+		}
+		else if(dim==3)
+		{
+			size_t i, j, k, s = 0;			
+			//size_t B = r2*r1;
+			for(i=0;i<r3;i++)
+				for(j=0;j<r2;j++)
+					for(k=0;k<r1;k++)
+					{
+						size_t jk = j*r1+k;
+						//size_t s = i*B+jk;
+						size_t t = r3*jk+i;
+						new_data[t] = ori_data[s++];
+					}
+		}
+		else if(dim==4)
+		{
+			size_t C = r2*r1;
+			//size_t B = r3*C;
+			size_t D = C*r4;
+			size_t i, j, k, w, s = 0;			
+			for(i=0;i<r4;i++)
+				for(j=0;j<r3;j++)
+					for(k=0;k<r2;k++)
+						for(w=0;w<r1;w++)
+						{
+							size_t kw = k*r1+w;
+							//size_t s = i*B+j*C+kw;
+							size_t t = j*D+r4*kw+i;
+							new_data[t] = ori_data[s++];	
+						}
+		}
+		return new_data;		
+	}	
+	else
+	{
+		printf("Error. transpose data doesn't support data type %d\n", dataType);
+		return NULL;
+	}
 }

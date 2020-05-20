@@ -1,6 +1,6 @@
 /**
  *  @file sz_float_pwr.c
- *  @author Sheng Di
+ *  @author Sheng Di, Dingwen Tao, Xin Liang, Xiangyu Zou, Tao Lu, Wen Xia, Xuan Wang, Weizhe Zhang
  *  @date Aug, 2016
  *  @brief SZ_Init, Compression and Decompression functions
  * This file contains the compression/decompression functions related to point-wise relative errors
@@ -1776,8 +1776,8 @@ size_t dataLength, double absErrBound, double relBoundRatio, double pwrErrRatio,
 
         convertTDPStoFlatBytes_float(tdps, newByteData, outSize);
 
-        if(*outSize>dataLength*sizeof(float))
-                SZ_compress_args_float_StoreOriData(oriData, dataLength+2, tdps, newByteData, outSize);
+        if(*outSize>3 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 1 + sizeof(float)*dataLength)
+                SZ_compress_args_float_StoreOriData(oriData, dataLength, newByteData, outSize);
 
         free_TightDataPointStorageF(tdps);
 }
@@ -1828,7 +1828,7 @@ void SZ_compress_args_float_NoCkRngeNoGzip_1D_pwr_pre_log(unsigned char** newByt
     if(!positive){
 	    unsigned char * comp_signs;
 		// compress signs
-		unsigned long signSize = sz_lossless_compress(confparams_cpr->losslessCompressor, confparams_cpr->gzipMode, signs, dataLength, &comp_signs);
+		unsigned long signSize = sz_lossless_compress(ZSTD_COMPRESSOR, 3, signs, dataLength, &comp_signs);
 		tdps->pwrErrBoundBytes = comp_signs;
 		tdps->pwrErrBoundBytes_size = signSize;
 	}
@@ -1839,8 +1839,8 @@ void SZ_compress_args_float_NoCkRngeNoGzip_1D_pwr_pre_log(unsigned char** newByt
 	free(signs);
 
     convertTDPStoFlatBytes_float(tdps, newByteData, outSize);
-    if(*outSize>dataLength*sizeof(float))
-            SZ_compress_args_float_StoreOriData(oriData, dataLength+2, tdps, newByteData, outSize);
+    if(*outSize>3 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 1 + sizeof(float)*dataLength)
+            SZ_compress_args_float_StoreOriData(oriData, dataLength, newByteData, outSize);
 
     free_TightDataPointStorageF(tdps);
 }
@@ -1890,7 +1890,7 @@ void SZ_compress_args_float_NoCkRngeNoGzip_2D_pwr_pre_log(unsigned char** newByt
     if(!positive){
 	    unsigned char * comp_signs;
 		// compress signs
-		unsigned long signSize = sz_lossless_compress(confparams_cpr->losslessCompressor, confparams_cpr->gzipMode, signs, dataLength, &comp_signs);
+		unsigned long signSize = sz_lossless_compress(ZSTD_COMPRESSOR, 3, signs, dataLength, &comp_signs);
 		tdps->pwrErrBoundBytes = comp_signs;
 		tdps->pwrErrBoundBytes_size = signSize;
 	}
@@ -1901,8 +1901,8 @@ void SZ_compress_args_float_NoCkRngeNoGzip_2D_pwr_pre_log(unsigned char** newByt
 	free(signs);
 
     convertTDPStoFlatBytes_float(tdps, newByteData, outSize);
-    if(*outSize>dataLength*sizeof(float))
-            SZ_compress_args_float_StoreOriData(oriData, dataLength+2, tdps, newByteData, outSize);
+    if(*outSize>3 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 1 + sizeof(float)*dataLength)
+            SZ_compress_args_float_StoreOriData(oriData, dataLength, newByteData, outSize);
 
     free_TightDataPointStorageF(tdps);
 }
@@ -1952,6 +1952,78 @@ void SZ_compress_args_float_NoCkRngeNoGzip_3D_pwr_pre_log(unsigned char** newByt
     if(!positive){
 	    unsigned char * comp_signs;
 		// compress signs
+		unsigned long signSize = sz_lossless_compress(ZSTD_COMPRESSOR, 3, signs, dataLength, &comp_signs);
+		tdps->pwrErrBoundBytes = comp_signs;
+		tdps->pwrErrBoundBytes_size = signSize;
+	}
+	else{
+		tdps->pwrErrBoundBytes = NULL;
+		tdps->pwrErrBoundBytes_size = 0;
+	}
+	free(signs);
+
+    convertTDPStoFlatBytes_float(tdps, newByteData, outSize);
+    if(*outSize>3 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 1 + sizeof(float)*dataLength)
+            SZ_compress_args_float_StoreOriData(oriData, dataLength, newByteData, outSize);
+
+    free_TightDataPointStorageF(tdps);
+}
+
+
+void SZ_compress_args_float_NoCkRngeNoGzip_1D_pwr_pre_log_MSST19(unsigned char** newByteData, float *oriData, double pwrErrRatio, size_t dataLength, size_t *outSize, float valueRangeSize, float medianValue_f,
+																unsigned char* signs, bool* positive, float min, float max, float nearZero){
+	float multiplier = pow((1+pwrErrRatio), -3.0001);
+	for(int i=0; i<dataLength; i++){
+		if(oriData[i] == 0){
+			oriData[i] = nearZero * multiplier;
+		}
+	}
+
+	float median_log = sqrt(fabs(nearZero * max));
+
+	TightDataPointStorageF* tdps = SZ_compress_float_1D_MDQ_MSST19(oriData, dataLength, pwrErrRatio, valueRangeSize, median_log);
+
+	tdps->minLogValue = nearZero / ((1+pwrErrRatio)*(1+pwrErrRatio));
+	if(!(*positive)){
+		unsigned char * comp_signs;
+		// compress signs
+		unsigned long signSize = sz_lossless_compress(ZSTD_COMPRESSOR, 3, signs, dataLength, &comp_signs);
+		tdps->pwrErrBoundBytes = comp_signs;
+		tdps->pwrErrBoundBytes_size = signSize;
+	}
+	else{
+		tdps->pwrErrBoundBytes = NULL;
+		tdps->pwrErrBoundBytes_size = 0;
+	}
+	free(signs);
+
+	convertTDPStoFlatBytes_float(tdps, newByteData, outSize);
+	if(*outSize>3 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 1 + sizeof(float)*dataLength)
+		SZ_compress_args_float_StoreOriData(oriData, dataLength, newByteData, outSize);
+
+	free_TightDataPointStorageF(tdps);
+}
+
+void SZ_compress_args_float_NoCkRngeNoGzip_2D_pwr_pre_log_MSST19(unsigned char** newByteData, float *oriData, double pwrErrRatio, size_t r1, size_t r2, size_t *outSize, float valueRangeSize,
+																unsigned char* signs, bool* positive, float min, float max, float nearZero){
+
+	size_t dataLength = r1 * r2;
+
+	float multiplier = pow((1+pwrErrRatio), -3.0001);
+	for(int i=0; i<dataLength; i++){
+		if(oriData[i] == 0){
+			oriData[i] = nearZero * multiplier;
+		}
+	}
+
+	float median_log = sqrt(fabs(nearZero * max));
+
+    TightDataPointStorageF* tdps = SZ_compress_float_2D_MDQ_MSST19(oriData, r1, r2, pwrErrRatio, valueRangeSize, median_log);
+    tdps->minLogValue = nearZero / ((1+pwrErrRatio)*(1+pwrErrRatio));
+
+    if(!*positive){
+	    unsigned char * comp_signs;
+		// compress signs
 		unsigned long signSize = sz_lossless_compress(confparams_cpr->losslessCompressor, confparams_cpr->gzipMode, signs, dataLength, &comp_signs);
 		tdps->pwrErrBoundBytes = comp_signs;
 		tdps->pwrErrBoundBytes_size = signSize;
@@ -1963,8 +2035,45 @@ void SZ_compress_args_float_NoCkRngeNoGzip_3D_pwr_pre_log(unsigned char** newByt
 	free(signs);
 
     convertTDPStoFlatBytes_float(tdps, newByteData, outSize);
-    if(*outSize>dataLength*sizeof(float))
-            SZ_compress_args_float_StoreOriData(oriData, dataLength+2, tdps, newByteData, outSize);
+    if(*outSize>3 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 1 + sizeof(float)*dataLength)
+            SZ_compress_args_float_StoreOriData(oriData, dataLength, newByteData, outSize);
 
     free_TightDataPointStorageF(tdps);
+}
+
+void SZ_compress_args_float_NoCkRngeNoGzip_3D_pwr_pre_log_MSST19(unsigned char** newByteData, float *oriData, double pwrErrRatio, size_t r1, size_t r2, size_t r3, size_t *outSize, float valueRangeSize, unsigned char* signs, bool* positive, float min, float max, float nearZero){
+
+	size_t dataLength = r1 * r2 * r3;
+
+	float multiplier = pow((1+pwrErrRatio), -3.0001);
+	for(int i=0; i<dataLength; i++){
+		if(oriData[i] == 0){
+			oriData[i] = nearZero * multiplier;
+		}
+	}
+
+	float median_log = sqrt(fabs(nearZero * max));
+
+	TightDataPointStorageF* tdps = SZ_compress_float_3D_MDQ_MSST19(oriData, r1, r2, r3, pwrErrRatio, valueRangeSize, median_log);
+	tdps->minLogValue =  nearZero / ((1+pwrErrRatio)*(1+pwrErrRatio));
+
+	if(!*positive){
+		unsigned char * comp_signs;
+		// compress signs
+		unsigned long signSize = sz_lossless_compress(confparams_cpr->losslessCompressor, confparams_cpr->gzipMode, signs, dataLength, &comp_signs);
+		tdps->pwrErrBoundBytes = comp_signs;
+		tdps->pwrErrBoundBytes_size = signSize;
+	}
+	else{
+		tdps->pwrErrBoundBytes = NULL;
+		tdps->pwrErrBoundBytes_size = 0;
+	}
+	free(signs);
+
+
+	convertTDPStoFlatBytes_float(tdps, newByteData, outSize);
+	if(*outSize>3 + MetaDataByteLength + exe_params->SZ_SIZE_TYPE + 1 + sizeof(float)*dataLength)
+		SZ_compress_args_float_StoreOriData(oriData, dataLength, newByteData, outSize);
+
+	free_TightDataPointStorageF(tdps);
 }

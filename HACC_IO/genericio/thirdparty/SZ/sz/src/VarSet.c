@@ -51,7 +51,7 @@ void free_Variable_all(SZ_Variable* v)
 	free(v);
 }
 
-void SZ_batchAddVar(char* varName, int dataType, void* data, 
+void SZ_batchAddVar(int var_id, char* varName, int dataType, void* data, 
 			int errBoundMode, double absErrBound, double relBoundRatio, double pwRelBoundRatio, 
 			size_t r5, size_t r4, size_t r3, size_t r2, size_t r1)
 {	
@@ -66,7 +66,7 @@ void SZ_batchAddVar(char* varName, int dataType, void* data,
 	
 	SZ_Variable* var = (SZ_Variable*)malloc(sizeof(SZ_Variable));
 	memset(var, 0, sizeof(SZ_Variable));
-	
+	var->var_id = var_id;
 	var->varName = (char*)malloc(strlen(varName)+1);
 	memcpy(var->varName, varName, strlen(varName)+1);
 	//var->varName = varName;
@@ -104,10 +104,38 @@ void SZ_batchAddVar(char* varName, int dataType, void* data,
 	sz_varset->lastVar = var;
 }
 
+int SZ_batchDelVar_ID(int var_id)
+{
+	int state = SZ_batchDelVar_ID_vset(sz_varset, var_id);
+	return state;
+}
+
 int SZ_batchDelVar(char* varName)
 {
 	int state = SZ_batchDelVar_vset(sz_varset, varName);
 	return state;
+}
+
+int SZ_batchDelVar_ID_vset(SZ_VarSet* vset, int var_id)
+{
+	int delSuccess = SZ_NSCS;
+	SZ_Variable* p = vset->header;
+	SZ_Variable* q = p->next;
+	while(q != NULL)
+	{
+		if(q->var_id == var_id)
+		{
+			p->next = q->next;
+			free_Variable_all(q);
+			vset->count --;
+			delSuccess = SZ_SCES;
+			break;
+		}
+		p = p->next;
+		q = q->next;	
+	}
+	
+	return delSuccess;	
 }
 
 int SZ_batchDelVar_vset(SZ_VarSet* vset, char* varName)
@@ -195,3 +223,26 @@ void free_multisteps(sz_multisteps* multisteps)
 		free(multisteps->hist_data);
 	free(multisteps);
 }
+
+inline int checkVarID(unsigned char cur_var_id, unsigned char* var_ids, int var_count)
+{
+	int j = 0;
+	for(j=0;j<var_count;j++)
+	{
+		if(var_ids[j]==cur_var_id)
+			return 1;
+	}
+	return 0;
+}
+
+SZ_Variable* SZ_getVariable(int var_id)
+{
+	SZ_Variable* p = sz_varset->header->next;
+	while(p!=NULL)
+	{
+		if(var_id == p->var_id)
+			return p;
+		p = p->next;
+	}	
+	return NULL;
+} 

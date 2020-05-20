@@ -75,16 +75,16 @@ void sz_decompress_d3_double_(unsigned char *bytes, size_t *byteLength, double *
 void sz_decompress_d4_double_(unsigned char *bytes, size_t *byteLength, double *data, size_t *r1, size_t *r2, size_t *r3, size_t *r4);
 void sz_decompress_d5_double_(unsigned char *bytes, size_t *byteLength, double *data, size_t *r1, size_t *r2, size_t *r3, size_t *r4, size_t *r5);
 
-void sz_batchaddVar_d1_float_(char* varName, int *len, float* data, int *errBoundMode, float *absErrBound, float *relBoundRatio, size_t *r1);
-void sz_batchaddvar_d2_float_(char* varName, int *len, float* data, int *errBoundMode, float *absErrBound, float *relBoundRatio, size_t *r1, size_t *r2);
-void sz_batchaddvar_d3_float_(char* varName, int *len, float* data, int *errBoundMode, float *absErrBound, float *relBoundRatio, size_t *r1, size_t *r2, size_t *r3);
-void sz_batchaddvar_d4_float_(char* varName, int *len, float* data, int *errBoundMode, float *absErrBound, float *relBoundRatio, size_t *r1, size_t *r2, size_t *r3, size_t *r4);
-void sz_batchaddvar_d5_float_(char* varName, int *len, float* data, int *errBoundMode, float *absErrBound, float *relBoundRatio, size_t *r1, size_t *r2, size_t *r3, size_t *r4, size_t *r5);
-void sz_batchaddvar_d1_double_(char* varName, int *len, double* data, int *errBoundMode, double *absErrBound, double *relBoundRatio, size_t *r1);
-void sz_batchaddvar_d2_double_(char* varName, int *len, double* data, int *errBoundMode, double *absErrBound, double *relBoundRatio, size_t *r1, size_t *r2);
-void sz_batchaddvar_d3_double_(char* varName, int *len, double* data, int *errBoundMode, double *absErrBound, double *relBoundRatio, size_t *r1, size_t *r2, size_t *r3);
-void sz_batchaddvar_d4_double_(char* varName, int *len, double* data, int *errBoundMode, double *absErrBound, double *relBoundRatio, size_t *r1, size_t *r2, size_t *r3, size_t *r4);
-void sz_batchaddvar_d5_double_(char* varName, int *len, double* data, int *errBoundMode, double *absErrBound, double *relBoundRatio, size_t *r1, size_t *r2, size_t *r3, size_t *r4, size_t *r5);
+void sz_batchaddVar_d1_float_(int var_id, char* varName, int *len, float* data, int *errBoundMode, float *absErrBound, float *relBoundRatio, size_t *r1);
+void sz_batchaddvar_d2_float_(int var_id, char* varName, int *len, float* data, int *errBoundMode, float *absErrBound, float *relBoundRatio, size_t *r1, size_t *r2);
+void sz_batchaddvar_d3_float_(int var_id, char* varName, int *len, float* data, int *errBoundMode, float *absErrBound, float *relBoundRatio, size_t *r1, size_t *r2, size_t *r3);
+void sz_batchaddvar_d4_float_(int var_id, char* varName, int *len, float* data, int *errBoundMode, float *absErrBound, float *relBoundRatio, size_t *r1, size_t *r2, size_t *r3, size_t *r4);
+void sz_batchaddvar_d5_float_(int var_id, char* varName, int *len, float* data, int *errBoundMode, float *absErrBound, float *relBoundRatio, size_t *r1, size_t *r2, size_t *r3, size_t *r4, size_t *r5);
+void sz_batchaddvar_d1_double_(int var_id, char* varName, int *len, double* data, int *errBoundMode, double *absErrBound, double *relBoundRatio, size_t *r1);
+void sz_batchaddvar_d2_double_(int var_id, char* varName, int *len, double* data, int *errBoundMode, double *absErrBound, double *relBoundRatio, size_t *r1, size_t *r2);
+void sz_batchaddvar_d3_double_(int var_id, char* varName, int *len, double* data, int *errBoundMode, double *absErrBound, double *relBoundRatio, size_t *r1, size_t *r2, size_t *r3);
+void sz_batchaddvar_d4_double_(int var_id, char* varName, int *len, double* data, int *errBoundMode, double *absErrBound, double *relBoundRatio, size_t *r1, size_t *r2, size_t *r3, size_t *r4);
+void sz_batchaddvar_d5_double_(int var_id, char* varName, int *len, double* data, int *errBoundMode, double *absErrBound, double *relBoundRatio, size_t *r1, size_t *r2, size_t *r3, size_t *r4, size_t *r5);
 void sz_batchdelvar_c_(char* varName, int *len, int *errState);
 void sz_batch_compress_c_(unsigned char* bytes, size_t *outSize);
 void sz_batch_decompress_c_(unsigned char* bytes, size_t *byteLength, int *ierr);
