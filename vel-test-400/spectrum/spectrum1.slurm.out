@@ -1,0 +1,69 @@
+Thu Apr  8 20:51:17 MDT 2021
+--------------------------------------------------------------------------
+[[20105,1],7]: A high-performance Open MPI point-to-point messaging module
+was unable to find any relevant network interfaces:
+
+Module: OpenFabrics (openib)
+  Host: cn38
+
+Another transport will be used instead, although this may result in
+lower performance.
+
+NOTE: You can disable this warning by setting the MCA parameter
+btl_base_warn_component_unused to 0.
+--------------------------------------------------------------------------
+Partition 3D: [8:4:4]
+
+Determining RPN
+RPN = 16RCBTree Force Kernel: SSE Step10
+
+------------------------------------
+boxSize:  250
+[cn38:16652] 127 more processes have sent help message help-mpi-btl-base.txt / btl:no-nics
+[cn38:16652] Set MCA parameter "orte_base_help_aggregate" to 0 to see all help / error messages
+Read 9 variables from /projects/groups/vizproject/dssdata/Exasky/vel_run/vel-test-ts-401/reduction/cbench/decompressed_files/BLOSC___m000.full.mpicosmo.401 (40801635700 bytes) in 307.527s: 126.53 MB/s [excluding header read]
+ReadParticlesGIO TotalAliveParticles 1073727134
+ala2a       max  2.921e+01 s  avg  2.853e+01 s  min  2.741e+01 s  maxrank 41  minrank 64
+ala2a      done
+alrd        max  3.368e+02 s  avg  3.368e+02 s  min  3.368e+02 s  maxrank 64  minrank 47
+alrd       done
+
+------------------------------------
+boxSize:  250
+deltaBox: 8.18452
+PXCH buffer = 2*422829796 = 806.483833 MB
+ParticleExchange2 TotalAliveParticles 1073727134
+ParticleExchange2 TotalDeadParticles  1622595382
+ParticleExchange2 MaximumParticleCount (on rank)  34047446
+Fractional Memory is 0.331525 nMax = 102699328
+
+Total alive particles = 1073727134
+sort       done
+sort        max  2.420e-06 s  avg  3.053e-07 s  min  1.937e-07 s  maxrank 69  minrank 6
+
+Initializing redistribution using a pencil layout on 128 ranks.
+distribution 1D: [128:1:1]
+distribution 3D: [8:4:4]
+distribution 2z: [16:8:1]
+distribution 2x: [1:16:8]
+distribution 2y: [16:1:8]
+cic        done
+cic         max  2.903e+00 s  avg  2.286e+00 s  min  1.797e+00 s  maxrank 13  minrank 41
+fftf       done
+fftf        max  1.567e+01 s  avg  1.453e+01 s  min  1.319e+01 s  maxrank 107  minrank 1
+	RSD los = 0
+cic        done
+cic         max  5.846e+00 s  avg  4.443e+00 s  min  3.335e+00 s  maxrank 13  minrank 41
+fftf       done
+fftf        max  1.500e+01 s  avg  1.378e+01 s  min  1.202e+01 s  maxrank 111  minrank 0
+	RSD los = 1
+cic        done
+cic         max  4.407e+00 s  avg  3.503e+00 s  min  2.623e+00 s  maxrank 13  minrank 89
+fftf       done
+fftf        max  1.503e+01 s  avg  1.414e+01 s  min  1.315e+01 s  maxrank 111  minrank 4
+	RSD los = 2
+cic        done
+cic         max  4.119e+00 s  avg  3.344e+00 s  min  2.606e+00 s  maxrank 13  minrank 40
+fftf       done
+fftf        max  1.535e+01 s  avg  1.418e+01 s  min  1.248e+01 s  maxrank 111  minrank 0
+Thu Apr  8 20:58:33 MDT 2021
