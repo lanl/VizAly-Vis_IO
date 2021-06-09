@@ -4,8 +4,7 @@
         "orig-file" : "/home/pascalgrosset/data/cosmo/vel_analysis/orig-499.haloproperties",
         "comparison-file" : "/home/pascalgrosset/data/cosmo/vel_analysis/sz_PosNoComp_vel_.01-499.haloproperties",
 
-        "comparison-variables-old" : ["fof_halo_center_x", "fof_halo_center_y", "fof_halo_center_z"],
-        "comparison-variables" : ["sod_halo_com_x", "sod_halo_com_y", "sod_halo_com_z"],
+        "comparison-variables" : ["fof_halo_center_x", "fof_halo_center_y", "fof_halo_center_z"],
         "tolerance" : 0.01
 
     },
@@ -19,7 +18,7 @@
 
     "outputs" :
     {
-        "index-file" : "indices_com_sz_PosNoComp_vel_.01.csv",
+        "index-file" : "results/indices_com_sz_PosNoComp_vel_.01-499.csv",
         "index-file-seperator" : ",",
 
 

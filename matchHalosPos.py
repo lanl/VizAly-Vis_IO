@@ -8,6 +8,7 @@ import json
 from numba import jit
 from mpi4py import MPI
 
+from utils import *
 
 """
 Number of Elements: 845185
@@ -59,33 +60,6 @@ Total number of Elements: 18446744073709551615
 
 (i=integer,f=floating point, number bits size)
 """
-
-
-def getRankSize():
-	'''Get rank and world size'''
-	comm = MPI.COMM_WORLD
-	rank = comm.Get_rank()
-	size = comm.Get_size()
-
-	return rank, size
-
-
-def readJsonFile(filename):
-	'''Read JSON file'''
-	with open(filename) as f:
-		json_data = json.load(f)
-	return json_data
-
-
-def readData(filename, variables):
-	'''Read variable'''
-	data = pygio.read_genericio(filename, variables)
-
-	vars = []
-	for var in variables:
-		vars.append( data[var] )
-	
-	return vars 
 
 
 
@@ -151,9 +125,7 @@ def match_halos_by_position(rank, orig_coord, num_orig_items, comp_coord, num_co
 
 
 def main(argv):
-	comm = MPI.COMM_WORLD
-	rank, worldSize = getRankSize()
-
+	comm, rank, worldSize = initMPI()
 	
 	json_data = readJsonFile(argv)
 
@@ -185,15 +157,11 @@ def main(argv):
 	for i in range(worldSize-1):
 		offsets.append( recvEachRank[i] + offsets[i] )
 
-
 	print("rank:", rank, "gather:",recvEachRank, " total: ",totalRead, "offsets:", offsets)
 
 
-	# initialize an array with 0
-	pos_recv = np.zeros((3, totalRead), dtype=np.float32) 
-
-
 	# Get orig Values from each rank
+	pos_recv = np.zeros((3, totalRead), dtype=np.float32) 
 	for i in range(3):
 		comm.Allgatherv([vars[i], MPI.FLOAT], [pos_recv[i], recvEachRank, offsets, MPI.FLOAT])
 	pos = np.transpose(pos_recv)

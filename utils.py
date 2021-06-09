@@ -1,6 +1,5 @@
 import numpy as np
 from numpy.lib.function_base import median
-import pygio
 import statistics
 import csv
 import numba
@@ -8,6 +7,8 @@ import sys
 import json
 from numba import jit
 from mpi4py import MPI
+
+import pygio
 
 
 def write_csv(filename, list_name, list_data):
@@ -17,6 +18,10 @@ def write_csv(filename, list_name, list_data):
 		
 		write.writerow(list_name)
 		write.writerows(list_data)
+
+
+def write_array_csv(filename, list_name, list_data):
+	np.savetxt(filename, list_data, delimiter=',', header=list_name)
 
 
 
