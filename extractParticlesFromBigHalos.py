@@ -1,0 +1,122 @@
+from utils import *
+
+"""
+particletag
+[data type] Variable name
+---------------------------------------------
+[i 64] id
+[i 64] fof_halo_tag
+
+(i=integer,f=floating point, number bits size)
+"""
+
+def getUserInput(argv):
+	haloID = -1
+	bigHaloparticleFiles = ""
+	outputFileName = "particle_list_list.csv"
+
+
+	try:
+		haloID = argv[1]
+		bigHaloparticleFiles = argv[2]
+		outputFileName = argv[3]
+	except:
+		print("Could not read in haloID and/or halo bigHaloparticleFiles file and/or output file name")
+		exit(1)
+
+	return haloID, bigHaloparticleFiles, outputFileName
+
+
+
+@jit(nopython=True)
+def find_particles(halo_tag, particles, num_elements):
+	list_of_particles = []
+
+	for i in range(num_elements):
+		localList = []
+		if particles[i][7] == halo_tag:
+			for v in range(8):
+				localList.append( particles[i][v] )
+			
+			list_of_particles.append(localList)
+
+	return list_of_particles
+	
+
+
+def main(argv):
+	# Initialize
+	comm, rank, worldSize = initMPI()
+	haloID, bigHaloparticleFiles, outputFileName = getUserInput(argv)
+
+	if rank == 0:
+		print(haloID)
+		print(bigHaloparticleFiles)
+		print(outputFileName)
+
+	# Read data per rank
+	data = readData(bigHaloparticleFiles)
+
+	# Put the data into arrays for faster access
+	_halo_particle = np.array([data[0],data[1],data[2],  data[3],data[4],data[5], data[6],data[7]])
+	halo_particle = np.transpose(_halo_particle)
+
+
+	# Find the ids of the particles in the halo
+	particleList = find_particles(int(haloID), halo_particle, len(halo_particle))
+
+	print("rank", rank, " len(particleList:", len(particleList))
+
+
+	if rank == 3:
+		write_csv(outputFileName, ["x","y","z", "vx", "vy", "vz", "id","fof_halo_tag"], particleList)
+
+	
+	# num_local_elements = len(list_of_ids)
+	# #print("rank:", rank, "  num_local_elements:", num_local_elements)
+
+
+	# # Gather the number of elements to grab from each rank
+	# gather_data = num_local_elements
+	# gather_data = comm.gather(gather_data, root=0)
+
+	# # Gather all ids on rank 0
+	# num_global_elements = 0
+	# if rank == 0:
+	# 	#print("gather_data:", gather_data)
+	# 	num_global_elements = sum(gather_data)
+	# 	#print("num_global_elements:",num_global_elements)
+
+
+
+	# offsets = []
+	# full_id_list = None
+	# if rank == 0:
+	# 	offsets.append(0)
+	# 	for i in range(worldSize-1):
+	# 		offsets.append( gather_data[i] + offsets[i] )
+	# 	full_id_list = np.empty(num_global_elements, dtype=int)
+
+	# 	#print("offsets:",offsets)
+	# 	#print("gather_data:",gather_data)
+
+	# send_buff = np.array(list_of_ids)
+	# comm.Gatherv(send_buff, [full_id_list, gather_data, offsets, MPI.LONG], root=0)
+
+
+	# # Write to file
+	# if rank == 0:
+	# 	np.savetxt(outputFileName, full_id_list, delimiter=',', fmt='%d', header="id",comments='')
+
+
+if __name__ == "__main__":
+	main(sys.argv)
+
+# mpirun -n 4 python findParticleIDs.py 944404240 /home/pascalgrosset/data/cosmo/vel_analysis/orig-499.bighaloparticles 944404240_orig.csv
+
+
+"""
+# worst small halo ID: 812471593 (53 particles)
+# worst medium halo ID: 543655151 (1616 particles)
+#worst large halo ID: 944404240 (13913 particles)
+"""

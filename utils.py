@@ -24,7 +24,6 @@ def write_array_csv(filename, list_name, list_data):
 	np.savetxt(filename, list_data, delimiter=',', header=list_name)
 
 
-
 def read_csv(filename, seperator=','):
 	with open(filename, 'r') as read_obj:
 		# pass the file object to reader() to get the reader object
