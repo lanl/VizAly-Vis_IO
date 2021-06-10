@@ -1,3 +1,4 @@
 pandas
 plotly
 numba
+mpi4py
