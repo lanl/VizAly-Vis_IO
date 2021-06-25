@@ -1,0 +1,39 @@
+{
+    "orig-files" :
+    {
+        "prefix" : "orig499",
+
+        "particle-tag" : "/projects/groups/vizproject/dssdata/Exasky/vel_run/vel-test-ts-499/analysis/halo/orig-499.haloparticletags",
+        "raw" : "/projects/groups/vizproject/dssdata/cosmo/Argonne_L360_HACC001/STEP499/m000.full.mpicosmo.499",
+
+        "halo-ids" : [812471593, 543655151, 944404240],
+        "halo-ids-name" : ["812471593__orig499", "543655151_orig499", "944404240_orig499"]
+    },
+    
+
+    "comparison-files" :
+    {
+        "prefix" : "sz_PosNoComp_vel_.01-499",
+
+        "particle-tag" : "/projects/groups/vizproject/dssdata/Exasky/vel_run/vel-test-ts-499/analysis/halo/sz_PosNoComp_vel_.01-499.haloparticletags",
+        "raw" : "/projects/groups/vizproject/dssdata/Exasky/vel_run/vel-test-ts-499/reduction/cbench/decompressed_files/sz_PosNoComp_vel_.01__m000.full.mpicosmo.499",
+
+        "halo-ids" : [812471593, 543655151, 944404240],
+        "halo-ids-name" : ["812471593__sz_PosNoComp_vel_.01-499", "543655151__sz_PosNoComp_vel_.01-499", "944404240__sz_PosNoComp_vel_.01-499"]
+    },
+
+    "env" :
+    {
+        "partition" : "galton",
+        "num-ranks" : 2,
+        "num-tasks-per-rank" : 8,
+        "email" : "pascalgrosset@lanl.gov",
+
+        "module" : "source /projects/exasky/pascal-projects/VizAly-Vis_IO/env-setup.sh",
+        "path" : "cd /projects/exasky/pascal-projects/VizAly-Vis_IO"
+    },
+
+    "extractHaloIDScript" : "wkf_extractHaloParticleIDs.py $halo-id$ $particle-tag-file$ $halo-ids-name$",
+    "extractParticles" : "wkf_extractHaloParticles.py $particle-csv-list$ $particle-file$ $halo-id$ $output-name$"
+}
+

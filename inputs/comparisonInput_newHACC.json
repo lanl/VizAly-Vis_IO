@@ -1,0 +1,28 @@
+{
+    "inputs" :
+    {
+        "orig-file" : "/home/pascalgrosset/data/cosmo/vel_analysis/new_hacc/orig-499.haloproperties",
+        "comparison-file" : "/home/pascalgrosset/data/cosmo/vel_analysis/new_hacc/sz_PosNoComp_vel_.01-499.haloproperties",
+
+        "comparison-variables" : ["fof_halo_center_x", "fof_halo_center_y", "fof_halo_center_z"],
+        "tolerance" : 0.01
+
+    },
+
+    "platform" :
+    {
+        "partition" : "",
+        "processor" : "CPU",
+        "num-mpi-ranks" : 4
+    },
+
+    "outputs" :
+    {
+        "index-file" : "results/new_Hacc_indices_com_sz_PosNoComp_vel_.01-499.csv",
+        "index-file-seperator" : ",",
+
+
+        "comparison-variables" : ["fof_halo_angmom_x", "fof_halo_angmom_y", "fof_halo_angmom_z", "fof_halo_mass"],
+        "comparison-metrics" : ["min", "max", "count", "mean", "median", "stdev", "histogram"]
+    }
+}

@@ -1,0 +1,71 @@
+{
+    "inputs" :
+    {   
+        "orig-file" : "/projects/groups/vizproject/dssdata/Exasky/vel_run/vel-test-ts-499/analysis/halo/orig-499.haloproperties",
+        "orig-particle-tag" : "/projects/groups/vizproject/dssdata/Exasky/vel_run/vel-test-ts-499/analysis/halo/orig-499.haloparticletag",
+        "orig-raw" : "/projects/groups/vizproject/dssdata/cosmo/Argonne_L360_HACC001/STEP499/m000.full.mpicosmo.499",
+        
+        "comparison-file" : "/projects/groups/vizproject/dssdata/Exasky/vel_run/vel-test-ts-499/analysis/halo/sz_PosNoComp_vel_.01-499.haloproperties",
+        "comparison-variables" : ["fof_halo_center_x", "fof_halo_center_y", "fof_halo_center_z"],
+        "tolerance" : 0.01,
+
+
+        "comparison-files" :
+        [
+            {
+                "prefix" : "sz_PosNoComp_vel_.01-499",
+                "comparison-file" : "/projects/groups/vizproject/dssdata/Exasky/vel_run/vel-test-ts-499/analysis/halo/sz_PosNoComp_vel_.01-499.haloproperties",
+                "comparison-particle-tag" : "/projects/groups/vizproject/dssdata/Exasky/vel_run/vel-test-ts-499/analysis/halo/sz_PosNoComp_vel_.01-499.haloparticletag",
+                "comparison-raw" : "/projects/groups/vizproject/dssdata/Exasky/vel_run/vel-test-ts-499/reduction/cbench/decompressed_files/sz_PosNoComp_vel_.01__m000.full.mpicosmo.499"
+            }
+        ]
+    },
+
+
+    "platform" :
+    {
+        "partition" : "galton",
+        "processor" : "CPU",
+        "num-mpi-ranks" : 8
+    },
+
+
+    "halo-filters-output" : 
+    [
+        {
+            "num-to-show" : 100,
+
+            "filter_var_name" : "fof_halo_count",
+            "filter_var_pos" : 0,
+            "filter_var_value" : 0,
+
+            "orig-output" : "results/wkf_new_hacc_largest_100_ang_mom_diff__orig-499.csv",
+            "comp-output" : "results/wkf_new_hacc_largest_100_ang_mom_diff__PosNoComp_vel_.01-499.csv"
+        },
+
+        {
+            "num-to-show" : -1,
+
+            "filter_var_name" : "fof_halo_count",
+            "filter_var_pos" : 0,
+            "filter_var_value" : 1000,
+
+            "orig-output" : "results/wkf_new_hacc_largest_above_10000_ang_mom_diff__orig-499.csv",
+            "comp-output" : "results/wkf_new_hacc_largest_above_10000_ang_mom_diff__PosNoComp_vel_.01-499.csv"
+        }
+    ],
+
+
+    "outputs" :
+    {
+        "index-file" : "results/indices_com_sz_PosNoComp_vel_.01-499.csv",
+        "index-file-seperator" : ",",
+
+
+        "comparison-variables" : ["fof_halo_angmom_x", "fof_halo_angmom_y", "fof_halo_angmom_z", "fof_halo_mass"],
+        "comparison-metrics" : ["min", "max", "count", "mean", "median", "stdev", "histogram"],
+
+
+        "halo-comparison" : ["fof_halo_count", "fof_halo_tag", "fof_halo_mass", "fof_halo_ke", "fof_halo_center_x", "fof_halo_center_y", "fof_halo_center_z", "fof_halo_angmom_x", "fof_halo_angmom_y", "fof_halo_angmom_z", "fof_halo_max_cir_vel", "fof_halo_com_x", "fof_halo_com_y", "fof_halo_com_z", "fof_halo_com_vx", "fof_halo_com_vy", "fof_halo_com_vz", "fof_halo_1D_vel_disp"]
+    }
+}

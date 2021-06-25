@@ -1,5 +1,7 @@
 *.swp
 *.pyc
+*.out
+*.old
 CMakeCache.txt
 CMakeFiles
 Makefile

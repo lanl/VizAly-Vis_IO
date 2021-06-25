@@ -18,3 +18,11 @@ A bunch of utilities to compare halos before and after compression
 2. comp_pipeline_clean : get halos filtered by largest difference
 3. findParticleIDs     : find the particle id for a selected halo
 4. extractParticles    : extract particles for that selected halo
+
+
+1. wkf_matchHalos.py   : to find matching halos
+2. wkf_haloMetrics.py  : get halos filtered by largest difference
+3. findParticleIDs     : find the particle id for a selected halo
+4. extractParticles    : extract particles for that selected halo
+
+
