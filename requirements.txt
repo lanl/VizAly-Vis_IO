@@ -1,4 +1,3 @@
 pandas
 plotly
 numpy
-csv
