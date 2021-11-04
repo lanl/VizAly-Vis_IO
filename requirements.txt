@@ -1,4 +1,4 @@
 pandas
-plotly.graph_object
+plotly
 numpy
 csv
