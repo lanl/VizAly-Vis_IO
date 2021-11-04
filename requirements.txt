@@ -1,0 +1,4 @@
+pandas
+plotly.graph_object
+numpy
+csv
