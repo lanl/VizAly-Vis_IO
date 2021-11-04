@@ -25,3 +25,5 @@ DataGenerator/dataGen
 DataGenerator/dataGenNoOct
 DataGenerator/fileReading
 DataGenerator/outputFileOct
+
+.ipynb_checkpoints
