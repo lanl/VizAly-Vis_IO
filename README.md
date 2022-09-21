@@ -5,9 +5,8 @@ VizAly is a general framework for **A**na**ly**sis and **Vi**suali**z**ation of 
 
 The focus of this repo is the Visualization and IO for HACC.
 
-=======
-
 <!-- AD/AE for submission to DRBSD22: Analyzing the Impact of Lossy Data Reduction on Volume Rendering of Cosmology Data. -->
+## Installation
 
 ### Requirements 
 
