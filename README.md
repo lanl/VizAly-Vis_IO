@@ -29,7 +29,7 @@ http://ieee-dataport.org/documents/nyx-cosmological-simulation-data
 Required modules can be installed via ` pip3 install -r requirements.txt `
 
 
-### ForeSight configurations files for compression experiments
+### Foresight configurations files for compression experiments
 
 In compression experiments, we specify the configurations, especially the absolute error bound, for each compressor and each field into a JSON file. Those JSON files are contained in **foresight_input**. For example, `nyx_img_compression_sz_abs_baryon_density.json` indicates the configuration JSON file for SZ to compress *Baryon_density*.
 
