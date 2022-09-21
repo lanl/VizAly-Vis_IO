@@ -89,6 +89,7 @@ python test_L2PIPS.py
 
 
 # Contact
+Jinzhen Wang, jinzhenw@lanl.gov
 Pascal Grosset, pascalgrosset@lanl.gov
 
 [![Build Status](https://travis-ci.org/lanl/VizAly-Vis_IO.svg?branch=master)](https://travis-ci.org/lanl/VizAly-Vis_IO)
