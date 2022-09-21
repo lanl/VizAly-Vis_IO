@@ -8,6 +8,12 @@ The focus of this repo is the Visualization and IO for HACC.
 <!-- AD/AE for submission to DRBSD22: Analyzing the Impact of Lossy Data Reduction on Volume Rendering of Cosmology Data. -->
 ## Installation
 
+<!-- **Reproductioin initiative** -->
+
+[![DOI](https://zenodo.org/badge/528606976.svg)](https://zenodo.org/badge/latestdoi/528606976) [![DOI](https://zenodo.org/badge/528893694.svg)](https://zenodo.org/badge/latestdoi/528893694)
+
+http://ieee-dataport.org/documents/nyx-cosmological-simulation-data
+
 ### Requirements 
 
 - Python 3.8
