@@ -1,0 +1,30 @@
+{
+  "name": "v9_test_rep",
+  "model_name": "v9",
+  "gpu_ids": [
+    // 2,6
+    0
+  ],
+  "mode": "IQA_test",
+  "is_train": false,
+
+  "patch_size": 224,
+//  "test_times": 256,
+
+//  "use_flip": true,
+//  "use_rot": true,
+
+  "path": {
+    // "root": "/media/data2/ww/KWOK/Competition/submit",  // the output will be in os.path.join(root, "results", name)
+    "root": "./",
+    // "saved_model": "/media/data2/ww/KWOK/Competition/submit/trained_model/IQA_v9_new_best/db_models/net_params_best.pkl",
+    "saved_model": "./models/L2PIPS/trained_model/IQA_v9_new_best/db_models/net_params_best.pkl",
+    "log": null,
+    "results_root": null
+  },
+  "datasets": {
+    // "pipal": "/media/data2/ww/KWOK/IQA_data/NTIRE2021/PIPAL_Test" // There should be a "Dis" and a "Ref" folder under "PIPAL_Test".
+    "pipal": "./"
+  }
+}
+

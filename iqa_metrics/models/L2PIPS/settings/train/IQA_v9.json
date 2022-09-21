@@ -1,0 +1,48 @@
+{
+  "name": "PIPAL_final/IQA_v9",
+  "gpu_ids": [
+    2
+  ],
+  "mode": "IQA",
+  "is_train": false,
+  "epoch": 1,
+  "base_lr": 4e-4,        // 程序内包含两部分，在每一个轮次里会先只训练全连接层、后训练全部网络。这是第一步的学习率。
+  "base_lr_step2": 1e-5,  // 训练全部网络时的学习率
+  "batch_size": 16,       // batch size
+  "patch_num": 1,         // 从每一个图片里切多少个 patch。最终数据集图片数量 = patch_num * 原始数量
+  "patch_size": 224,
+  "epochs": 100,
+  "epochs_step2": 100,     // 与上一行在一起代表两阶段分别进行多少次交叉验证
+  "test_times": 1,
+  "weight_decay": 5e-4,
+  "loss_iqa_weight": 1,
+  "dataset": "pipal",
+  "use_flip": true,
+  "use_shuffle": true,
+  "n_workers": 4,
+  "path": {
+    "root": "/media/data2/ww/KWOK/Competition/results/IQA_results",
+    "fc_model": null,
+    "fc_root": null,
+    "db_model": null,
+    "db_root": null,
+    "log": null,
+    "results_root": null
+  },
+  "datasets": {
+    "pipal": "/media/data2/ww/KWOK/IQA_data/NTIRE2021/PIPAL_Train"
+  },
+  "lr_scheme": "MultiStepLR",
+  "lr_steps": [
+    25, 50, 100
+  ],
+  "lr_steps_step2": [
+    100
+  ],
+  "lr_gamma": 0.5,
+  "phase": null,
+  "fc": null,
+  "train_index": [],
+  "test_index": []
+}
+

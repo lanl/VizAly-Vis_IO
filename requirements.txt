@@ -1,0 +1,8 @@
+torch==1.12.1
+scikit-image==0.19.3
+opencv-python==4.6.0.66
+opencv-contrib-python==4.6.0.66
+piq==0.7.0
+lmdb=1.3.0
+imageio==2.9.0
+Pillow==7.1.2

@@ -1,0 +1,50 @@
+{
+  "name": "PIPAL/Debug/IQA_v9",
+  "gpu_ids": [
+    1
+  ],
+  "mode": "IQA",
+  "is_train": false,
+  "epoch": 1,
+  "base_lr": 0.0004,
+  "base_lr_step2": 1e-05,
+  "batch_size": 16,
+  "patch_num": 1,
+  "patch_size": 224,
+  "epochs": 100,
+  "epochs_step2": 100,
+  "test_times": 1,
+  "weight_decay": 0.0005,
+  "loss_iqa_weight": 1,
+  "dataset": "pipal",
+  "use_flip": true,
+  "use_shuffle": true,
+  "n_workers": 4,
+  "path": {
+    "root": "/media/data2/ww/KWOK/Competition/results/IQA_results",
+    "fc_model": "/media/data2/ww/KWOK/Competition/results/IQA_results/results/PIPAL/Debug/IQA_v9/fc_models",
+    "fc_root": "/media/data2/ww/KWOK/Competition/results/IQA_results/results/PIPAL/Debug/IQA_v9/fc_models/net_params_best.pkl",
+    "db_model": "/media/data2/ww/KWOK/Competition/results/IQA_results/results/PIPAL/Debug/IQA_v9/db_models",
+    "db_root": "/media/data2/ww/KWOK/Competition/results/IQA_results/results/PIPAL/Debug/IQA_v9/db_models/net_params_best.pkl",
+    "log": "/media/data2/ww/KWOK/Competition/results/IQA_results/results/PIPAL/Debug/IQA_v9",
+    "results_root": "/media/data2/ww/KWOK/Competition/results/IQA_results/results/PIPAL/Debug/IQA_v9"
+  },
+  "datasets": {
+    "pipal": "/media/data2/ww/KWOK/IQA_data/NTIRE2021/PIPAL_Train"
+  },
+  "lr_scheme": "MultiStepLR",
+  "lr_steps": [
+    25,
+    50,
+    100
+  ],
+  "lr_steps_step2": [
+    100
+  ],
+  "lr_gamma": 0.5,
+  "phase": null,
+  "fc": null,
+  "train_index": [],
+  "test_index": [],
+  "timestamp": "210309-115329"
+}
