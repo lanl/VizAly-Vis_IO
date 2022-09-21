@@ -87,9 +87,6 @@ python test_L2PIPS.py
 
 **Note**: in order to run for L2PIPS, a previously trained DNN model needs to be downloaded and put into iqa_metrics/models/L2PIPS/trained_model. The trained model can be found [here](https://drive.google.com/drive/folders/1ClTLIOJrrXX5i_h-EZU9LkXEh5TDAAuc?usp=sharing).
 
-# Software Engineering
-Until a better solution is found, each subproject will exist in seperate subfolders. Please follow the guidelines for the HelloWorld project to see how to add new subprojects. Add your subproject folder in the "clean-subprojects" target to allow easy deletion of proj. Do your work in a branch too would be useful too. You can have your own branch with master, dev in your subbranch. Contact me (Pascal) for more info.
-
 
 # Contact
 Pascal Grosset, pascalgrosset@lanl.gov
