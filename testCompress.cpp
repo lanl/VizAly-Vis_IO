@@ -15,20 +15,24 @@ int main(int argc, const char* argv[])
 
     HACCDataLoader haccLoader;
 
+    int blockSize;
 
+   
 
     std::string filename = "/home/pascal/data/HACC/hydro/output_sf_l64n256_ce_fire3_cloudy/m000.full.mpicosmo.624";
-    std::cout << "f: " << filename << std::endl;
+    std::cout << "file: " << filename << std::endl;
     haccLoader.init(filename, MPI_COMM_WORLD);
     haccLoader.loadData("x");
-    std::cout << "# elements: " << haccLoader.numElements;
+    std::cout << "# elements: " << haccLoader.numElements << std::endl;
     size_t totalSize = haccLoader.numElements*sizeof(float);
 
 
+    blockSize = haccLoader.numElements;
+     if (argc == 2)
+        blockSize = std::stoi(argv[1]);
 
-
-    int blockSize = haccLoader.numElements;
-    StreamingShimComp cmpStr;
+    std::cout << "Block size: " << blockSize;
+    StreamingShimComp cmpStr; 
     //cmpStr.compress(&randomArray[0], "float", sizeof(float), dims, blockSize);
 
 
@@ -39,6 +43,8 @@ int main(int argc, const char* argv[])
     // cmpStr.setParam("compressor","BLOSC");
     size_t cmpSize = cmpStr.stmCompress((float*)haccLoader.data, "float", sizeof(float), haccLoader.numElements, blockSize);
 
+    std::cout << ", compression size: " << cmpSize;
+    std::cout << ", huffman tree ratio: " << (float)cmpStr.getHuffSize()/cmpSize;
     std::cout << ", compression ratio: " << (float)totalSize/cmpSize << std::endl;
 
     cmpStr.stmDecompressHeader();

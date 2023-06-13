@@ -1,12 +1,16 @@
 #include <iostream>
+#include <sstream>
 #include <map>
-
+#include <fstream>
 #include <stdlib.h>
 #include <fstream>
 #include <cmath>
 
-#include "sz/sz.h"
+
+
 #include "blosc.h"
+#include "sz.h"
+#include "sz_stats.h"
 
 
 //
@@ -53,6 +57,9 @@ class StreamingShimComp
     u_int32_t numWrites;
     size_t blockIndex;
 
+    std::stringstream log;
+    size_t huffmanTreeSize;
+
     std::vector<u_int32_t> blkOffset;    // in bytes
     std::vector<u_int32_t> blkCmpSize;   // in bytes       
     std::vector<u_int32_t> blkNumRows;
@@ -60,8 +67,8 @@ class StreamingShimComp
     std::map<std::string, std::string> params; // Key: <value, data type>
 
   public:
-    StreamingShimComp(){ blockIndex = 0; };
-    ~StreamingShimComp(){};
+    StreamingShimComp(){ blockIndex = 0; huffmanTreeSize = 0; };
+    ~StreamingShimComp();
 
     void setParam(std::string key, std::string val);
     size_t stmCompress(float *input, std::string dataType, size_t dataTypeSize, size_t n, int blockSize);
@@ -70,9 +77,20 @@ class StreamingShimComp
     int stmDecompressHeader();
     int stmDecompressNextBlock(void *&data);
     int stmDecompressData();
+
+    size_t getHuffSize(){ return huffmanTreeSize; }
 };
 
 
+inline ::StreamingShimComp::~StreamingShimComp()
+{ 
+    std::ofstream logFile;
+    logFile.open ("output.log");
+    logFile << log.str();
+    logFile.close();
+
+    std::cout << "huffman tree size: " << huffmanTreeSize << std::endl;
+};
 
 
 inline void StreamingShimComp::setParam(std::string key, std::string val)
@@ -177,6 +195,10 @@ inline size_t StreamingShimComp::stmCompress(float *input, std::string dataType,
         // Compress
         void *output;
         std::size_t csize = compress(&input[pos], output, dataType, dataTypeSize, numToCompress);
+
+        //log << "huffman tree size = " << sz_stat.huffmanTreeSize << " bytes " << std::endl;
+        huffmanTreeSize += sz_stat.huffmanTreeSize;
+        log << sz_stat.huffmanTreeSize << std::endl;
 
         // Write
         outputFile.write(reinterpret_cast<const char*>(output), csize);
