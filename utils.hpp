@@ -14,11 +14,14 @@ Authors:
 ================================================================================*/
 #pragma once
 
-#include <stdio.h> 
-#include <stdbool.h> 
+
 #include <string>
 #include <fstream>
+#include <sstream>
 #include <iostream>
+
+#include <stdio.h> 
+#include <stdbool.h> 
 #include <sys/stat.h>
 #include <mpi.h>
 
@@ -27,8 +30,8 @@ Authors:
 	#define mkdir(a, b) _mkdir(a)
 #endif
 
-//#include "json.hpp"
 
+/*
 
 struct stat finfo; // utility for folder checking
 
@@ -60,7 +63,7 @@ inline int createFolder(std::string folderName)
 	}
 	return 1;
 }
-
+*/
 
 //
 // Checks if file exists
@@ -131,6 +134,7 @@ inline MPI_Datatype getMPIType(std::string dataType)
 	else
         return 0;
 }
+
 
 //
 // Allocates memory based on the string size name, adds an offset
@@ -254,6 +258,7 @@ inline void minMax(T * data, size_t numElements, T &minVal, T &maxVal, T &avg)
 
 	avg = sum/numElements;
 }
+
 
 /*
 //

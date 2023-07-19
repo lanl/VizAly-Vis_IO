@@ -26,6 +26,8 @@ include_directories(${BLOSC_INCLUDE_PATH})
 
 
 
+
+
 # MPI
 find_package(MPI)
 if (MPI_FOUND)
@@ -45,6 +47,7 @@ endif()
 
 
 # GenericIO
+include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${CMAKE_SOURCE_DIR}/thirdparty/genericio)
 add_definitions(-DGENERICIO_NO_COMPRESSION)
 add_library(GenericIO STATIC "${CMAKE_SOURCE_DIR}/thirdparty/genericio/GenericIO.cxx")
@@ -54,4 +57,6 @@ install(TARGETS GenericIO DESTINATION .)
 
 
 add_executable(testC testCompress.cpp)
+
+#target_compile_definitions(testC PUBLIC OCTREE_ON)
 target_link_libraries(testC PRIVATE ${SZ_LIBRARY} ${BLOSC_LIBRARY} GenericIO)

@@ -126,7 +126,7 @@ inline int HACCDataLoader::saveInputFileParameters()
 	}
 
 
-	// Get dimensions of the input file
+	// Get dimensions of the input filecheckout
 	gioReader->readPhysOrigin(physOrigin);
     gioReader->readPhysScale(physScale);
 
@@ -149,20 +149,18 @@ inline int HACCDataLoader::saveInputFileParameters()
 }
 
 
+
 inline int HACCDataLoader::loadData(std::string paramName)
 {
 	Timer clock;
 	log.str("");
 
-	clock.start();
+	clock.start("load-data");
 	gio::GenericIO *gioReader;
 	param = paramName;
 
 	// Init GenericIO reader + open file
 	gioReader = new gio::GenericIO(comm, filename);
-	//gioReader = new gio::GenericIO(filename);
-
-
 
 
 	// Open file
@@ -177,16 +175,16 @@ inline int HACCDataLoader::loadData(std::string paramName)
 
 	log << "numRanks: " << numRanks << ", numDataRanks: " << numDataRanks << std::endl;
 
-	// Count number of elements
-	totalNumberOfElements = 0;
-	for (int i = 0; i < numDataRanks; ++i)
-		totalNumberOfElements += gioReader->readNumElems(i);
+	
 
 
 	// Read in the scalars information
 	std::vector<gio::GenericIO::VariableInfo> VI;
 	gioReader->getVariableInfo(VI);
+
+	totalNumberOfElements = gioReader->readNumElems();
 	int numVars = static_cast<int>(VI.size());
+
 
 
 	bool paramToLoad = false;
@@ -228,10 +226,6 @@ inline int HACCDataLoader::loadData(std::string paramName)
 
 
 
-
-
-
-
 	//
 	// Determine memory size and allocate memory
 	size_t maxNumElementsPerRank = 0;
@@ -252,7 +246,7 @@ inline int HACCDataLoader::loadData(std::string paramName)
 	sizePerDim[0] = numElements;	// For compression
 
 
-
+	std::cout << "!PPPPP" << std::endl;
 	
 	//
 	// Actually load the data
@@ -268,6 +262,7 @@ inline int HACCDataLoader::loadData(std::string paramName)
 		int coords[3];
 		gioReader->readCoords(coords, i);
 		log << "Coord indices: " << coords[0] << ", " << coords[1] << ", " << coords[2] << " | ";
+		std::cout << "Coord indices: " << coords[0] << ", " << coords[1] << ", " << coords[2] << " | ";
 
 		log << "coordinates: (" << (float)coords[0] / splitDims[0] * physScale[0] + physOrigin[0] << ", "
                           << (float)coords[1] / splitDims[1] * physScale[1] + physOrigin[1] << ", "
@@ -309,7 +304,9 @@ inline int HACCDataLoader::loadData(std::string paramName)
 		else if (readInData.dataType == "uint64_t")
 			gioReader->addVariable((readInData.name).c_str(), (uint64_t*)readInData.data, true);
 	
-		gioReader->readDataSection(0, Np, i, false); // reading the whole file
+		//gioReader->readDataSection(0, Np, i, false); // reading the whole file
+		gioReader->readData(i, false); // reading the whole file
+
 
 
 		if (readInData.dataType == "float")
@@ -336,7 +333,9 @@ inline int HACCDataLoader::loadData(std::string paramName)
 		
 		offset = offset + Np;
 	}
-	clock.stop();
+	clock.stop("load-data");
+
+	std::cout << "!UUUUU" << std::endl;
 
 
 	if (saveData)
@@ -388,7 +387,7 @@ inline int HACCDataLoader::writeData(std::string _filename)
   #ifndef GENERICIO_NO_MPI
 	Timer clock;
 	log.str("");
-	
+	clock.start("write-data");
 	gio::GenericIO *gioWriter;
 
 	// Create setup
@@ -450,8 +449,8 @@ inline int HACCDataLoader::writeData(std::string _filename)
 
 	MPI_Barrier(comm);
 
-	clock.stop();
-	log << "Writing data took " << clock.getDuration() << " s" << std::endl;
+	clock.stop("write-data");
+	log << "Writing data took " << clock.getDuration("write-data") << " s" << std::endl;
   #endif
 	return 1;
 }

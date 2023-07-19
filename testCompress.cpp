@@ -23,6 +23,10 @@ int main(int argc, const char* argv[])
     std::cout << "file: " << filename << std::endl;
     haccLoader.init(filename, MPI_COMM_WORLD);
     haccLoader.loadData("x");
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    std::cout << "!BBBBB" << std::endl;
     std::cout << "# elements: " << haccLoader.numElements << std::endl;
     size_t totalSize = haccLoader.numElements*sizeof(float);
 
@@ -50,6 +54,9 @@ int main(int argc, const char* argv[])
     cmpStr.stmDecompressHeader();
     //cmpStr.stmDecompressData();
 
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
     /*
     void *data;
 
@@ -62,6 +69,9 @@ int main(int argc, const char* argv[])
         delete[](float*) data;
     }
     */
+
+    MPI_Finalize();
+
     return 0;
 }
 
